@@ -1,0 +1,6 @@
+Data/
+old_Data/
+*.o
+*.so
+*.pyc
+*.*~
