@@ -251,7 +251,7 @@ def main():
 
     # Open log file
     f_log = open('%s/log.dat' % dat_dir, 'w')
-    f_log.write('time dvar')
+    f_log.write('# time dvar')
     if box.walls.alg == 'trap': f_log.write(' frac')
     if params.HYST_FLAG: f_log.write(' sense')
     f_log.write('\n')
