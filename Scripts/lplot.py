@@ -1,9 +1,17 @@
 #!/usr/bin/env python
 
-import matplotlib as mpl
-import matplotlib.pyplot as pp
-import matplotlib.mlab as mlb
+import os
+import argparse
+import subprocess
 import numpy as np
+import matplotlib as mpl
+import matplotlib.mlab as mlb
+import matplotlib.pyplot as pp
+
+styles = ['r', 'b', 'g', 'k', 'y']
+
+#mpl.rc('font', family='serif', serif='Computer Modern Roman')
+#mpl.rc('text', usetex=True)
 
 def smooth(x, w=2):
     if x.ndim != 1:
@@ -14,35 +22,41 @@ def smooth(x, w=2):
     c = np.ones(w, dtype=np.float)
     return np.convolve(c / c.sum(), s, mode='valid')
 
-mpl.rc('font', family='serif', serif='Computer Modern Roman')
-mpl.rc('text', usetex=True)
+def out_nonint(fname):
+    fname = '%s.png' % fname.rstrip('.npz')
+    pp.savefig(fname)
+    cmd = 'eog %s' % fname
+    process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+    output = process.communicate()[0]
 
-styles = ['r-', 'b-', 'g-', 'k-']
+def out_int(fname):
+    pp.show()
 
-fnames = [
-    '/home/ejm/Dropbox/Paper/Data/blank_rat_hyst_3/log.dat',
-    '/home/ejm/Dropbox/Paper/Data/traps_1_rat_hyst_3/log.dat',
-    '/home/ejm/Dropbox/Paper/Data/traps_5_rat_hyst_3/log.dat',
-    '/home/ejm/Dropbox/Paper/Data/maze_rat_hyst_5/log.dat',
-]
+out = out_nonint
 
-for i in range(len(fnames)):
-    fname = fnames[i]
-    n = np.loadtxt(fname).shape[1]
+parser = argparse.ArgumentParser(description='Plot a box log')
+parser.add_argument('d', default=[os.getcwd()], nargs='*',
+    help='the directories containing the box logs, defaults to just cwd')
+parser.add_argument('-o', '--out', default='plot', nargs='?',
+    help='the filename of the output image')
+
+args = parser.parse_args()
+
+for i in range(len(args.d)):
+    dir_name = args.d[i]
+    if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
+    fname = '%s/log.dat' % dir_name
+    n = np.loadtxt(fname, skiprows=1).shape[1]
     if n == 4:
-        r = mlb.csv2rec(fname, delimiter=' ', names=['time', 'dvar', 'frac', 'sense'])
+        r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'frac', 'sense'])
     elif n ==3:
-        r = mlb.csv2rec(fname, delimiter=' ', names=['time', 'dvar', 'sense'])
+        r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'sense'])
     else: raise Exception
     rs = smooth(np.asarray(r['sense'], dtype=np.float), 4)
     rd = smooth(np.asarray(r['dvar'], dtype=np.float), 4)
-    pp.plot(rs, rd, styles[i], lw=0.8)
+    pp.plot(rs, rd, '%s-' % styles[i], lw=0.8, label=dir_name)
 
-pp.xlabel(r'$\chi$, Chemotactic sensitivity', size=20)
-pp.ylabel(r'$\sigma$, Spatial density standard deviation', size=20)
-#pp.xlim([0.0, None])
-#pp.ylim([0.0, None])
-pp.show()
-pp.savefig('hyst.png')
-
-
+pp.xlabel(r'$\chi$, Chemotactic sensitivity', size=15)
+pp.ylabel(r'$\sigma$, Spatial density standard deviation', size=15)
+pp.legend(loc='lower right')
+out(args.out)

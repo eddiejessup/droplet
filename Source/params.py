@@ -7,7 +7,7 @@ DAT_EVERY = 2000
 DIM = 2
 DELTA_t = 0.1
 RUN_TIME_MAX = np.inf
-RANDOM_SEED = 114 # Set to None to change each run
+RANDOM_SEED = 120 # Set to None to change each run
 
 # MOTILES
 MOTILE_DENSITY = 3.5e-3
@@ -47,7 +47,7 @@ D_f = D_c
 f_SINK_RATE = c_SOURCE_RATE
 
 # WALLS
-WALL_ALG = 'traps_5'
+WALL_ALG = 'traps_1'
 ## TRAP
 TRAP_WALL_WIDTH = 10.0
 TRAP_LENGTH = 150.0
@@ -74,6 +74,4 @@ HYST_MAX_TUMBLE = 150.0
 HYST_RATE_FORCE = 0.125
 HYST_MAX_FORCE = 12000
 
-DAT_DIR = '../Data/%s_%s' % (WALL_ALG, ALG)
-if HYST_FLAG: DAT_DIR += '_hyst'
-DAT_DIR += '_5'
+DAT_DIR = '../Data/%s_%s_%s' % (WALL_ALG, ALG, RANDOM_SEED)
