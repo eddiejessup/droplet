@@ -1,6 +1,7 @@
 import os
 import sys
 import shutil
+import datetime
 import numpy as np
 import fields
 import walled_fields
@@ -269,7 +270,7 @@ def main():
         else:
             raise Exception
         hyst_sign = 1
-
+        t_tot = (2 * hyst_max) / hyst_rate
     else:
         hyst_rate, hyst_max = None, None
 
@@ -278,6 +279,8 @@ def main():
 
     print('Initialisation done!')
     t, i_t = 0.0, 0
+    
+    start_time = datetime.datetime.now()
     while t < params.RUN_TIME_MAX:
         box.iterate()
 
@@ -289,6 +292,10 @@ def main():
             if params.HYST_FLAG: f_log.write(' %f' % sense)
             f_log.write('\n')
             f_log.flush()
+
+
+        if i_t == 1000:
+            print((datetime.datetime.now() - start_time).seconds * (t_tot / t))
 
         t += params.DELTA_t
         i_t += 1
