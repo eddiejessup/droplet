@@ -20,7 +20,7 @@ def parse(fname):
     elif n ==3:
         r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'sense'])
     else: raise Exception
-    if r.shape[0] == 6001: r=r[::2]
+    if r.shape[0] in [6001, 1921]: r=r[::2]
     return r
 
 for i in range(len(args.dirs)):
