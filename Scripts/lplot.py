@@ -35,10 +35,10 @@ def out_int(fname):
 out = out_nonint
 
 parser = argparse.ArgumentParser(description='Plot a box log')
-parser.add_argument('d', default=[os.getcwd()], nargs='*',
-    help='the directories containing the box logs, defaults to just cwd')
+parser.add_argument('-d', '--dirs', default=[], nargs='*',
+    help='the directories containing the box logs')
 parser.add_argument('-f', '--files', default=[], nargs='*',
-    help='the box log files, defaults to just cwd')
+    help='the box log files')
 parser.add_argument('-o', '--out', default='plot', nargs='?',
     help='the filename of the output image')
 
@@ -60,8 +60,8 @@ for i in range(len(args.files)):
     rd = smooth(rd, 4)
     pp.plot(rs, rd, '%s-' % styles[i], lw=0.8, label=fname)
 
-for i in range(len(args.d)):
-    dir_name = args.d[i]
+for i in range(len(args.dirs)):
+    dir_name = args.dirs[i]
     if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
     fname = '%s/log.dat' % dir_name
     rs, rd = parse(fname)
