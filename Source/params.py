@@ -7,13 +7,13 @@ DAT_EVERY = 2000
 DIM = 2
 DELTA_t = 0.1
 RUN_TIME_MAX = np.inf
-RANDOM_SEED = 120 # Set to None to change each run
+RANDOM_SEED = 125 # Set to None to change each run
 
 # MOTILES
 MOTILE_DENSITY = 3.5e-3
 v_0 = 20.0
 ## TUMBLING
-TUMBLE_FLAG = False
+TUMBLE_FLAG = True
 p_0 = 1.0
 TUMBLE_ALG = 'm'
 TUMBLE_GRAD_SENSE = 20.0
@@ -23,10 +23,10 @@ TUMBLE_MEM_t_MAX = 8.0 / p_0
 VICSEK_FLAG = False
 VICSEK_R = 3.0
 ## FORCE
-FORCE_FLAG = True
+FORCE_FLAG = False
 FORCE_SENSE = 5000.0
 ## NOISE
-NOISE_FLAG = True
+NOISE_FLAG = False
 NOISE_D_ROT = 2.0
 ## COLLISIONS
 COLLIDE_FLAG = False

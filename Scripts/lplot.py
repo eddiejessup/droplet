@@ -10,8 +10,8 @@ import matplotlib.pyplot as pp
 
 styles = ['r', 'b', 'g', 'k', 'y']
 
-#mpl.rc('font', family='serif', serif='Computer Modern Roman')
-#mpl.rc('text', usetex=True)
+mpl.rc('font', family='serif', serif='Computer Modern Roman')
+mpl.rc('text', usetex=True)
 
 def smooth(x, w=2):
     if x.ndim != 1:
