@@ -37,23 +37,36 @@ out = out_nonint
 parser = argparse.ArgumentParser(description='Plot a box log')
 parser.add_argument('d', default=[os.getcwd()], nargs='*',
     help='the directories containing the box logs, defaults to just cwd')
+parser.add_argument('-f', '--files', default=[], nargs='*',
+    help='the box log files, defaults to just cwd')
 parser.add_argument('-o', '--out', default='plot', nargs='?',
     help='the filename of the output image')
 
 args = parser.parse_args()
 
-for i in range(len(args.d)):
-    dir_name = args.d[i]
-    if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
-    fname = '%s/log.dat' % dir_name
+def parse(fname):
     n = np.loadtxt(fname, skiprows=1).shape[1]
     if n == 4:
         r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'frac', 'sense'])
     elif n ==3:
         r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'sense'])
     else: raise Exception
-    rs = smooth(np.asarray(r['sense'], dtype=np.float), 4)
-    rd = smooth(np.asarray(r['dvar'], dtype=np.float), 4)
+    return r['sense'], r['dvar']
+
+for i in range(len(args.files)):
+    fname = args.files[i]
+    rs, rd = parse(fname)
+    rs = smooth(rs, 4)
+    rd = smooth(rd, 4)
+    pp.plot(rs, rd, '%s-' % styles[i], lw=0.8, label=fname)
+
+for i in range(len(args.d)):
+    dir_name = args.d[i]
+    if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
+    fname = '%s/log.dat' % dir_name
+    rs, rd = parse(fname)
+    rs = smooth(rs, 4)
+    rd = smooth(rd, 4)
     pp.plot(rs, rd, '%s-' % styles[i], lw=0.8, label=dir_name)
 
 pp.xlabel(r'$\chi$, Chemotactic sensitivity', size=15)

@@ -13,20 +13,23 @@ parser.add_argument('-o', '--out', default='log_av.dat', nargs='?',
 
 args = parser.parse_args()
 
-for i in range(len(args.d)):
-    dir_name = args.d[i]
-    if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
-    fname = '%s/log.dat' % dir_name
+def parse(fname):
     n = np.loadtxt(fname, skiprows=1).shape[1]
     if n == 4:
         r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'frac', 'sense'])
     elif n ==3:
         r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'sense'])
     else: raise Exception
+    return r['sense'], r['dvar']
+
+for i in range(len(args.d)):
+    dir_name = args.d[i]
+    if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
+    rs, rd = parse(fname)
     try:
-        r_sense_sum += r['sense']
+        r_sense_sum += rs
     except NameError:
-        r_sense_sum = r['sense']
+        r_sense_sum = rs
 
 r_sense_av = r_sense_sum / len(args.d)
 r_av = np.copy(r)
