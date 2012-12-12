@@ -8,15 +8,8 @@ import matplotlib as mpl
 import matplotlib.mlab as mlb
 import matplotlib.pyplot as pp
 
-<<<<<<< HEAD
 #mpl.rc('font', family='serif', serif='Computer Modern Roman')
 #mpl.rc('text', usetex=True)
-=======
-styles = ['r', 'b', 'g', 'k', 'y']
-
-mpl.rc('font', family='serif', serif='Computer Modern Roman')
-mpl.rc('text', usetex=True)
->>>>>>> 8dd4476721467a6a03cf28f2c012390f26ee47b1
 
 def smooth(x, w=2):
     if x.ndim != 1:
