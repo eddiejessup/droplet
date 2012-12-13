@@ -8,10 +8,8 @@ import matplotlib as mpl
 import matplotlib.mlab as mlb
 import matplotlib.pyplot as pp
 
-styles = ['r', 'b', 'g', 'k', 'y']
-
-mpl.rc('font', family='serif', serif='Computer Modern Roman')
-mpl.rc('text', usetex=True)
+#mpl.rc('font', family='serif', serif='Computer Modern Roman')
+#mpl.rc('text', usetex=True)
 
 def smooth(x, w=2):
     if x.ndim != 1:
@@ -53,21 +51,19 @@ def parse(fname):
     else: raise Exception
     return r['sense'], r['dvar']
 
-for i in range(len(args.files)):
-    fname = args.files[i]
+for fname in args.files:
     rs, rd = parse(fname)
     rs = smooth(rs, 4)
     rd = smooth(rd, 4)
-    pp.plot(rs, rd, '%s-' % styles[i], lw=0.8, label=fname)
+    pp.plot(rs, rd, lw=0.8, label=fname)
 
-for i in range(len(args.dirs)):
-    dir_name = args.dirs[i]
+for dir_name in args.dirs:
     if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
     fname = '%s/log.dat' % dir_name
     rs, rd = parse(fname)
     rs = smooth(rs, 4)
     rd = smooth(rd, 4)
-    pp.plot(rs, rd, '%s-' % styles[i], lw=0.8, label=dir_name)
+    pp.plot(rs, rd, lw=0.8, label=dir_name)
 
 pp.xlabel(r'$\chi$, Chemotactic sensitivity', size=15)
 pp.ylabel(r'$\sigma$, Spatial density standard deviation', size=15)

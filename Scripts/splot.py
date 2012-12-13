@@ -10,7 +10,7 @@ import matplotlib.pyplot as pp
 def out_nonint(fname):
     fname = '%s.png' % fname.rstrip('.npz')
     pp.savefig(fname)
-    cmd = 'eog %s' % fname
+    cmd = 'eog %s &' % fname
     process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
     output = process.communicate()[0]
 

@@ -7,7 +7,7 @@ DAT_EVERY = 2000
 DIM = 2
 DELTA_t = 0.1
 RUN_TIME_MAX = np.inf
-RANDOM_SEED = 125 # Set to None to change each run
+RANDOM_SEED = 135 # Set to None to change each run
 
 # MOTILES
 MOTILE_DENSITY = 3.5e-3
