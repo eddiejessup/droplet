@@ -83,14 +83,6 @@ class Motiles(object):
                     continue
             i_motile += 1
 
-#	self.r[...]=0.0
-#	N_5=self.N//5
-#	self.r[:N_5]=[300,300]
-#	self.r[N_5:2*N_5]=[300,-300]
-#	self.r[2*N_5:3*N_5]=[-300,300]
-#	self.r[3*N_5:4*N_5]=[-300,-300]
-#	self.r[4*N_5:]=[0,0]
-
         # Initialise motile velocities uniformly
         self.v = utils.point_pick_cart(self.dim, self.N) * self.v_0
 
