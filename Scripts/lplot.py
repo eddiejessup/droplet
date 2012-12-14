@@ -8,8 +8,11 @@ import matplotlib as mpl
 import matplotlib.mlab as mlb
 import matplotlib.pyplot as pp
 
-#mpl.rc('font', family='serif', serif='Computer Modern Roman')
-#mpl.rc('text', usetex=True)
+try:
+    mpl.rc('font', family='serif', serif='Computer Modern Roman')
+    mpl.rc('text', usetex=True)
+except:
+    pass
 
 def smooth(x, w=2):
     if x.ndim != 1:
@@ -32,16 +35,6 @@ def out_int(fname):
 
 out = out_nonint
 
-parser = argparse.ArgumentParser(description='Plot a box log')
-parser.add_argument('-d', '--dirs', default=[], nargs='*',
-    help='the directories containing the box logs')
-parser.add_argument('-f', '--files', default=[], nargs='*',
-    help='the box log files')
-parser.add_argument('-o', '--out', default='plot', nargs='?',
-    help='the filename of the output image')
-
-args = parser.parse_args()
-
 def parse(fname):
     n = np.loadtxt(fname, skiprows=1).shape[1]
     if n == 4:
@@ -49,23 +42,42 @@ def parse(fname):
     elif n ==3:
         r = mlb.csv2rec(fname, delimiter=' ', skiprows=1, names=['time', 'dvar', 'sense'])
     else: raise Exception
-    return r['sense'], r['dvar']
+    if r.shape[0] in [6001, 1921]: r=r[::2]
+    return r
 
-for fname in args.files:
-    rs, rd = parse(fname)
-    rs = smooth(rs, 4)
-    rd = smooth(rd, 4)
-    pp.plot(rs, rd, lw=0.8, label=fname)
+parser = argparse.ArgumentParser(description='Plot box logs')
+parser.add_argument('-d', '--dirs', default=[], nargs='*',
+    help='directories containing box logs')
+parser.add_argument('-f', '--files', default=[], nargs='*',
+    help='individual box log files')
+parser.add_argument('-o', '--out', default='plot', nargs='?',
+    help='filename of the output image')
+parser.add_argument('-l', '--labels', default=[], nargs='*',
+    help='labels for each log')
+args = parser.parse_args()
+
+if args.labels and len(args.labels) != len(args.dirs) + len(args.files): raise Exception
+if args.out.endswith('.png'): args.out = args.out.rstrip('.png')
 
 for dir_name in args.dirs:
-    if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
+    if dir_name.endswith('/'): dir_name = dir_name.rstrip('/')
     fname = '%s/log.dat' % dir_name
-    rs, rd = parse(fname)
-    rs = smooth(rs, 4)
-    rd = smooth(rd, 4)
+    r = parse(fname)
+    rs = smooth(r['sense'], 4)
+    rd = smooth(r['dvar'], 4)
     pp.plot(rs, rd, lw=0.8, label=dir_name)
+
+for fname in args.files:
+    r = parse(fname)
+    rs = smooth(r['sense'], 4)
+    rd = smooth(r['dvar'], 4)
+    pp.plot(rs, rd, lw=0.8, label=fname)
 
 pp.xlabel(r'$\chi$, Chemotactic sensitivity', size=15)
 pp.ylabel(r'$\sigma$, Spatial density standard deviation', size=15)
-pp.legend(loc='lower right')
+if args.labels:
+    pp.legend(args.labels, loc='lower right')
+else:
+    pp.legend(loc='lower right')
+
 out(args.out)
