@@ -8,11 +8,11 @@ import matplotlib as mpl
 import matplotlib.mlab as mlb
 import matplotlib.pyplot as pp
 
-try:
-    mpl.rc('font', family='serif', serif='Computer Modern Roman')
-    mpl.rc('text', usetex=True)
-except:
-    pass
+#try:
+#    mpl.rc('font', family='serif', serif='Computer Modern Roman')
+#    mpl.rc('text', usetex=True)
+#except:
+#    pass
 
 def smooth(x, w=2):
     if x.ndim != 1:
@@ -32,6 +32,15 @@ def out_int(fname):
     pp.show()
 
 out = out_nonint
+
+def suffix_remove(s, suffix):
+    if s.endswith(suffix): return s[:-len(suffix)]
+    else: return s
+
+def plot(r, label=None):
+    rs = smooth(r['sense'], 4)
+    rd = smooth(r['dvar'], 4)
+    pp.plot(rs, rd, lw=0.8, label=label)
 
 def parse(fname):
     n = np.loadtxt(fname, skiprows=1).shape[1]
@@ -57,16 +66,11 @@ parser.add_argument('-l', '--labels', default=[], nargs='*',
 args = parser.parse_args()
 
 if args.labels and len(args.labels) != len(args.dirs) + len(args.files): raise Exception
-args.out = args.out.rstrip('.png')
-args.out = args.out.rstrip('.dat')
-
-def plot(r, label=None):
-    rs = smooth(r['sense'], 4)
-    rd = smooth(r['dvar'], 4)
-    pp.plot(rs, rd, lw=0.8, label=label)
+args.out = suffix_remove(args.out, '.png')
+args.out = suffix_remove(args.out, '.dat')
 
 for dir_name in args.dirs:
-    dir_name = dir_name.rstrip('/')
+    dir_name = suffix_remove(dir_name, '/')
     fname = '%s/log.dat' % dir_name
     r = parse(fname)
     if args.mode == 'p': plot(r, label=dir_name)
@@ -94,7 +98,7 @@ if args.mode == 'p':
     else:
         pp.legend(loc='lower right')
     pp.savefig('%s.png' % args.out)
-    out('%.png' % args.out)
+    out('%s.png' % args.out)
 elif args.mode == 'a':
     r_av = r.copy()
     r_av['dvar'] = r_dvar_sum / (len(args.dirs) + len(args.files))
