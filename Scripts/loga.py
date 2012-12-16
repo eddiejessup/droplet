@@ -8,11 +8,8 @@ import matplotlib as mpl
 import matplotlib.mlab as mlb
 import matplotlib.pyplot as pp
 
-#try:
-#    mpl.rc('font', family='serif', serif='Computer Modern Roman')
-#    mpl.rc('text', usetex=True)
-#except:
-#    pass
+mpl.rc('font', family='serif', serif='Computer Modern Roman')
+mpl.rc('text', usetex=True)
 
 def smooth(x, w=2):
     if x.ndim != 1:
@@ -63,6 +60,8 @@ parser.add_argument('-o', '--out', default='out', nargs='?',
     help='filename of the output image')
 parser.add_argument('-l', '--labels', default=[], nargs='*',
     help='labels for each log')
+parser.add_argument('-s', '--silent', default=False, action='store_true',
+    help='don\'t show plot')
 args = parser.parse_args()
 
 if args.labels and len(args.labels) != len(args.dirs) + len(args.files): raise Exception
@@ -98,7 +97,7 @@ if args.mode == 'p':
     else:
         pp.legend(loc='lower right')
     pp.savefig('%s.png' % args.out)
-    out('%s.png' % args.out)
+    if not args.silent: out('%s.png' % args.out)
 elif args.mode == 'a':
     r_av = r.copy()
     r_av['dvar'] = r_dvar_sum / (len(args.dirs) + len(args.files))
