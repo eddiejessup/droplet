@@ -1,32 +1,32 @@
 import numpy as np
 
 # OUTPUT
-DAT_EVERY = 2000
+DAT_EVERY = 500
 
 # GENERAL
 DIM = 2
 DELTA_t = 0.1
 RUN_TIME_MAX = np.inf
-RANDOM_SEED = 135 # Set to None to change each run
+RANDOM_SEED = 185 # Set to None to change each run
 
 # MOTILES
 MOTILE_DENSITY = 3.5e-3
 v_0 = 20.0
 ## TUMBLING
-TUMBLE_FLAG = True
+TUMBLE_FLAG = False
 p_0 = 1.0
 TUMBLE_ALG = 'm'
 TUMBLE_GRAD_SENSE = 20.0
-TUMBLE_MEM_SENSE = 250.0
+TUMBLE_MEM_SENSE = 70.0
 TUMBLE_MEM_t_MAX = 8.0 / p_0
 ## VICSEK
-VICSEK_FLAG = False
-VICSEK_R = 3.0
+VICSEK_FLAG = True
+VICSEK_R = 4.0
 ## FORCE
-FORCE_FLAG = False
+FORCE_FLAG = True
 FORCE_SENSE = 5000.0
 ## NOISE
-NOISE_FLAG = False
+NOISE_FLAG = True
 NOISE_D_ROT = 2.0
 ## COLLISIONS
 COLLIDE_FLAG = False
@@ -63,15 +63,17 @@ if FORCE_FLAG:
     else: ALG = 'force'
 elif TUMBLE_FLAG:
     if NOISE_FLAG: raw_input('noisy tumblers, sure?')
+    NOISE_D_ROT = 0.15
     SENSE = TUMBLE_MEM_SENSE
     ALG = 'rat'
 else:
     SENSE = None
 
-HYST_FLAG = True
-HYST_RATE_TUMBLE = 0.5e-3
-HYST_MAX_TUMBLE = 150.0
-HYST_RATE_FORCE = 0.125
-HYST_MAX_FORCE = 12000
+HYST_FLAG = False
+HYST_RATE_TUMBLE = 0.25e-3
+HYST_MAX_TUMBLE = 30.0
+HYST_RATE_FORCE = 0.05
+HYST_MAX_FORCE = 7500
 
-DAT_DIR = '../Data/%s_%s_%s' % (WALL_ALG, ALG, RANDOM_SEED)
+#DAT_DIR = '../Data/%s_%s_%s' % (WALL_ALG, ALG, RANDOM_SEED)
+DAT_DIR = '../Data/%s_%s' % (ALG, VICSEK_R)

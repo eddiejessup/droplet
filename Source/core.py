@@ -294,8 +294,8 @@ def main():
             f_log.flush()
 
 
-        if i_t == 1000:
-            print((datetime.datetime.now() - start_time).seconds * (t_tot / t))
+#        if i_t == 1000:
+#            print((datetime.datetime.now() - start_time).seconds * (t_tot / t))
 
         t += params.DELTA_t
         i_t += 1
