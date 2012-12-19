@@ -28,7 +28,7 @@ def out_nonint(fname):
 def out_int(fname):
     pp.show()
 
-out = out_nonint
+out = out_int
 
 def suffix_remove(s, suffix):
     if s.endswith(suffix): return s[:-len(suffix)]

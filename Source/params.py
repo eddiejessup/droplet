@@ -1,7 +1,7 @@
 import numpy as np
 
 # OUTPUT
-DAT_EVERY = 2000
+DAT_EVERY = 500
 
 # GENERAL
 DIM = 2
@@ -17,7 +17,7 @@ TUMBLE_FLAG = True
 p_0 = 1.0
 TUMBLE_ALG = 'm'
 TUMBLE_GRAD_SENSE = 20.0
-TUMBLE_MEM_SENSE = 250.0
+TUMBLE_MEM_SENSE = 25.0
 TUMBLE_MEM_t_MAX = 8.0 / p_0
 ## VICSEK
 VICSEK_FLAG = False
@@ -47,7 +47,7 @@ D_f = D_c
 f_SINK_RATE = c_SOURCE_RATE
 
 # WALLS
-WALL_ALG = 'traps_1'
+WALL_ALG = 'blank'
 ## TRAP
 TRAP_WALL_WIDTH = 10.0
 TRAP_LENGTH = 150.0
@@ -68,10 +68,11 @@ elif TUMBLE_FLAG:
 else:
     SENSE = None
 
-HYST_FLAG = True
+HYST_FLAG = False
 HYST_RATE_TUMBLE = 0.5e-3
 HYST_MAX_TUMBLE = 150.0
 HYST_RATE_FORCE = 0.125
 HYST_MAX_FORCE = 12000
 
-DAT_DIR = '../Data/%s_%s_%s' % (WALL_ALG, ALG, RANDOM_SEED)
+#DAT_DIR = '../Data/%s_%s_%s' % (WALL_ALG, ALG, RANDOM_SEED)
+DAT_DIR = '../Data/%s_%s' % (ALG, SENSE)

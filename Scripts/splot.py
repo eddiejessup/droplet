@@ -17,7 +17,7 @@ def out_nonint(fname):
 def out_int(fname):
     pp.show()
 
-out = out_nonint
+out = out_int
 
 parser = argparse.ArgumentParser(description='Plot a box state')
 parser.add_argument('i', type=int, default=-1, nargs='?',
