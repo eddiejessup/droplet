@@ -41,5 +41,4 @@ def vicsek(np.ndarray[np.float_t, ndim=2] v,
         for i_2 in interacts[i_1]:
             for i_dim in range(v.shape[1]):
                 v_vic[i_1, i_dim] += v[i_2, i_dim]
-
     return utils.vector_unit_nullnull(v_vic) * utils.vector_mag(v)[:, np.newaxis]

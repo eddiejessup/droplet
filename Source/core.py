@@ -284,7 +284,7 @@ def main():
     while t < params.RUN_TIME_MAX:
         box.iterate()
 
-        if i_t % params.DAT_EVERY == 0:
+        if i_t % params.DAT_EVERY == 0 and i_t != 0:
             np.savez('%s/r/%08i' % (dat_dir, i_t // params.DAT_EVERY), 
                 r=box.motiles.r, t=t)
             f_log.write('%f %f' % (t, box.dvar()))
@@ -293,14 +293,13 @@ def main():
             f_log.write('\n')
             f_log.flush()
 
-
-#        if i_t == 1000:
-#            print((datetime.datetime.now() - start_time).seconds * (t_tot / t))
-
         t += params.DELTA_t
         i_t += 1
 
         if params.HYST_FLAG:
+            if i_t == 1000:
+                print((datetime.datetime.now() - start_time).seconds * (t_tot / t))
+
             if sense < 0.0:
                 break
             if params.TUMBLE_FLAG:
