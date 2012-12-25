@@ -38,6 +38,15 @@ class Blobs():
                 return True
         return False
 
+    def init_r(self, motiles):
+        i_motile = 0
+        while i_motile < motiles.N:
+            motiles.r[i_motile] = np.random.uniform(-self.L_half,
+                self.L_half, self.dim)
+            if self.is_obstructed(motiles.r[i_motile]):
+                continue
+            i_motile += 1
+
     def iterate_r(self, motiles):
         motiles.r += motiles.v * motiles.dt
         motiles.r[motiles.r > self.L_half] -= self.L

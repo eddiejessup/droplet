@@ -18,7 +18,7 @@ class Box(object):
         self.f = f
         self.c = c
         self.motiles = motiles
-        self.walls.init_r()
+        self.walls.init_r(self.motiles)
 
     def iterate(self):
         self.motiles.iterate(self.c)
@@ -26,16 +26,6 @@ class Box(object):
         density = self.density()
         self.f.iterate(density)
         self.c.iterate(density, self.f)
-
-    def init_motile_r(self):
-        i_motile = 0
-        while i_motile < self.motiles.N:
-            self.motiles.r[i_motile] = np.random.uniform(-self.walls.L_half,
-                                                         +self.walls.L_half,
-                                                         self.walls.dim)
-            if self.walls.is_obstructed(self.motiles.r[i_motile]):
-                continue
-            i_motile += 1
 
 def main():
     print('Starting...')
@@ -122,7 +112,7 @@ def main():
         f = walled_fields.Food(params.DIM, field_M, L, params.D_f, 
             params.DELTA_t, params.f_0, params.f_SINK_RATE, walls)
     else:
-        f = walled_fields.Scalar(params.DIM, field_M, L, a_0=params.f_0, walls)
+        f = walled_fields.Scalar(params.DIM, field_M, L, a_0=params.f_0, walls=walls)
 
     # Make chemoattractant field
     if params.c_PDE_FLAG:
