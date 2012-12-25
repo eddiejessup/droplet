@@ -18,7 +18,7 @@ class Box(object):
         self.f = f
         self.c = c
         self.motiles = motiles
-        self.init_motile_r()
+        self.walls.init_r()
 
     def iterate(self):
         self.motiles.iterate(self.c)
