@@ -9,7 +9,7 @@ class Blobs():
         self.L = L
         self.L_half = L / 2.0
         self.M = M
-        seolf.delta = delta
+        self.delta = delta
         self.R_c_min = R_c_min
         self.R_c_max = R_c_max
         self.alg = 'blobs'
@@ -30,7 +30,11 @@ class Blobs():
             if valid: m += 1
         self.R_c_sq = self.R_c ** 2
 
-        self.d = self.R_c_min
+        self.d = self.R_c.min()
+        self.A_free_calc()
+
+    def A_free_calc(self):
+        self.A_free = self.L ** self.dim - np.pi * np.sum(self.R_c_sq)
 
     def is_obstructed(self, r):
         for m in range(self.M):

@@ -1,7 +1,7 @@
 import numpy as np
 
 # OUTPUT
-DAT_EVERY = 500
+DAT_EVERY = 5
 
 # GENERAL
 DIM = 2
@@ -47,7 +47,7 @@ D_f = D_c
 f_SINK_RATE = c_SOURCE_RATE
 
 # WALLS
-WALL_ALG = 'traps_1'
+WALL_ALG = 'maze'
 ## TRAP
 TRAP_WALL_WIDTH = 10.0
 TRAP_LENGTH = 150.0

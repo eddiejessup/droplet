@@ -9,6 +9,7 @@ import motiles
 import tumble_rates
 import params
 import blobs
+import matplotlib.pyplot as pp
 
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
 
@@ -26,6 +27,9 @@ class Box(object):
         density = self.density()
         self.f.iterate(density)
         self.c.iterate(density, self.f)
+
+    def density(self):
+        return fields.density(self.motiles.r, self.c.L, self.c.dx)
 
 def main():
     print('Starting...')
@@ -85,13 +89,12 @@ def main():
 
     # Make walls
     walls = blobs.Blobs(params.DIM, L, 10, 10.0, 10.0, 100.0)
-	field_M = params.FIELD_M
 
     # Make food field
-    f = fields.Scalar(DIM, field_M, L, a_0=f_0)
+    f = fields.Scalar(params.DIM, field_M, L, a_0=params.f_0)
 
     # Make chemoattractant field
-    c = fields.Scalar(DIM, field_M, L)
+    c = fields.Scalar(params.DIM, field_M, L)
 
     # Make motile particles
     num_motiles = int(round(params.MOTILE_DENSITY * walls.A_free))
@@ -115,13 +118,18 @@ def main():
 
     # Make box to contain walls, fields and motiles
     box = Box(walls, f, c, motes)
-
+    every = 100
     print('Initialisation done!')
     t, i_t = 0.0, 0
     while t < params.RUN_TIME_MAX:
         box.iterate()
         t += params.DELTA_t
         i_t += 1
+        if not i_t % every:
+            pp.scatter(box.motiles.r[:, 0], box.motiles.r[:, 1])
+            pp.savefig('../Data/%s.png' % i_t)
+            pp.cla()
+            print(box.motiles.r[0])
 
     print('Done!')
 
