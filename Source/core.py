@@ -76,7 +76,7 @@ class Box(object):
 
     def output(self, dirname):
         pp.scatter(self.motiles.r[:, 0], self.motiles.r[:, 1], s=20)
-        pp.imshow(self.c.a.T, extent=2*[-self.L_half, self.L_half], origin='lower')
+        pp.imshow(np.ma.array(self.c.a.T, mask=self.c.of.T), extent=2*[-self.L_half, self.L_half], origin='lower')
         pp.colorbar()
         pp.savefig('%s/%s.png' % (dirname, self.i_t))
         pp.clf()
@@ -87,7 +87,7 @@ class Box(object):
 
 def main():
     print('Starting!')
-    params_fname = 'params.yaml'
+    params_fname = sys.argv[1]
     args = yaml.safe_load(open(params_fname, 'r'))['system']
     box = Box(params_fname)
     while box.t < args['t_max']:
