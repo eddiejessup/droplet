@@ -4,3 +4,5 @@ old_Data/
 *.so
 *.pyc
 *.*~
+Source/*.yaml
+!Source/params_example.yaml
