@@ -3,12 +3,12 @@ import utils
 import fields
 import maze as maze_module
 
-BUFFER_SIZE = 1e-10
+BUFFER_SIZE = 0.999999
 
 def shrink(w_old, n):
     if n < 1: raise Exception('Shrink factor >= 1')
-    if n == 1: return w_old
-    if n % 2 != 0: raise Exception('Shrink factor must be odd')
+    elif n == 1: return w_old
+    elif n % 2 != 0: raise Exception('Shrink factor must be odd')
     M = w_old.shape[0]
     w_new = np.zeros(w_old.ndim * [M * n], dtype=w_old.dtype)
     mid = n // 2
@@ -140,7 +140,7 @@ class Walls(Obstruction, fields.Field):
         delta_inds[delta_inds <= -(self.M - 1)] += self.M
         assert len(np.where(np.abs(delta_inds) > 1)[0]) == 0
 
-        offset = self.dx / 2.0 - BUFFER_SIZE
+        offset = BUFFER_SIZE * (self.dx / 2.0)
         wall_statusses = utils.field_subset(self.a, inds_new)
         for i_motile in np.where(wall_statusses == True)[0]:
             dims_hit = np.where(delta_inds[i_motile] != 0)[0]            
