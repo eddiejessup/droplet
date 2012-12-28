@@ -5,9 +5,8 @@ cimport numpy as np
 from utils_cy cimport square
 
 def collide(np.ndarray[np.float_t, ndim=2] v,
-            np.ndarray[np.float_t, ndim=3] r_sep,
-            np.ndarray[np.float_t, ndim=2] R_sep_sq,
-            double R_c):
+        np.ndarray[np.float_t, ndim=3] r_sep,
+        double R_c):
     cdef unsigned int i_1, i_2, i_dim
     cdef double v_1_dot_r_sep, v_2_dot_r_sep, R_c_sq = square(R_c)
 
@@ -32,8 +31,24 @@ def collide(np.ndarray[np.float_t, ndim=2] v,
                                            r_sep[i_2, i_1, i_dim]) /
                                           R_sep_sq[i_1, i_2])
 
+def collide_interacts(np.ndarray[np.float_t, ndim=2] v,
+        np.ndarray[np.float_t, ndim=2] r,
+        list interacts):
+        cdef unsigned int i_1, i_2
+        cdef double v_dot_r_sep, R_sep_sq
+        cdef np.ndarray r_sep
+
+    for i_1 in range(v.shape[0]):
+        for i_2 in interacts[i_1]:
+            r_sep = r[i_2] - r[i_1]
+            # Reflect component parallel to separation vector
+            v_dot_r_sep = np.sum(v[i_1] * r_sep)
+            R_sep_sq = np.sum(r_sep ** 2)
+            if v_dot_r_sep > 0.0:
+                v[i_1] -= (2.0 * v_dot_r_sep * r_sep) / R_sep_sq
+
 def vicsek(np.ndarray[np.float_t, ndim=2] v,
-           list interacts):
+        list interacts):
     cdef unsigned int i_1, i_2, i_dim
     cdef np.ndarray[np.float_t, ndim = 2] v_vic = v.copy()
 
