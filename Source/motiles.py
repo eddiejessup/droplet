@@ -1,12 +1,14 @@
 import numpy as np
 import utils
 import fields
+import cell_list
 import tumble_rates as tumble_rates_module
+import motile_numerics
 
 class Motiles(object):
     def __init__(self, parent_env, N, v_0, tumble_flag=False, tumble_args=None,
             force_flag=False, force_args=None, noise_flag=False, 
-            noise_args=None):
+            noise_args=None, vicsek_flag=False, vicsek_args=None):
         if N < 1:
             raise Exception('Require number of motiles > 0')
         if v_0 < 0.0:
@@ -41,6 +43,10 @@ class Motiles(object):
                 raise Exception('Noise not implemented in this dimension')
             self.noise_eta_half = np.sqrt(12.0 * noise_args['D_rot'] * self.parent_env.dt) / 2.0
 
+        self.vicsek_flag = vicsek_flag
+        if self.vicsek_flag:
+            self.vicsek_R = vicsek_args['r']
+
         self.r = np.zeros([self.N, self.parent_env.dim], dtype=np.float)
 
         # Initialise motile velocities uniformly
@@ -52,6 +58,7 @@ class Motiles(object):
 
         if self.tumble_flag: self.tumble(c)
         if self.force_flag: self.force(c)
+        if self.vicsek_flag: self.vicsek()
         if self.noise_flag: self.noise()
 
         # Make sure final speed is v_0
@@ -76,6 +83,10 @@ class Motiles(object):
             self.N)
         self.v = utils.rotate_2d(self.v, thetas)
     
+    def vicsek(self):
+        interacts = cell_list.interacts_cl(self.r, self.parent_env.L, self.vicsek_R)
+        self.v = motile_numerics.vicsek(self.v, interacts)
+
     def get_density_field(self, dx):
         return fields.density(self.r, self.parent_env.L, dx)
         

@@ -18,6 +18,7 @@ motiles:
     tumble_flag: true
     force_flag: true
     noise_flag: true
+    vicsek_flag: true
 
     tumble:
         p_0: 1.0
@@ -36,6 +37,9 @@ motiles:
 
     noise:
         d_rot: 2.0
+    
+    vicsek:
+        r: 3.0
     
 field:
     dx: 0.05

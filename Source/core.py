@@ -29,10 +29,8 @@ class Box(object):
         self.i_t = 0.0
 
     def init_field(self, args):
-        if args['obstructions_alg'] == 'parametric':
+        if args['obstructions_alg'] == 'none':
             para_args = args['obstructions']['parametric']
-            self.o = walls_module.Parametric(self, para_args['n'], para_args['stickiness'], para_args['radius_min'], para_args['radius_max'])
-        elif args['obstructions_alg'] == 'none':
             self.o = walls_module.Walls(self, args['dx'])
         elif args['obstructions_alg'] == 'traps':
             trap_args = args['obstructions']['traps']
@@ -40,8 +38,11 @@ class Box(object):
         elif args['obstruction_alg'] == 'maze':
             maze_args = args['obstructions']['maze']
             self.o = walls_module.Maze(self, args['dx'], maze_args['width'], maze_args['seed'])
+        elif args['obstructions_alg'] == 'parametric':
+            para_args = args['obstructions']['parametric']
+            self.o = walls_module.Parametric(self, para_args['n'], para_args['stickiness'], para_args['radius_min'], para_args['radius_max'])
         else:
-            raise Exception('Invalid wall algorithm')
+            raise Exception('Invalid obstruction algorithm')
 
         if args['f_pde_flag']:
             f_pde_args = args['f_pde']
@@ -60,9 +61,10 @@ class Box(object):
         tumble_args = args['tumble'] if args['tumble_flag'] else None
         force_args = args['force'] if args['force_flag'] else None
         noise_args = args['noise'] if args['noise_flag'] else None
+        vicsek_args = args['vicsek'] if args['vicsek_flag'] else None
 
         self.motiles = motiles.Motiles(self, num_motiles, args['v_0'], args['tumble_flag'], tumble_args, 
-            args['force_flag'], force_args, args['noise_flag'], noise_args)
+            args['force_flag'], force_args, args['noise_flag'], noise_args, args['vicsek_flag'], vicsek_args)
         self.o.init_r(self.motiles)
 
     def iterate(self):
