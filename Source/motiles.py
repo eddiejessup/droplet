@@ -84,8 +84,10 @@ class Motiles(object):
         self.v = utils.rotate_2d(self.v, thetas)
     
     def vicsek(self):
-        interacts = cell_list.interacts_cl(self.r, self.parent_env.L, self.vicsek_R)
-        self.v = motile_numerics.vicsek(self.v, interacts)
+        inters, intersi = cell_list.interacts_fort(self.r, self.parent_env.L, self.vicsek_R)
+        self.v = motile_numerics.vicsek_fort(self.v, inters, intersi)
+#        inters = cell_list.interacts(self.r, self.parent_env.L, self.vicsek_R)
+#        self.v = motile_numerics.vicsek(self.v, inters)
 
     def get_density_field(self, dx):
         return fields.density(self.r, self.parent_env.L, dx)
