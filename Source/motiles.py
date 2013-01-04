@@ -37,11 +37,13 @@ class Motiles(object):
 
         self.noise_flag = noise_flag
         if self.noise_flag:
+            self.D_rot = noise_args['D_rot']
             if self.parent_env.dim == 2:
                 self.noise = self.noise_2d
+            elif self.parent_env.dim == 3:
+                self.noise = self.noise_3d
             else:
                 raise Exception('Noise not implemented in this dimension')
-            self.noise_eta_half = np.sqrt(12.0 * noise_args['D_rot'] * self.parent_env.dt) / 2.0
 
         self.vicsek_flag = vicsek_flag
         if self.vicsek_flag:
@@ -51,10 +53,12 @@ class Motiles(object):
 
         # Initialise motile velocities uniformly
         self.v = utils.point_pick_cart(self.parent_env.dim, self.N) * self.v_0
+        self.v[:, 0] = self.v_0
+        self.v = np.asarray(self.v)
 
     def iterate(self, c):
         # Make sure initial speed is v_0
-        self.v = utils.vector_unit_nullrand(self.v) * self.v_0
+        self.v[...] = utils.vector_unit_nullrand(self.v) * self.v_0
 
         if self.tumble_flag: self.tumble(c)
         if self.force_flag: self.force(c)
@@ -79,16 +83,26 @@ class Motiles(object):
         self.v = utils.vector_unit_nullnull(v_new) * v_old_mags[:, np.newaxis]
 
     def noise_2d(self):
-        thetas = np.random.uniform(-self.noise_eta_half, self.noise_eta_half, 
-            self.N)
+        thetas = np.random.normal(scale=np.sqrt(2.0 * self.D_rot * self.parent_env.dt), size=self.N)
+        v_before = self.v.copy()
         self.v = utils.rotate_2d(self.v, thetas)
+        print('D_rot_calc: %f' % (np.std(thetas) ** 2 / (2.0 * self.parent_env.dt)))
+        dthetas = utils.vector_angle(v_before, self.v)
+        print('D_rot_calc: %f' % ((dthetas ** 2).mean() / (2.0 * self.parent_env.dt)))
+
+    def noise_3d(self):
+        sig = (2.0 * self.D_rot * self.parent_env.dt)**0.5
+        alphas = np.random.normal(scale=sig, size=self.N)
+        betas = np.random.normal(scale=sig, size=self.N)
+        gammas = np.random.normal(scale=sig, size=self.N)
+        v_before = self.v.copy()
+        self.v = utils.rotate_3d(self.v, alphas, betas, gammas)
+        dthetas = utils.vector_angle(v_before, self.v)
+        print('D_rot_calc: %f' % ((dthetas ** 2).mean() / (2.0 * self.parent_env.dt)))
     
     def vicsek(self):
-        inters, intersi = cell_list.interacts_fort(self.r, self.parent_env.L, self.vicsek_R)
-        self.v = motile_numerics.vicsek_fort(self.v, inters, intersi)
-#        inters = cell_list.interacts(self.r, self.parent_env.L, self.vicsek_R)
-#        self.v = motile_numerics.vicsek(self.v, inters)
+        inters, intersi = cell_list.interacts(self.r, self.parent_env.L, self.vicsek_R)
+        self.v = motile_numerics.vicsek_inters(self.v, inters, intersi)
 
     def get_density_field(self, dx):
         return fields.density(self.r, self.parent_env.L, dx)
-        

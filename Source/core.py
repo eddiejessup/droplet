@@ -3,6 +3,7 @@ import sys
 import yaml
 import numpy as np
 import matplotlib.pyplot as pp
+from mpl_toolkits.mplot3d import Axes3D
 import fields
 import walls as walls_module
 import walled_fields
@@ -16,6 +17,7 @@ class Box(object):
         self.init_general(args['general'])
         self.init_field(args['field'])
         self.init_motiles(args['motiles'])
+        self.init_output()
 
     def init_general(self, args):
         self.seed = args['seed']
@@ -30,12 +32,11 @@ class Box(object):
 
     def init_field(self, args):
         if args['obstructions_alg'] == 'none':
-            para_args = args['obstructions']['parametric']
             self.o = walls_module.Walls(self, args['dx'])
         elif args['obstructions_alg'] == 'traps':
             trap_args = args['obstructions']['traps']
             self.o = walls_module.Traps(self, args['dx'], trap_args['n'], trap_args['thickness'], trap_args['width'], trap_args['slit_width'])
-        elif args['obstruction_alg'] == 'maze':
+        elif args['obstructions_alg'] == 'maze':
             maze_args = args['obstructions']['maze']
             self.o = walls_module.Maze(self, args['dx'], maze_args['width'], maze_args['seed'])
         elif args['obstructions_alg'] == 'parametric':
@@ -57,7 +58,12 @@ class Box(object):
             self.c = walled_fields.Scalar(self, args['dx'], self.o, a_0=0.0)
 
     def init_motiles(self, args):
-        num_motiles = int(self.o.get_A_free() * args['density'])
+        if self.dim == 1:
+            num_motiles = int(self.o.get_A_free() * args['density_1d'])
+        elif self.dim == 2:
+            num_motiles = int(self.o.get_A_free() * args['density_2d'])
+        elif self.dim == 3:
+            num_motiles = int(self.o.get_A_free() * args['density_3d'])
         tumble_args = args['tumble'] if args['tumble_flag'] else None
         force_args = args['force'] if args['force_flag'] else None
         noise_args = args['noise'] if args['noise_flag'] else None
@@ -66,6 +72,20 @@ class Box(object):
         self.motiles = motiles.Motiles(self, num_motiles, args['v_0'], args['tumble_flag'], tumble_args, 
             args['force_flag'], force_args, args['noise_flag'], noise_args, args['vicsek_flag'], vicsek_args)
         self.o.init_r(self.motiles)
+
+    def init_output(self):
+        self.fig = pp.figure()
+        self.lims = [-self.L_half, self.L_half]
+        if self.dim == 3:
+            self.ax = self.fig.add_subplot(111, projection='3d')
+            self.parts_plot = self.ax.scatter([], [], [])
+            self.ax.set_zlim(self.lims)
+            self.ax.set_zticks([])
+            self.ax.set_xlim(self.lims)
+            self.ax.set_ylim(self.lims)
+            self.ax.set_xticks([])
+            self.ax.set_yticks([])
+            self.ax.set_aspect('equal')
 
     def iterate(self):
         self.motiles.iterate(self.c)
@@ -77,12 +97,20 @@ class Box(object):
         self.i_t += 1
 
     def output(self, dirname):
-        pp.scatter(self.motiles.r[:, 0], self.motiles.r[:, 1], s=20)
-        pp.imshow(np.ma.array(self.c.a.T, mask=self.c.of.T), extent=2*[-self.L_half, self.L_half], origin='lower')
-        pp.colorbar()
-        pp.savefig('%s/%s.png' % (dirname, self.i_t))
-        pp.clf()
-        print(self.t, self.f.a.mean())
+        if self.dim == 2:
+            pp.scatter(self.motiles.r[:, 0], self.motiles.r[:, 1], s=2)
+#            pp.imshow(np.ma.array(self.c.a.T, mask=self.c.of.T), extent=2*[-self.L_half, self.L_half], origin='lower')
+#            pp.colorbar()
+            pp.xlim(self.lims)
+            pp.ylim(self.lims)
+            pp.xticks([])
+            pp.yticks([])
+            pp.savefig('%s/%s.png' % (dirname, self.i_t))
+            pp.clf()
+        elif self.dim == 3:
+            self.parts_plot._offsets3d = (self.motiles.r[..., 0], self.motiles.r[..., 1], self.motiles.r[..., 2])
+            pp.savefig('%s/%s.png' % (dirname, self.i_t))
+        print(self.t, self.motiles.N)
 
     def get_A(self):
         return self.L ** self.dim
@@ -92,6 +120,7 @@ def main():
     params_fname = sys.argv[1]
     args = yaml.safe_load(open(params_fname, 'r'))['system']
     box = Box(params_fname)
+    print('Initialisation done!')
     while box.t < args['t_max']:
         box.iterate()
         if args['output_flag'] and not box.i_t % args['output']['every']:
@@ -99,5 +128,5 @@ def main():
     print('Done!')
 
 if __name__ == '__main__': 
-#    main()
-    import cProfile; cProfile.run('main()', sort='cum')
+    main()
+#    import cProfile; cProfile.run('main()', sort='cum')

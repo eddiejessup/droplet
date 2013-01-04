@@ -66,7 +66,7 @@ class Parametric(Obstruction):
             if valid: m += 1
         self.R_c_sq = self.R_c ** 2
 
-        self.d = self.R_c.min()
+        self.d = self.R_c.min() if self.num > 0 else self.parent_env.L_half
 
     def get_A_free(self):
         return self.parent_env.get_A() - np.pi * np.sum(self.R_c_sq)
@@ -103,13 +103,17 @@ class Parametric(Obstruction):
                     break
 
     def to_field(self, dx):
+        # This is all very clever and numpy-ey, soz
         M = int(self.parent_env.L / dx)
-        axes = [i + 1 for i in range(self.parent_env.dim)] + [0]
-        inds = np.transpose(np.indices(self.parent_env.dim * [M]), axes=axes)
-        rs = -self.parent_env.L_half + (inds + 0.5) * dx
-        r_rels = rs[:, :, np.newaxis, :] - self.r_c[np.newaxis, np.newaxis, :, :]
-        r_rels_mag_sq = utils.vector_mag_sq(r_rels)
-        return np.asarray(np.any(r_rels_mag_sq < self.R_c_sq, axis=-1), dtype=np.uint8)
+        if self.num > 0:
+            axes = [i + 1 for i in range(self.parent_env.dim)] + [0]
+            inds = np.transpose(np.indices(self.parent_env.dim * [M]), axes=axes)
+            rs = -self.parent_env.L_half + (inds + 0.5) * dx
+            r_rels = rs[:, :, np.newaxis, :] - self.r_c[np.newaxis, np.newaxis, :, :]
+            r_rels_mag_sq = utils.vector_mag_sq(r_rels)
+            return np.asarray(np.any(r_rels_mag_sq < self.R_c_sq, axis=-1), dtype=np.uint8)
+        else:
+            return np.zeros(self.parent_env.dim * [M], dtype=np.uint8)
 
 class Walls(Obstruction, fields.Field):
     def __init__(self, parent_env, dx):
