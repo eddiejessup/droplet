@@ -66,11 +66,11 @@ class Box(object):
             num_motiles = int(self.o.get_A_free() * args['density_3d'])
         tumble_args = args['tumble'] if args['tumble_flag'] else None
         force_args = args['force'] if args['force_flag'] else None
-        noise_args = args['noise'] if args['noise_flag'] else None
+        rot_diff_args = args['rot_diff'] if args['rot_diff_flag'] else None
         vicsek_args = args['vicsek'] if args['vicsek_flag'] else None
 
-        self.motiles = motiles.Motiles(self, num_motiles, args['v_0'], args['tumble_flag'], tumble_args, 
-            args['force_flag'], force_args, args['noise_flag'], noise_args, args['vicsek_flag'], vicsek_args)
+        self.motiles = motiles.Motiles(self, num_motiles, args['v_0'], args['tumble_flag'], tumble_args,
+            args['force_flag'], force_args, args['rot_diff_flag'], rot_diff_args, args['vicsek_flag'], vicsek_args)
         self.o.init_r(self.motiles)
 
     def init_output(self):
@@ -127,6 +127,6 @@ def main():
             box.output(args['output']['path'])
     print('Done!')
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     main()
 #    import cProfile; cProfile.run('main()', sort='cum')

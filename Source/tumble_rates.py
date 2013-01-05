@@ -15,7 +15,7 @@ class TumbleRates(object):
         return np.zeros([self.parent_motes.N], dtype=np.float)
 
     def get_p(self, happy):
-        ''' p(happy) is a logistic curve saturating at zero at +inf, p_0 at 
+        ''' p(happy) is a logistic curve saturating at zero at +inf, p_0 at
         0.0. '''
         p = self.p_0 * 2.0 * (1.0 - 1.0 /
             (1.0 + np.exp(-self.sense * happy)))

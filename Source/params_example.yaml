@@ -1,7 +1,7 @@
 system:
     t_max: 10000
     output_flag: true
-    
+
     output:
         every: 100
         path: ../Data
@@ -17,7 +17,7 @@ motiles:
     v_0: 10.0
     tumble_flag: true
     force_flag: true
-    noise_flag: true
+    rot_diff_flag: true
     vicsek_flag: true
 
     tumble:
@@ -35,12 +35,12 @@ motiles:
     force:
         sensitivity: 10.0
 
-    noise:
-        d_rot: 2.0
-    
+    rot_diff:
+        D_rot: 2.0
+
     vicsek:
         r: 3.0
-    
+
 field:
     dx: 0.05
     f_0: 1.0
