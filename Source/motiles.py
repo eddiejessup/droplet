@@ -13,8 +13,8 @@ class Motiles(object):
             raise Exception('Require number of motiles > 0')
         if v_0 < 0.0:
             raise Exception('Require base speed >= 0')
-        if tumble_flag and force_flag:
-            raise Exception
+#        if tumble_flag and force_flag:
+#            raise Exception
 
         self.parent_env = parent_env
         self.N = N
@@ -47,26 +47,22 @@ class Motiles(object):
 
         # Initialise motile velocities uniformly
         self.v = utils.point_pick_cart(self.parent_env.dim, self.N) * self.v_0
-        self.v[:, 0] = self.v_0
-        self.v = np.asarray(self.v)
 
     def iterate(self, c):
-        # Make sure initial speed is v_0
-        self.v[...] = utils.vector_unit_nullrand(self.v) * self.v_0
-
         if self.tumble_flag: self.tumble(c)
         if self.force_flag: self.force(c)
         if self.vicsek_flag: self.vicsek()
         if self.rot_diff_flag: self.rot_diff()
 
         # Make sure final speed is v_0
-        self.v = utils.vector_unit_nullrand(self.v) * self.v_0
+        v_diff = (utils.vector_mag(self.v) - self.v_0).mean() / self.v_0
+        assert v_diff < 1e-16
 
     def tumble(self, c):
         i_tumblers = self.tumble_rates.get_tumblers(c)
-        thetas = np.random.uniform(-np.pi, np.pi, len(i_tumblers))
-        # This is dim-dependent -- bad!
-        self.v[i_tumblers] = utils.rotate_2d(self.v[i_tumblers], thetas)
+        v_mags = utils.vector_mag(self.v[i_tumblers])
+        self.v[i_tumblers] = utils.point_pick_cart(self.parent_env.dim, len(i_tumblers))
+        self.v[i_tumblers] *= v_mags[:, np.newaxis]
 
     def force(self, c):
         v_old_mags = utils.vector_mag(self.v)
@@ -88,7 +84,7 @@ class Motiles(object):
         dtheta_var = (dtheta ** 2).sum() / (len(dtheta) - 1)
         D_rot_calc = dtheta_var / (2.0 * self.parent_env.dt)
         D_rot_error = 1.0 - D_rot_calc / self.D_rot
-        print('D_rot_error: %f %%' % (100.0 * D_rot_error))
+#        print('D_rot_error: %f %%' % (100.0 * D_rot_error))
 
     def vicsek(self):
         inters, intersi = cell_list.interacts(self.r, self.parent_env.L, self.vicsek_R)

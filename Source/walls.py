@@ -3,7 +3,7 @@ import utils
 import fields
 import maze as maze_module
 
-BUFFER_SIZE = 0.999999
+BUFFER_SIZE = 1.0 - 1.0e-6
 
 def shrink(w_old, n):
     if n < 1: raise Exception('Shrink factor >= 1')
@@ -44,7 +44,7 @@ class Obstruction(object):
 class Parametric(Obstruction):
     def __init__(self, parent_env, num, delta, R_c_min, R_c_max):
         Obstruction.__init__(self, parent_env)
-        self.alg = 'blobs'
+        self.alg = 'parametric'
         self.num = num
         self.delta = delta
         self.R_c_min = R_c_min
@@ -163,9 +163,9 @@ class Walls(Obstruction, fields.Field):
         motiles.v = utils.vector_unit_nullrand(motiles.v) * motiles.v_0
 
     def to_field(self, dx):
-        if dx == self.dx: return self.a
+        if dx == self.dx: 
+            return self.a
         else: 
-            print(dx, self.dx)
             raise NotImplementedError
 
 class Closed(Walls):
