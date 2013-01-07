@@ -13,12 +13,17 @@ general:
     L: 1000
 
 motiles:
-    density: 0.35
+    density_1d: 0.35
+    density_2d: 0.35
+    density_3d: 0.01
     v_0: 10.0
+    rot_diff_flag: true
     tumble_flag: true
     force_flag: true
-    rot_diff_flag: true
     vicsek_flag: true
+
+    rot_diff:
+        D_rot: 2.0
 
     tumble:
         p_0: 1.0
@@ -34,9 +39,6 @@ motiles:
 
     force:
         sensitivity: 10.0
-
-    rot_diff:
-        D_rot: 2.0
 
     vicsek:
         r: 3.0

@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import yaml
 import numpy as np
@@ -119,6 +120,8 @@ def main():
     print('Starting!')
     params_fname = sys.argv[1]
     args = yaml.safe_load(open(params_fname, 'r'))['system']
+    if args['output_flag']:
+        shutil.copy(params_fname, args['output']['path'])
     box = Box(params_fname)
     print('Initialisation done!')
     while box.t < args['t_max']:

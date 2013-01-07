@@ -4,3 +4,4 @@
 - MED: Get some preliminary investigations of chemotaxis in parametric environment
 - LOW: Make traps & maze work in 3d
 - LOW: Put back validations, assertions etc.
+- LOW: Set up proper unit-testing
