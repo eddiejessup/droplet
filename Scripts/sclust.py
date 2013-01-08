@@ -16,11 +16,11 @@ parser.add_argument('-s', '--silent', default=False, action='store_true',
     help='no output')
 args = parser.parse_args()
 
-if args.dir[-1] == '/': args.dir = args.dir.rstrip('/')
+dir_name = suffix_remove(dir_name, '/')
 L = np.load('%s/walls.npz' % args.dir)['L']
 
 rs = sorted(glob.glob('%s/r/*.npz' % args.dir))
-if len(rs) == 0: 
+if len(rs) == 0:
     raise Exception('Did not find any states')
 f = open('%s/clust_%g.dat' % (args.dir, args.R), 'w')
 f.write('# pclust_%g\n' % (args.R))

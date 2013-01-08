@@ -24,10 +24,6 @@ def out_nonint(fname):
 def out_int(fname):
     pp.show()
 
-def suffix_remove(s, suffix):
-    if s.endswith(suffix): return s[:-len(suffix)]
-    else: return s
-
 if __name__ == '__main__':
     mpl.rc('font', family='serif', serif='Computer Modern Roman')
     mpl.rc('text', usetex=True)
@@ -43,19 +39,19 @@ if __name__ == '__main__':
         help='don\'t show plot')
     args = parser.parse_args()
 
-    args.dir = suffix_remove(args.dir, '/')
+    args.dir = utils.suffix_remove(args.dir, '/')
 
     w_dat = np.load('%s/walls.npz' % args.dir)
     walls, L_half = w_dat['walls'], w_dat['L'] / 2.0
 
-    if args.i == -1: 
+    if args.i == -1:
         fname = sorted(glob.glob('%s/r/*.npz' % args.dir))[-1]
     else:
         rs = sorted(glob.glob('%s/r/%08i.npz' % (args.dir, args.i)))
         assert len(rs) == 1
         fname = rs[0]
 
-    fname = suffix_remove(fname, '.npz')
+    fname = utils.suffix_remove(fname, '.npz')
     r_dat = np.load('%s.npz' % fname)
     r, t = r_dat['r'], r_dat['t']
 

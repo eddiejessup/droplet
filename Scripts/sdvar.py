@@ -14,7 +14,7 @@ parser.add_argument('-s', '--silent', default=False, action='store_true',
     help='no output')
 args = parser.parse_args()
 
-if dir_name[-1] == '/': dir_name = dir_name.rstrip('/')
+dir_name = suffix_remove(dir_name, '/')
 w_dat = np.load('%s/walls.npz' % dir_name)
 walls, L = w_dat['walls'], w_dat['L']
 valids = np.logical_not(np.asarray(walls, dtype=np.bool))
@@ -23,7 +23,7 @@ dx = L / M
 dim = walls.ndim
 
 rs = sorted(glob.glob('%s/r/*.npz' % dir_name))
-if len(rs) == 0: 
+if len(rs) == 0:
     raise Exception('Did not find any states')
 f = open('%s/dvar.dat' % dir_name, 'w')
 f.write('# dvar\n')
