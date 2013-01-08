@@ -48,4 +48,4 @@ while system.t < args.runtime:
             if not args.silent: print('finished', end='')
         if not args.silent: print()
 
-print('Finished!')
+if not args.silent: print('Finished!')
