@@ -78,6 +78,7 @@ class TumbleRates(object):
 
         if self.K_dt.sum() > 1e-10:
             raise Exception('Kernel not altered correctly %g' % self.K_dt.sum())
+        
 
     def output(self, dirname, prefix=''):
         pass

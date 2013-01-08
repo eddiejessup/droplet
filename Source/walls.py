@@ -30,7 +30,6 @@ def shrink(w_old, n):
 
 class Parametric(object):
     def __init__(self, parent_env, num, delta, R_c_min, R_c_max):
-        self.alg = 'parametric'
         self.parent_env = parent_env
         self.num = num
         self.delta = delta
@@ -107,7 +106,6 @@ class Parametric(object):
 class Walls(fields.Field):
     def __init__(self, parent_env, dx):
         fields.Field.__init__(self, parent_env, dx)
-        self.alg = 'blank'
         self.parent_env = parent_env
         self.a = np.zeros(self.parent_env.dim * (self.M,), dtype=np.uint8)
         self.d = self.parent_env.L_half
@@ -164,7 +162,6 @@ class Walls(fields.Field):
 class Closed(Walls):
     def __init__(self, parent_env, dx, d):
         Walls.__init__(self, parent_env, dx)
-        self.alg = 'closed'
         self.d_i = int(d / dx) + 1
         self.d = self.d_i * self.dx
         self.a[...] = False
@@ -179,23 +176,18 @@ class Closed(Walls):
 class Traps(Walls):
     def __init__(self, parent_env, dx, n, d, w, s):
         Walls.__init__(self, parent_env, dx)
-        if w < 0.0 or w > self.parent_env.L:
-            raise Exception('Invalid trap width')
-        if s < 0.0 or s > w:
-            raise Exception('Invalid slit length')
-        self.alg = 'trap'
-
         self.n = n
-
         self.d_i = int(d / self.dx) + 1
         self.w_i = int(w / self.dx) + 1
         self.s_i = int(s / self.dx) + 1
-        w_i_half = self.w_i // 2
-        s_i_half = self.s_i // 2
-
         self.d = self.d_i * self.dx
         self.w = self.w_i * self.dx
         self.s = self.s_i * self.dx
+
+        if self.w < 0.0 or self.w > self.parent_env.L:
+            raise Exception('Invalid trap width')
+        if self.s < 0.0 or self.s > self.w:
+            raise Exception('Invalid slit length')
 
         if self.n == 1:
             self.traps_f = np.array([[0.50, 0.50]], dtype=np.float)
@@ -208,6 +200,8 @@ class Traps(Walls):
         else:
             raise Exception('Traps not implemented for this number of traps')
 
+        w_i_half = self.w_i // 2
+        s_i_half = self.s_i // 2
         self.traps_i = np.asarray(self.M * self.traps_f, dtype=np.int)
         for x, y in self.traps_i:
             self.a[x - w_i_half - self.d_i:x + w_i_half + self.d_i + 1,
@@ -235,7 +229,6 @@ class Maze(Walls):
             raise Exception('Require L / d to be an integer')
         if (self.parent_env.L / self.dx) / (self.parent_env.L / self.d) % 1 != 0:
             raise Exception('Require array size / maze size to be integer')
-        self.alg = 'maze'
 
         self.seed = seed
         self.d = d

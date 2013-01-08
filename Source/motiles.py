@@ -59,17 +59,15 @@ class Motiles(object):
                     self.parent_env.L_half, self.parent_env.dim)
 
     def iterate(self, c, o):
+        if self.vicsek_flag: self.vicsek()
         if self.tumble_flag: self.tumble(c)
         if self.force_flag: self.force(c)
-        if self.vicsek_flag: self.vicsek()
         if self.rot_diff_flag: self.rot_diff()
         assert abs(utils.vector_mag(self.v).mean() / self.v_0 - 1.0) < v_TOLERANCE
         o.obstruct(self)
 
     def tumble(self, c):
         i_tumblers = self.tumble_rates.get_tumblers(c)
-        p_0_tumblers = self.N * self.tumble_rates.p_0 * self.parent_env.dt
-#        print(len(i_tumblers) / p_0_tumblers)
         v_mags = utils.vector_mag(self.v[i_tumblers])
         self.v[i_tumblers] = utils.point_pick_cart(self.parent_env.dim, len(i_tumblers))
         self.v[i_tumblers] *= v_mags[:, np.newaxis]
@@ -96,7 +94,7 @@ class Motiles(object):
         dtheta_var = (dtheta ** 2).sum() / (len(dtheta) - 1)
         D_rot_calc = dtheta_var / (2.0 * self.parent_env.dt)
         D_rot_error = 1.0 - D_rot_calc / self.D_rot
-        assert abs(D_rot_error) < 10.0
+        assert abs(D_rot_error) < 10.0, D_rot_error
 #        print('D_rot_error: %f %%' % (100.0 * D_rot_error))
         assert abs(utils.vector_mag(self.v).mean() / self.v_0 - 1.0) < v_TOLERANCE
 
@@ -107,7 +105,7 @@ class Motiles(object):
 
     def get_density_field(self, dx):
         return fields.density(self.r, self.parent_env.L, dx)
-        
+
     def output(self, dirname, prefix=''):
         np.save('%s/%sr' % (dirname, prefix), self.r)
         np.save('%s/%sv' % (dirname, prefix), self.v)

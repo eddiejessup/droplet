@@ -29,7 +29,7 @@ def collide(np.ndarray[np.float_t, ndim=2] v,
                                            r_sep[i_2, i_1, i_dim]) / R_sep_sq)
 
 def collide_inters(np.ndarray[np.float_t, ndim=2] v,
-        np.ndarray[np.float_t, ndim=2] r
+        np.ndarray[np.float_t, ndim=2] r,
         np.ndarray[int, ndim=2] inters,
         np.ndarray[int, ndim=1] intersi):
     cdef unsigned int i_1, i_i_2, i_2
@@ -55,5 +55,5 @@ def vicsek_inters(np.ndarray[np.float_t, ndim=2] v,
     for i_1 in range(v.shape[0]):
         for i_i_2 in range(intersi[i_1]):
             for i_dim in range(v.shape[1]):
-                v_vic[i_1, i_dim] += v[, i_dim]
+                v_vic[i_1, i_dim] += v[inters[i_1, i_i_2] - 1, i_dim]
     return utils.vector_unit_nullnull(v_vic) * utils.vector_mag(v)[:, np.newaxis]

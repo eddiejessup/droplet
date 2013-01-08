@@ -1,7 +1,3 @@
-import os
-import shutil
-import sys
-import yaml
 import numpy as np
 import matplotlib.pyplot as pp
 from mpl_toolkits.mplot3d import Axes3D
@@ -11,13 +7,10 @@ import walls as walls_module
 import walled_fields
 import motiles
 
-sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', 1)
-
 class System(object):
-    def __init__(self, params_fname):
-        args = yaml.safe_load(open(params_fname, 'r'))
+    def __init__(self, args):
         self.init_general(args['general'])
-        self.init_field(args['field'])
+        self.init_fields(args['fields'])
         self.init_motiles(args['motiles'])
 
     def init_general(self, args):
@@ -36,9 +29,9 @@ class System(object):
         np.random.seed(self.seed)
         self.L_half = self.L / 2.0
         self.t = 0.0
-        self.i_t = 0.0
+        self.i = 0.0
 
-    def init_field(self, args):
+    def init_fields(self, args):
         if args['obstructions_alg'] == 'none':
             self.o = walls_module.Walls(self, args['dx'])
         elif args['obstructions_alg'] == 'traps':
@@ -86,7 +79,7 @@ class System(object):
         self.f.iterate(density)
         self.c.iterate(density, self.f)
         self.t += self.dt
-        self.i_t += 1
+        self.i += 1
 
     def output_persistent(self, dirname, prefix=''):
         file = open('%s/%sparams.dat' % (dirname, prefix), 'w')
@@ -100,72 +93,44 @@ class System(object):
         self.c.output_persistent(dirname, prefix=prefix+'c_')
         self.m.output_persistent(dirname, prefix=prefix+'m_')
 
-#        self.fig = pp.figure()
-#        self.lims = [-self.L_half, self.L_half]
-#        if self.dim == 3:
-#            self.ax = self.fig.add_subplot(111, projection='3d')
-#            self.parts_plot = self.ax.scatter([], [], [])
-#            self.ax.set_zlim(self.lims)
-#            self.ax.set_zticks([])
-#            self.ax.set_xlim(self.lims)
-#            self.ax.set_ylim(self.lims)
-#            self.ax.set_xticks([])
-#            self.ax.set_yticks([])
-#            self.ax.set_aspect('equal')
-
     def output(self, dirname, prefix=''):
         file = open('%s/%sstate.dat' % (dirname, prefix), 'w')
         file.write('t,%f\n' % self.t)
-        file.write('i_t,%i\n' % self.i_t)
+        file.write('i,%i\n' % self.i)
         file.close()
         self.m.output(dirname, prefix=prefix+'m_')
-        self.f.output(dirname, prefix=prefix+'f_')
-        self.c.output(dirname, prefix=prefix+'c_')
-#        if self.dim == 2:
-#            pp.scatter(self.m.r[:, 0], self.m.r[:, 1], s=2)
-##            pp.imshow(np.ma.array(self.c.a.T, mask=self.c.of.T), extent=2*[-self.L_half, self.L_half], origin='lower')
-##            pp.colorbar()
-#            pp.xlim(self.lims)
-#            pp.ylim(self.lims)
-#            pp.xticks([])
-#            pp.yticks([])
-#            pp.savefig('%s/%s.png' % (dirname, self.i_t))
-#            pp.clf()
-#        elif self.dim == 3:
-#            self.parts_plot._offsets3d = (self.m.r[..., 0], self.m.r[..., 1], self.m.r[..., 2])
-#            pp.savefig('%s/%s.png' % (dirname, self.i_t))
-#        print(self.t, self.m.N)
+#        self.f.output(dirname, prefix=prefix+'f_')
+#        self.c.output(dirname, prefix=prefix+'c_')
+
+    def init_plot(self):
+        self.fig = pp.figure()
+        self.lims = [-self.L_half, self.L_half]
+        if self.dim == 2:
+            self.ax = self.fig.add_subplot(111)
+            self.parts_plot = self.ax.scatter([], [], s=0.2, c='k')
+            self.c_plot = self.ax.imshow([[0]], extent=2*[-self.L_half, self.L_half], origin='lower')
+        elif self.dim == 3:
+            self.ax = self.fig.add_subplot(111, projection='3d')
+            self.parts_plot = self.ax.scatter([], [], [])
+            self.ax.set_zticks([])
+            self.ax.set_zlim(self.lims)
+        self.ax.set_aspect('equal')
+        self.ax.set_xticks([])
+        self.ax.set_yticks([])
+        self.ax.set_xlim(self.lims)
+        self.ax.set_ylim(self.lims)
+
+    def plot(self, dirname):
+        try: self.fig
+        except: self.init_plot()
+
+        if self.dim == 2:
+            self.parts_plot.set_offsets(self.m.r)
+            self.c_plot.set_data(np.ma.array(self.c.a.T, mask=self.c.of.T))
+            self.c_plot.autoscale()
+        elif self.dim == 3:
+            self.parts_plot._offsets3d = (self.m.r[..., 0], self.m.r[..., 1], self.m.r[..., 2])
+        self.fig.savefig('%s/system.png' % (dirname))
 
     def get_A(self):
         return self.L ** self.dim
-
-def main():
-    print('Initialising...')
-
-    # Get parameters
-    params_fname = sys.argv[1]
-    args = yaml.safe_load(open(params_fname, 'r'))['system']
-
-    # Initialise environment
-    system = System(params_fname)
-
-    # Make output directory if it isn't there already
-    if args['output_flag']:
-        utils.make_dirs_safe(args['output']['path'])
-        shutil.copy(params_fname, args['output']['path'])
-        utils.make_dirs_safe('%s/Persistent' % args['output']['path'])
-        system.output_persistent('%s/Persistent/' % args['output']['path'])
-
-    print('Initialisation done! Starting...')
-    while system.t < args['t_max']:
-        system.iterate()
-        if args['output_flag'] and not system.i_t % args['output']['every']:
-            state_dirname = '%s/%f' % (args['output']['path'], system.t)
-            utils.make_dirs_safe(state_dirname)
-            system.output(state_dirname)
-
-    print('Finished!')
-
-if __name__ == '__main__':
-    main()
-#    import cProfile; cProfile.run('main()', sort='cum')
