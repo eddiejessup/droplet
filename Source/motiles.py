@@ -23,14 +23,8 @@ class Motiles(object):
 
         self.tumble_flag = tumble_flag
         if self.tumble_flag:
-            if tumble_args['chemotaxis_alg'] == 'none':
-                self.tumble_rates = tumble_rates_module.TumbleRates(self, tumble_args['p_0'])
-            elif tumble_args['chemotaxis_alg'] == 'grad':
-                self.tumble_rates = tumble_rates_module.TumbleRatesGrad(self, tumble_args['p_0'],
-                    tumble_args['grad']['sensitivity'])
-            elif tumble_args['chemotaxis_alg'] == 'mem':
-                self.tumble_rates = tumble_rates_module.TumbleRatesMem(self, tumble_args['p_0'],
-                    tumble_args['mem']['sensitivity'], tumble_args['mem']['t_mem'])
+            chemotaxis_args = tumble_args['chemotaxis'] if tumble_args['chemotaxis_alg'] != 'none' else None
+            self.tumble_rates = tumble_rates_module.TumbleRates(self, tumble_args['p_0'], tumble_args['chemotaxis_alg'], chemotaxis_args)
 
         self.force_flag = force_flag
         if self.force_flag:
@@ -75,7 +69,7 @@ class Motiles(object):
     def tumble(self, c):
         i_tumblers = self.tumble_rates.get_tumblers(c)
         p_0_tumblers = self.N * self.tumble_rates.p_0 * self.parent_env.dt
-        print(len(i_tumblers) / p_0_tumblers)
+#        print(len(i_tumblers) / p_0_tumblers)
         v_mags = utils.vector_mag(self.v[i_tumblers])
         self.v[i_tumblers] = utils.point_pick_cart(self.parent_env.dim, len(i_tumblers))
         self.v[i_tumblers] *= v_mags[:, np.newaxis]
@@ -97,7 +91,7 @@ class Motiles(object):
         elif self.parent_env.dim == 3:
             self.v = utils.rot_diff_3d(self.v, self.D_rot, self.parent_env.dt)
         else: raise Exception('Rotational diffusion not implemented in this '
-                              'dimension')
+            'dimension')
         dtheta = utils.vector_angle(v_before, self.v)
         dtheta_var = (dtheta ** 2).sum() / (len(dtheta) - 1)
         D_rot_calc = dtheta_var / (2.0 * self.parent_env.dt)
@@ -113,3 +107,18 @@ class Motiles(object):
 
     def get_density_field(self, dx):
         return fields.density(self.r, self.parent_env.L, dx)
+        
+    def output(self, dirname, prefix=''):
+        np.save('%s/%sr' % (dirname, prefix), self.r)
+        np.save('%s/%sv' % (dirname, prefix), self.v)
+        if self.tumble_flag: self.tumble_rates.output(dirname, prefix=prefix+'tr_')
+
+    def output_persistent(self, dirname, prefix=''):
+        file = open('%s/%sparams.dat' % (dirname, prefix), 'w')
+        file.write('N,%i\n' % self.N)
+        file.write('v_0,%f\n' % self.v_0)
+        if self.force_flag: file.write('force_sense,%f\n' % self.force_sense)
+        if self.rot_diff_flag: file.write('D_rot,%f\n' % self.D_rot)
+        if self.vicsek_flag: file.write('vicsek_R,%f\n' % self.vicsek_R)
+        file.close()
+        if self.tumble_flag: self.tumble_rates.output_persistent(dirname, prefix=prefix+'tr_')

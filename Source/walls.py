@@ -34,8 +34,6 @@ class Parametric(object):
         self.parent_env = parent_env
         self.num = num
         self.delta = delta
-        self.R_c_min = R_c_min
-        self.R_c_max = R_c_max
 
         # Generate obstacles
         self.r_c = np.zeros([self.num, self.parent_env.dim], dtype=np.float)
@@ -43,7 +41,7 @@ class Parametric(object):
         m = 0
         while m < self.num:
             valid = True
-            self.R_c[m] = np.random.uniform(self.R_c_min, self.R_c_max)
+            self.R_c[m] = np.random.uniform(R_c_min, R_c_max)
             self.r_c[m] = np.random.uniform(-self.parent_env.L_half + 1.1*self.R_c[m], self.parent_env.L_half - 1.1*self.R_c[m], self.parent_env.dim)
             # Check obstacle doesn't intersect any of those already positioned
             for m_2 in range(m):
@@ -102,6 +100,10 @@ class Parametric(object):
         else:
             return np.zeros(self.parent_env.dim * [M], dtype=np.uint8)
 
+    def output_persistent(self, dirname, prefix=''):
+        np.save('%s/%sr' % (dirname, prefix), self.r_c)
+        np.save('%s/%sR' % (dirname, prefix), self.R_c)
+
 class Walls(fields.Field):
     def __init__(self, parent_env, dx):
         fields.Field.__init__(self, parent_env, dx)
@@ -154,6 +156,10 @@ class Walls(fields.Field):
             return self.a
         else:
             raise NotImplementedError
+
+    def output_persistent(self, dirname, prefix=''):
+        super(Walls, self).output_persistent(dirname, prefix)
+        np.save('%s/%sa' % (dirname, prefix), self.a)
 
 class Closed(Walls):
     def __init__(self, parent_env, dx, d):

@@ -1,5 +1,5 @@
 system:
-    t_max: 10000
+    t_max: .inf
     output_flag: true
 
     output:
@@ -8,19 +8,19 @@ system:
 
 general:
     seed: 110
-    dt: 0.05
+    dt: 0.1
     dimension: 2
-    L: 1000
+    L: 1200.0
 
 motiles:
-    density_1d: 0.35
-    density_2d: 0.35
-    density_3d: 0.01
-    v_0: 10.0
+    density_1d: 0.1
+    density_2d: 3.5e-3
+    density_3d: 3.5e-6
+    v_0: 20.0
     rot_diff_flag: true
-    tumble_flag: true
-    force_flag: true
-    vicsek_flag: true
+    tumble_flag: false
+    force_flag: false
+    vicsek_flag: false
 
     rot_diff:
         D_rot: 2.0
@@ -38,15 +38,15 @@ motiles:
                 t_mem: 10.0
 
     force:
-        sensitivity: 10.0
+        sensitivity: 1000.0
 
     vicsek:
         r: 3.0
 
 field:
-    dx: 0.05
+    dx: 4.0
     f_0: 1.0
-    f_pde_flag: true
+    f_pde_flag: false
     c_pde_flag: true
     obstructions_alg: none
 
