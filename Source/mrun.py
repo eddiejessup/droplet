@@ -45,7 +45,7 @@ while system.t < args.runtime:
             utils.makedirs_soft(state_dirname)
             system.output(state_dirname)
             if args.plot: system.plot(state_dirname)
-            print('finished', end='')
+            if not args.silent: print('finished', end='')
         print()
 
 print('Finished!')
