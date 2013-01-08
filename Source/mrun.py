@@ -46,6 +46,6 @@ while system.t < args.runtime:
             system.output(state_dirname)
             if args.plot: system.plot(state_dirname)
             if not args.silent: print('finished', end='')
-        print()
+        if not args.silent: print()
 
 print('Finished!')
