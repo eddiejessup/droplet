@@ -5,20 +5,21 @@ import cell_list
 import tumble_rates as tumble_rates_module
 import motile_numerics
 
+v_TOLERANCE = 1e-15
+
 class Motiles(object):
-    def __init__(self, parent_env, N, v_0, tumble_flag=False, tumble_args=None,
+    def __init__(self, parent_env, N, v_0, o, tumble_flag=False, tumble_args=None,
             force_flag=False, force_args=None, rot_diff_flag=False,
             rot_diff_args=None, vicsek_flag=False, vicsek_args=None):
-        if N < 1:
-            raise Exception('Require number of motiles > 0')
-        if v_0 < 0.0:
-            raise Exception('Require base speed >= 0')
-#        if tumble_flag and force_flag:
-#            raise Exception
-
         self.parent_env = parent_env
         self.N = N
         self.v_0 = v_0
+        self.R_comm = 0.0
+
+        if self.N < 0:
+            raise Exception('Require number of motiles >= 0')
+        if self.v_0 < 0.0:
+            raise Exception('Require base speed >= 0')
 
         self.tumble_flag = tumble_flag
         if self.tumble_flag:
@@ -39,30 +40,46 @@ class Motiles(object):
         if self.rot_diff_flag:
             self.D_rot = rot_diff_args['D_rot']
 
+            if self.D_rot < 0.0:
+                raise Exception('Require rotational diffusion constant >= 0')
+
         self.vicsek_flag = vicsek_flag
         if self.vicsek_flag:
             self.vicsek_R = vicsek_args['r']
+            if self.vicsek_R < 0.0:
+                raise Exception('Require Vicsek radius >= 0')
+            self.R_comm = max(self.R_comm, self.vicsek_R)
 
-        self.r = np.zeros([self.N, self.parent_env.dim], dtype=np.float)
+        if o.d < self.R_comm:
+            raise Exception('Cannot have inter-obstruction motile communication')
 
-        # Initialise motile velocities uniformly
+        self.initialise_r(o)
         self.v = utils.point_pick_cart(self.parent_env.dim, self.N) * self.v_0
 
-    def iterate(self, c):
+    def initialise_r(self, o):
+        self.r = np.random.uniform(-self.parent_env.L_half, self.parent_env.L_half,
+            size=(self.N, self.parent_env.dim))
+        for r in self.r:
+            while o.is_obstructed(r):
+                r = np.random.uniform(-self.parent_env.L_half,
+                    self.parent_env.L_half, self.parent_env.dim)
+
+    def iterate(self, c, o):
         if self.tumble_flag: self.tumble(c)
         if self.force_flag: self.force(c)
         if self.vicsek_flag: self.vicsek()
         if self.rot_diff_flag: self.rot_diff()
-
-        # Make sure final speed is v_0
-        v_diff = (utils.vector_mag(self.v) - self.v_0).mean() / self.v_0
-        assert v_diff < 1e-16
+        assert abs(utils.vector_mag(self.v).mean() / self.v_0 - 1.0) < v_TOLERANCE
+        o.obstruct(self)
 
     def tumble(self, c):
         i_tumblers = self.tumble_rates.get_tumblers(c)
+        p_0_tumblers = self.N * self.tumble_rates.p_0 * self.parent_env.dt
+        print(len(i_tumblers) / p_0_tumblers)
         v_mags = utils.vector_mag(self.v[i_tumblers])
         self.v[i_tumblers] = utils.point_pick_cart(self.parent_env.dim, len(i_tumblers))
         self.v[i_tumblers] *= v_mags[:, np.newaxis]
+        assert abs(utils.vector_mag(self.v).mean() / self.v_0 - 1.0) < v_TOLERANCE
 
     def force(self, c):
         v_old_mags = utils.vector_mag(self.v)
@@ -71,6 +88,7 @@ class Motiles(object):
         i_up = np.where(np.sum(self.v * grad_c_i, 1) > 0.0)
         v_new[i_up] += self.force_sense * grad_c_i[i_up] * self.parent_env.dt
         self.v = utils.vector_unit_nullnull(v_new) * v_old_mags[:, np.newaxis]
+        assert abs(utils.vector_mag(self.v).mean() / self.v_0 - 1.0) < v_TOLERANCE
 
     def rot_diff(self):
         v_before = self.v.copy()
@@ -84,11 +102,14 @@ class Motiles(object):
         dtheta_var = (dtheta ** 2).sum() / (len(dtheta) - 1)
         D_rot_calc = dtheta_var / (2.0 * self.parent_env.dt)
         D_rot_error = 1.0 - D_rot_calc / self.D_rot
+        assert abs(D_rot_error) < 10.0
 #        print('D_rot_error: %f %%' % (100.0 * D_rot_error))
+        assert abs(utils.vector_mag(self.v).mean() / self.v_0 - 1.0) < v_TOLERANCE
 
     def vicsek(self):
         inters, intersi = cell_list.interacts(self.r, self.parent_env.L, self.vicsek_R)
         self.v = motile_numerics.vicsek_inters(self.v, inters, intersi)
+        assert abs(utils.vector_mag(self.v).mean() / self.v_0 - 1.0) < v_TOLERANCE
 
     def get_density_field(self, dx):
         return fields.density(self.r, self.parent_env.L, dx)

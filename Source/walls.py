@@ -18,39 +18,26 @@ def shrink(w_old, n):
             y_ = y * n
             if w_old[x, y]:
                 w_new[x_ + mid, y_ + mid] = True
-                if w_old[utils.wrap_inc(M, x), y]: 
+                if w_old[utils.wrap_inc(M, x), y]:
                     w_new[x_ + mid:x_ + n, y_ + mid] = True
-                if w_old[utils.wrap_dec(M, x), y]: 
+                if w_old[utils.wrap_dec(M, x), y]:
                     w_new[x_:x_ + mid, y_ + mid] = True
-                if w_old[x, utils.wrap_inc(M, y)]: 
+                if w_old[x, utils.wrap_inc(M, y)]:
                     w_new[x_ + mid, y_ + mid:y_ + n] = True
-                if w_old[x, utils.wrap_dec(M, y)]: 
+                if w_old[x, utils.wrap_dec(M, y)]:
                     w_new[x_ + mid, y * n:y_ + mid] = True
     return w_new
 
-class Obstruction(object):
-    def __init__(self, parent_env):
-        self.parent_env = parent_env
-
-    def init_r(self, motiles):
-        i_motile = 0
-        while i_motile < motiles.N:
-            motiles.r[i_motile] = np.random.uniform(-self.parent_env.L_half,
-                self.parent_env.L_half, self.parent_env.dim)
-            if self.is_obstructed(motiles.r[i_motile]):
-                continue
-            i_motile += 1
-
-class Parametric(Obstruction):
+class Parametric(object):
     def __init__(self, parent_env, num, delta, R_c_min, R_c_max):
-        Obstruction.__init__(self, parent_env)
         self.alg = 'parametric'
+        self.parent_env = parent_env
         self.num = num
         self.delta = delta
         self.R_c_min = R_c_min
         self.R_c_max = R_c_max
 
-        # Generate obstacles    
+        # Generate obstacles
         self.r_c = np.zeros([self.num, self.parent_env.dim], dtype=np.float)
         self.R_c = np.zeros([self.num], dtype=np.float)
         m = 0
@@ -60,7 +47,7 @@ class Parametric(Obstruction):
             self.r_c[m] = np.random.uniform(-self.parent_env.L_half + 1.1*self.R_c[m], self.parent_env.L_half - 1.1*self.R_c[m], self.parent_env.dim)
             # Check obstacle doesn't intersect any of those already positioned
             for m_2 in range(m):
-                if utils.circle_intersect(self.r_c[m], self.R_c[m], self.r_c[m_2], self.R_c[m_2]): 
+                if utils.circle_intersect(self.r_c[m], self.R_c[m], self.r_c[m_2], self.R_c[m_2]):
                     valid = False
                     break
             if valid: m += 1
@@ -77,7 +64,7 @@ class Parametric(Obstruction):
                 return True
         return False
 
-    def iterate_r(self, motiles):
+    def obstruct(self, motiles):
         motiles.r += motiles.v * self.parent_env.dt
         motiles.r[motiles.r > self.parent_env.L_half] -= self.parent_env.L
         motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
@@ -115,11 +102,11 @@ class Parametric(Obstruction):
         else:
             return np.zeros(self.parent_env.dim * [M], dtype=np.uint8)
 
-class Walls(Obstruction, fields.Field):
+class Walls(fields.Field):
     def __init__(self, parent_env, dx):
         fields.Field.__init__(self, parent_env, dx)
-        Obstruction.__init__(self, parent_env)
         self.alg = 'blank'
+        self.parent_env = parent_env
         self.a = np.zeros(self.parent_env.dim * (self.M,), dtype=np.uint8)
         self.d = self.parent_env.L_half
 
@@ -132,7 +119,7 @@ class Walls(Obstruction, fields.Field):
     def is_obstructed(self, r):
         return self.a[tuple(self.r_to_i(r))]
 
-    def iterate_r(self, motiles):
+    def obstruct(self, motiles):
         inds_old = self.r_to_i(motiles.r)
         r_new = motiles.r + motiles.v * self.parent_env.dt
         r_new[r_new > self.parent_env.L_half] -= self.parent_env.L
@@ -147,7 +134,7 @@ class Walls(Obstruction, fields.Field):
         offset = BUFFER_SIZE * (self.dx / 2.0)
         wall_statusses = utils.field_subset(self.a, inds_new)
         for i_motile in np.where(wall_statusses == True)[0]:
-            dims_hit = np.where(delta_inds[i_motile] != 0)[0]            
+            dims_hit = np.where(delta_inds[i_motile] != 0)[0]
             cell_r = self.i_to_r(inds_old[i_motile, dims_hit])
             r_new[i_motile, dims_hit] = (cell_r + offset *
                 delta_inds[i_motile, dims_hit])
@@ -163,9 +150,9 @@ class Walls(Obstruction, fields.Field):
         motiles.v = utils.vector_unit_nullrand(motiles.v) * motiles.v_0
 
     def to_field(self, dx):
-        if dx == self.dx: 
+        if dx == self.dx:
             return self.a
-        else: 
+        else:
             raise NotImplementedError
 
 class Closed(Walls):
@@ -204,10 +191,10 @@ class Traps(Walls):
         self.w = self.w_i * self.dx
         self.s = self.s_i * self.dx
 
-        if self.n == 1: 
+        if self.n == 1:
             self.traps_f = np.array([[0.50, 0.50]], dtype=np.float)
-        elif self.n == 4: 
-            self.traps_f = np.array([[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], 
+        elif self.n == 4:
+            self.traps_f = np.array([[0.25, 0.25], [0.25, 0.75], [0.75, 0.25],
                 [0.75, 0.75]], dtype=np.float)
         elif self.n == 5:
             self.traps_f = np.array([[0.25, 0.25], [0.25, 0.75], [0.75, 0.25],

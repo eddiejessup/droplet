@@ -31,9 +31,10 @@ class Diffusing(Scalar, fields.Diffusing):
 class Food(Diffusing):
     def __init__(self, parent_env, dx, o, D, sink_rate, a_0=0.0):
         Diffusing.__init__(self, parent_env, dx, o, D, a_0=a_0)
-        if sink_rate < 0.0:
-            raise Exception('Require food sink rate >= 0')
         self.sink_rate = sink_rate
+
+        if self.sink_rate < 0.0:
+            raise Exception('Require food sink rate >= 0')
 
     def iterate(self, density):
         Diffusing.iterate(self)
@@ -43,12 +44,13 @@ class Food(Diffusing):
 class Secretion(Diffusing):
     def __init__(self, parent_env, dx, o, D, sink_rate, source_rate, a_0=0.0):
         Diffusing.__init__(self, parent_env, dx, o, D, a_0=a_0)
-        if source_rate < 0:
-            raise Exception('Require chemo-attractant source rate >= 0')
-        if sink_rate < 0:
-            raise Exception('Require chemo-attractant sink rate >= 0')
         self.source_rate = source_rate
         self.sink_rate = sink_rate
+
+        if self.source_rate < 0.0:
+            raise Exception('Require chemo-attractant source rate >= 0')
+        if self.sink_rate < 0.0:
+            raise Exception('Require chemo-attractant sink rate >= 0')
 
     def iterate(self, density, f):
         Diffusing.iterate(self)

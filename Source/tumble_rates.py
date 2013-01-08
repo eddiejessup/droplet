@@ -3,13 +3,15 @@ import utils
 
 class TumbleRates(object):
     def __init__(self, parent_motes, p_0):
-        if p_0 < 0.0:
-            raise Exception('Require base tumble rate >= 0')
         self.parent_motes = parent_motes
         self.p_0 = p_0
-        self.p = np.ones([self.parent_motes.N], dtype=np.float) * self.p_0
         self.alg = 'c'
         self.sense = 0.0
+
+        if self.p_0 < 0.0:
+            raise Exception('Require base tumble rate >= 0')
+        if self.p_0 * self.parent_motes.parent_env.dt > 0.1:
+            raise Exception('Time-step too large for p_0')
 
     def get_happy(self, *args):
         return np.zeros([self.parent_motes.N], dtype=np.float)
@@ -43,12 +45,17 @@ class TumbleRatesGrad(TumbleRates):
 class TumbleRatesMem(TumbleRates):
     def __init__(self, parent_motes, p_0, sense, t_max):
         TumbleRates.__init__(self, parent_motes, p_0)
-        if t_max < 0.0:
-            raise Exception('Require motile memory >= 0')
         self.alg = 'm'
         self.sense = sense
         self.t_max = t_max
+
+        if self.t_max < 0.0:
+            raise Exception('Require motile memory >= 0')
+        if (self.parent_motes.v_0 / self.p_0) / self.parent_motes.parent_env.c.dx < 5:
+            raise Exception('Chemotactic memory requires >= 5 lattice points per run')
+
         self.calculate_kernel()
+        self.c_mem = np.zeros([self.parent_motes.N, len(self.K_dt)], dtype=np.float)
 
     def calculate_kernel(self):
         ''' Calculate memory kernel and multiply it by dt to make integration
@@ -70,10 +77,9 @@ class TumbleRatesMem(TumbleRates):
         i_pos = np.where(self.K_dt >= 0.0)[0]
         self.K_dt[i_neg] *= np.abs(self.K_dt[i_pos].sum() /
             self.K_dt[i_neg].sum())
+
         if self.K_dt.sum() > 1e-10:
             raise Exception('Kernel not altered correctly %g' % self.K_dt.sum())
-
-        self.c_mem = np.zeros([self.parent_motes.N, len(self.K_dt)], dtype=np.float)
 
     def get_happy(self, c):
         ''' approximate unit(v) dot grad(c) via temporal integral '''

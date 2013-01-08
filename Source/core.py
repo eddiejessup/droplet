@@ -26,6 +26,13 @@ class Box(object):
         self.dim = args['dimension']
         self.L = args['L']
 
+        if self.L <= 0.0:
+            raise Exception('Require system size > 0')
+        if self.dt <= 0.0:
+            raise Exception('Require time-step > 0')
+        if self.dim < 0:
+            raise Exception('Require dimension >= 0')
+
         np.random.seed(self.seed)
         self.L_half = self.L / 2.0
         self.t = 0.0
@@ -70,9 +77,8 @@ class Box(object):
         rot_diff_args = args['rot_diff'] if args['rot_diff_flag'] else None
         vicsek_args = args['vicsek'] if args['vicsek_flag'] else None
 
-        self.motiles = motiles.Motiles(self, num_motiles, args['v_0'], args['tumble_flag'], tumble_args,
+        self.motiles = motiles.Motiles(self, num_motiles, args['v_0'], self.o, args['tumble_flag'], tumble_args,
             args['force_flag'], force_args, args['rot_diff_flag'], rot_diff_args, args['vicsek_flag'], vicsek_args)
-        self.o.init_r(self.motiles)
 
     def init_output(self):
         self.fig = pp.figure()
@@ -89,8 +95,7 @@ class Box(object):
             self.ax.set_aspect('equal')
 
     def iterate(self):
-        self.motiles.iterate(self.c)
-        self.o.iterate_r(self.motiles)
+        self.motiles.iterate(self.c, self.o)
         density = self.motiles.get_density_field(self.f.dx)
         self.f.iterate(density)
         self.c.iterate(density, self.f)
@@ -117,18 +122,33 @@ class Box(object):
         return self.L ** self.dim
 
 def main():
-    print('Starting!')
+    print('Initialising...')
+
+    # Get parameters
     params_fname = sys.argv[1]
     args = yaml.safe_load(open(params_fname, 'r'))['system']
+
+    # Make output directory if it isn't there already
     if args['output_flag']:
+        if os.path.isdir(args['output']['path']):
+            print(args['output']['path'])
+            s = raw_input('Output directory exists, overwrite? (y/n)')
+            if s != 'y': raise Exception
+        else:
+            os.makedirs(args['output']['path'])
+        # Copy params file to output directory
         shutil.copy(params_fname, args['output']['path'])
+
+    # Initialise environment
     box = Box(params_fname)
-    print('Initialisation done!')
+
+    print('Initialisation done! Starting...')
     while box.t < args['t_max']:
         box.iterate()
         if args['output_flag'] and not box.i_t % args['output']['every']:
             box.output(args['output']['path'])
-    print('Done!')
+
+    print('Finished!')
 
 if __name__ == '__main__':
     main()
