@@ -78,18 +78,3 @@ class TumbleRates(object):
 
         if self.K_dt.sum() > 1e-10:
             raise Exception('Kernel not altered correctly %g' % self.K_dt.sum())
-        
-
-    def output(self, dirname, prefix=''):
-        pass
-
-    def output_persistent(self, dirname, prefix=''):
-        file = open('%s/%sparams.dat' % (dirname, prefix), 'w')
-        file.write('p_0,%f\n' % self.p_0)
-        file.write('chemotaxis_alg,%s\n' % self.chemotaxis_alg)
-        if self.chemotaxis_alg == 'grad': 
-            file.write('sense,%f\n' % self.sense)
-        if self.chemotaxis_alg == 'mem': 
-            file.write('sense,%f\n' % self.sense)
-            file.write('t_mem,%f\n' % self.t_mem)
-        file.close()

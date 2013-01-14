@@ -1,6 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as pp
-from mpl_toolkits.mplot3d import Axes3D
 import utils
 import fields
 import walls as walls_module
@@ -39,7 +37,7 @@ class System(object):
             self.o = walls_module.Traps(self, args['dx'], trap_args['n'], trap_args['thickness'], trap_args['width'], trap_args['slit_width'])
         elif args['obstructions_alg'] == 'maze':
             maze_args = args['obstructions']['maze']
-            self.o = walls_module.Maze(self, args['dx'], maze_args['width'], maze_args['seed'])
+            self.o = walls_module.Maze(self, args['dx'], maze_args['thickness'], maze_args['seed'])
         elif args['obstructions_alg'] == 'parametric':
             para_args = args['obstructions']['parametric']
             self.o = walls_module.Parametric(self, para_args['n'], para_args['stickiness'], para_args['radius_min'], para_args['radius_max'])
@@ -81,56 +79,10 @@ class System(object):
         self.t += self.dt
         self.i += 1
 
-    def output_persistent(self, dirname, prefix=''):
-        file = open('%s/%sparams.dat' % (dirname, prefix), 'w')
-        file.write('seed,%i\n' % self.seed)
-        file.write('dt,%f\n' % self.dt)
-        file.write('dim,%i\n' % self.dim)
-        file.write('L,%f\n' % self.L)
-        file.close()
-        self.o.output_persistent(dirname, prefix=prefix+'o_')
-        self.f.output_persistent(dirname, prefix=prefix+'f_')
-        self.c.output_persistent(dirname, prefix=prefix+'c_')
-        self.m.output_persistent(dirname, prefix=prefix+'m_')
-
-    def output(self, dirname, prefix=''):
-        file = open('%s/%sstate.dat' % (dirname, prefix), 'w')
-        file.write('t,%f\n' % self.t)
-        file.write('i,%i\n' % self.i)
-        file.close()
-        self.m.output(dirname, prefix=prefix+'m_')
-#        self.f.output(dirname, prefix=prefix+'f_')
-#        self.c.output(dirname, prefix=prefix+'c_')
-
-    def init_plot(self):
-        self.fig = pp.figure()
-        self.lims = [-self.L_half, self.L_half]
-        if self.dim == 2:
-            self.ax = self.fig.add_subplot(111)
-            self.parts_plot = self.ax.scatter([], [], s=0.2, c='k')
-            self.c_plot = self.ax.imshow([[0]], extent=2*[-self.L_half, self.L_half], origin='lower')
-        elif self.dim == 3:
-            self.ax = self.fig.add_subplot(111, projection='3d')
-            self.parts_plot = self.ax.scatter([], [], [])
-            self.ax.set_zticks([])
-            self.ax.set_zlim(self.lims)
-        self.ax.set_aspect('equal')
-        self.ax.set_xticks([])
-        self.ax.set_yticks([])
-        self.ax.set_xlim(self.lims)
-        self.ax.set_ylim(self.lims)
-
-    def plot(self, dirname):
-        try: self.fig
-        except: self.init_plot()
-
-        if self.dim == 2:
-            self.parts_plot.set_offsets(self.m.r)
-            self.c_plot.set_data(np.ma.array(self.c.a.T, mask=self.c.of.T))
-            self.c_plot.autoscale()
-        elif self.dim == 3:
-            self.parts_plot._offsets3d = (self.m.r[..., 0], self.m.r[..., 1], self.m.r[..., 2])
-        self.fig.savefig('%s/system.png' % (dirname))
-
     def get_A(self):
         return self.L ** self.dim
+
+    def get_dstd(self, dx):
+        density = self.m.get_density_field(dx)
+        valids = np.asarray(np.logical_not(self.o.to_field(dx), dtype=np.bool))
+        return np.std(density[valids])
