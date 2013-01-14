@@ -3,7 +3,7 @@ import utils
 import fields
 import maze as maze_module
 
-BUFFER_SIZE = 1.0 - 1.0e-6
+BUFFER_SIZE = 0.999
 
 def shrink(w_old, n):
     if n < 1: raise Exception('Shrink factor >= 1')
@@ -99,10 +99,6 @@ class Parametric(object):
         else:
             return np.zeros(self.parent_env.dim * [M], dtype=np.uint8)
 
-    def output_persistent(self, dirname, prefix=''):
-        np.save('%s/%sr' % (dirname, prefix), self.r_c)
-        np.save('%s/%sR' % (dirname, prefix), self.R_c)
-
 class Walls(fields.Field):
     def __init__(self, parent_env, dx):
         fields.Field.__init__(self, parent_env, dx)
@@ -117,34 +113,22 @@ class Walls(fields.Field):
         return self.parent_env.get_A() * (float(self.get_A_free_i()) / float(self.get_A_i()))
 
     def is_obstructed(self, r):
-        return self.a[tuple(self.r_to_i(r))]
+        return self.a[tuple(self.r_to_i(r).T)]
 
     def obstruct(self, motiles):
         inds_old = self.r_to_i(motiles.r)
-        r_new = motiles.r + motiles.v * self.parent_env.dt
-        r_new[r_new > self.parent_env.L_half] -= self.parent_env.L
-        r_new[r_new < -self.parent_env.L_half] += self.parent_env.L
-        inds_new = self.r_to_i(r_new)
+        motiles.r += motiles.v * self.parent_env.dt
+        motiles.r[motiles.r > self.parent_env.L_half] -= self.parent_env.L
+        motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
+        inds_new = self.r_to_i(motiles.r)
 
-        delta_inds = inds_new - inds_old
-        delta_inds[delta_inds >= self.M - 1] -= self.M
-        delta_inds[delta_inds <= -(self.M - 1)] += self.M
-        assert len(np.where(np.abs(delta_inds) > 1)[0]) == 0
+#        dx_half = BUFFER_SIZE * (self.dx / 2.0)
+#        for i in np.where(self.is_obstructed(motiles.r))[0]:
+#            for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
+#                motiles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(motiles.v[i, i_dim])
+#                motiles.v[i, i_dim] = 0.0
 
-        offset = BUFFER_SIZE * (self.dx / 2.0)
-        wall_statusses = utils.field_subset(self.a, inds_new)
-        for i_motile in np.where(wall_statusses == True)[0]:
-            dims_hit = np.where(delta_inds[i_motile] != 0)[0]
-            cell_r = self.i_to_r(inds_old[i_motile, dims_hit])
-            r_new[i_motile, dims_hit] = (cell_r + offset *
-                delta_inds[i_motile, dims_hit])
-            # Aligning: v -> 0, specular: v -> -v
-            motiles.v[i_motile, dims_hit] = 0.0
-
-        inds_new = self.r_to_i(r_new)
-        wall_statusses = utils.field_subset(self.a, inds_new)
-        assert len(np.where(wall_statusses)[0]) == 0
-        motiles.r = r_new.copy()
+#        assert not self.is_obstructed(motiles.r).any()
 
         # Scale speed to v_0
         motiles.v = utils.vector_unit_nullrand(motiles.v) * motiles.v_0
@@ -154,10 +138,6 @@ class Walls(fields.Field):
             return self.a
         else:
             raise NotImplementedError
-
-    def output_persistent(self, dirname, prefix=''):
-        super(Walls, self).output_persistent(dirname, prefix)
-        np.save('%s/%sa' % (dirname, prefix), self.a)
 
 class Closed(Walls):
     def __init__(self, parent_env, dx, d):
@@ -220,6 +200,19 @@ class Traps(Walls):
     def get_A_traps(self):
         return self.A * (float(self.get_A_traps_i()) / float(self.get_A_free_i))
 
+    def get_fracs(self, r):
+        inds = self.r_to_i(r)
+        n_traps = [0 for i in range(len(self.traps_i))]
+        for i_trap in range(len(self.traps_i)):
+            mix_x, mid_y = self.traps_i[i_trap]
+            w_i_half = self.w_i // 2
+            low_x, high_x = mid_x - w_i_half, mid_x + w_i_half
+            low_y, high_y = mid_y - w_i_half, mid_y + w_i_half
+            for i_x, i_y in inds:
+                if low_x < i_x < high_x and low_y < i_y < high_y:
+                    n_traps[i_trap] += 1
+        return [float(n_trap) / float(r.shape[0]) for n_trap in n_traps]
+
 class Maze(Walls):
     def __init__(self, parent_env, dx, d, seed=None):
         Walls.__init__(self, parent_env, dx)
@@ -233,7 +226,7 @@ class Maze(Walls):
         self.seed = seed
         self.d = d
 
-        self.M_m = int(self.L / self.d)
+        self.M_m = int(self.parent_env.L / self.d)
         self.d_i = int(self.M / self.M_m)
         maze = maze_module.make_maze_dfs(self.M_m, self.parent_env.dim, self.seed)
         self.a[...] = utils.extend_array(maze, self.d_i)
