@@ -29,36 +29,27 @@ def shrink(w_old, n):
     return w_new
 
 class Parametric(object):
-    def __init__(self, parent_env, num, delta, R_c_min, R_c_max):
+    def __init__(self, parent_env, R, pf, delta):
         self.parent_env = parent_env
-        self.num = num
-        self.delta = delta
-
-        # Generate obstacles
-        self.r_c = np.zeros([self.num, self.parent_env.dim], dtype=np.float)
-        self.R_c = np.zeros([self.num], dtype=np.float)
-        m = 0
-        while m < self.num:
-            valid = True
-            self.R_c[m] = np.random.uniform(R_c_min, R_c_max)
-            self.r_c[m] = np.random.uniform(-self.parent_env.L_half + 1.1*self.R_c[m], self.parent_env.L_half - 1.1*self.R_c[m], self.parent_env.dim)
-            # Check obstacle doesn't intersect any of those already positioned
-            for m_2 in range(m):
-                if utils.circle_intersect(self.r_c[m], self.R_c[m], self.r_c[m_2], self.R_c[m_2]):
-                    valid = False
-                    break
-            if valid: m += 1
+        rs = utils.sphere_pack(R / self.parent_env.L, self.parent_env.dim, pf)
+        self.r_c = np.array(rs) * self.parent_env.L
+        self.R_c = np.ones([self.r_c.shape[0]]) * R
         self.R_c_sq = self.R_c ** 2
+        self.pf = utils.sphere_volume(self.R_c, self.parent_env.dim).sum() / self.parent_env.get_A()
+        self.threshold = np.pi / 2.0 - delta
+        self.d = self.R_c.min() if len(self.R_c) > 0 else self.parent_env.L_half
 
-        self.d = self.R_c.min() if self.num > 0 else self.parent_env.L_half
+        if self.R_c.min() < 0.0:
+            raise Exception('Require obstacle radius >= 0')
+        if self.threshold < 0.0:
+            raise Exception('Require 0 <= alignment angle <= pi/2')
 
     def get_A_free(self):
-        return self.parent_env.get_A() - np.pi * np.sum(self.R_c_sq)
+        return self.pf * self.parent_env.get_A()
 
     def is_obstructed(self, r):
-        for m in range(self.num):
-            if utils.vector_mag(r - self.r_c[m]) < self.R_c[m]:
-                return True
+        for r_c, R_c in zip(self.r_c, self.R_c):
+            if utils.sphere_intersect(r, 0.0, r_c, R_c): return True
         return False
 
     def obstruct(self, motiles):
@@ -66,30 +57,24 @@ class Parametric(object):
         motiles.r[motiles.r > self.parent_env.L_half] -= self.parent_env.L
         motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
 
-        # Align with obstacles
         r_rels = motiles.r[:, np.newaxis] - self.r_c[np.newaxis, :]
-        r_rels_mag_sq = utils.vector_mag_sq(r_rels)
-        for n in range(motiles.N):
-            for m in range(self.num):
-                if r_rels_mag_sq[n, m] < self.R_c_sq[m]:
-                    u = utils.vector_unit_nonull(r_rels[n, m])
-                    v_dot_u = np.sum(motiles.v[n] * u)
-                    v_mag = utils.vector_mag(motiles.v[n])
-                    theta_v_u = np.arccos(v_dot_u / v_mag)
-                    # If particle-surface angle is below stickiness threshold (delta)
-                    if theta_v_u > np.pi/2.0 - self.delta:
-                        # New direction is old one without component parallel to surface normal
-                        v_new = motiles.v[n] - v_dot_u * u
-                        motiles.v[n] = utils.vector_unit_nonull(v_new) * v_mag
-                        # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
-                        b = 1.001 * (self.R_c[m] - (self.R_c[m] ** 2 - (utils.vector_mag(motiles.v[n]) * self.parent_env.dt) ** 2) ** 0.5)
-                        motiles.r[n] = self.r_c[m] + u * (self.R_c[m] - b)
-                    break
+        for n, m in zip(*np.where(utils.vector_mag_sq(r_rels) < self.R_c_sq)):
+            u = utils.vector_unit_nonull(r_rels[n, m])
+            if utils.vector_angle(motiles.v[n], u) > self.threshold:
+                # New direction is old one without component parallel to surface normal
+                direction_new = utils.vector_unit_nonull(motiles.v[n] - np.dot(motiles.v[n], u) * u)
+                v_mag = utils.vector_mag(motiles.v[n])
+                motiles.v[n] = v_mag * direction_new
+                # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
+                beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.parent_env.dt) ** 2)
+                motiles.r[n] = self.r_c[m] + 0.995 * u * beta
+            else:
+                print 'weird'
 
     def to_field(self, dx):
         # This is all very clever and numpy-ey, soz
         M = int(self.parent_env.L / dx)
-        if self.num > 0:
+        if len(self.r_c) > 0:
             axes = [i + 1 for i in range(self.parent_env.dim)] + [0]
             inds = np.transpose(np.indices(self.parent_env.dim * [M]), axes=axes)
             rs = -self.parent_env.L_half + (inds + 0.5) * dx
@@ -122,13 +107,13 @@ class Walls(fields.Field):
         motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
         inds_new = self.r_to_i(motiles.r)
 
-#        dx_half = BUFFER_SIZE * (self.dx / 2.0)
-#        for i in np.where(self.is_obstructed(motiles.r))[0]:
-#            for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
-#                motiles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(motiles.v[i, i_dim])
-#                motiles.v[i, i_dim] = 0.0
+        dx_half = BUFFER_SIZE * (self.dx / 2.0)
+        for i in np.where(self.is_obstructed(motiles.r))[0]:
+            for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
+                motiles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(motiles.v[i, i_dim])
+                motiles.v[i, i_dim] = 0.0
 
-#        assert not self.is_obstructed(motiles.r).any()
+        assert not self.is_obstructed(motiles.r).any()
 
         # Scale speed to v_0
         motiles.v = utils.vector_unit_nullrand(motiles.v) * motiles.v_0

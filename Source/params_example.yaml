@@ -63,7 +63,6 @@ fields:
             seed: 110
 
         parametric:
-            n: 6
-            stickiness: 10.0
-            radius_min: 20.0
-            radius_max: 60.0
+            R: 100.0
+            packing_fraction: 0.4
+            alignment_angle: 10.0
