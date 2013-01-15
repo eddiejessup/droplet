@@ -56,4 +56,4 @@ def vicsek_inters(np.ndarray[np.float_t, ndim=2] v,
         for i_i_2 in range(intersi[i_1]):
             for i_dim in range(v.shape[1]):
                 v_vic[i_1, i_dim] += v[inters[i_1, i_i_2] - 1, i_dim]
-    return utils.vector_unit_nullnull(v_vic) * utils.vector_mag(v)[:, np.newaxis]
+    return utils.vector_unit_nullrand(v_vic) * utils.vector_mag(v)[:, np.newaxis]

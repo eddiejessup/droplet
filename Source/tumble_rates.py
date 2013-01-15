@@ -2,38 +2,35 @@ import numpy as np
 import utils
 
 class TumbleRates(object):
-    def __init__(self, parent_motes, p_0, chemotaxis_alg, chemotaxis_args):
+    def __init__(self, parent_motes, p_0, **kwargs):
         self.parent_motes = parent_motes
         self.p_0 = p_0
-        self.chemotaxis_alg = chemotaxis_alg
 
         if self.p_0 < 0.0:
             raise Exception('Require base tumble rate >= 0')
         if self.p_0 * self.parent_motes.parent_env.dt > 0.1:
             raise Exception('Time-step too large for p_0')
 
-        if self.chemotaxis_alg == 'none':
-            self.get_happy = self.get_happy_const
+        if 'chemotaxis_args' in kwargs:
+            if 'grad_args' in kwargs['chemotaxis_args']:
+                self.get_happy = self.get_happy_grad
+                self.sense = kwargs['chemotaxis_args']['grad_args']['sensitivity']
+            elif 'mem_args' in kwargs['chemotaxis_args']:
+                self.get_happy = self.get_happy_mem
+                self.sense = kwargs['chemotaxis_args']['mem_args']['sensitivity']
+                self.t_mem = kwargs['chemotaxis_args']['mem_args']['t_mem']
 
-        elif self.chemotaxis_alg == 'grad':
-            self.get_happy = self.get_happy_grad
-            self.sense = chemotaxis_args[self.chemotaxis_alg]['sensitivity']
+                if self.t_mem < 0.0:
+                    raise Exception('Require motile memory >= 0')
+                if (self.parent_motes.v_0 / self.p_0) / self.parent_motes.parent_env.c.dx < 5:
+                    raise Exception('Chemotactic memory requires >= 5 lattice points per run')
 
-        elif self.chemotaxis_alg == 'mem':
-            self.get_happy = self.get_happy_mem
-            self.sense = chemotaxis_args[self.chemotaxis_alg]['sensitivity']
-            self.t_mem = chemotaxis_args[self.chemotaxis_alg]['t_mem']
-
-            if self.t_mem < 0.0:
-                raise Exception('Require motile memory >= 0')
-            if (self.parent_motes.v_0 / self.p_0) / self.parent_motes.parent_env.c.dx < 5:
-                raise Exception('Chemotactic memory requires >= 5 lattice points per run')
-
-            self.calculate_mem_kernel()
-            self.c_mem = np.zeros([self.parent_motes.N, len(self.K_dt)], dtype=np.float)
-
+                self.calculate_mem_kernel()
+                self.c_mem = np.zeros([self.parent_motes.N, len(self.K_dt)], dtype=np.float)
+            else:
+                raise Exception('No chemotaxis arguments found')
         else:
-            raise Exception('Unknown tumble rate algorithm')
+            self.get_happy = self.get_happy_const
 
     def get_happy_const(self, *args):
        return np.zeros([self.parent_motes.N], dtype=np.float)

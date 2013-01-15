@@ -1,68 +1,50 @@
-general:
-    seed: 110
-    dt: 0.1
-    dimension: 2
-    L: 1200.0
+seed: 110
+dt: 0.1
+dim: 2
+L: 1200.0
 
-motiles:
-    density_1d: 0.1
-    density_2d: 3.5e-3
-    density_3d: 3.5e-6
-    v_0: 20.0
-    rot_diff_flag: true
-    tumble_flag: false
-    force_flag: false
-    vicsek_flag: false
+#trap_args:
+#    dx: 4.0
+#    n: 1
+#    d: 40.0
+#    w: 150.0
+#    s: 20.0
 
-    rot_diff:
-        D_rot: 2.0
+#maze_args:
+#    dx: 4.0
+#    d: 40.0
+#    seed: 100
 
-    tumble:
-        p_0: 1.0
-        chemotaxis_alg: none
+#parametric_args:
+#    R: 100.0
+#    pf: 0.2
+#    delta: 0.5
 
-        chemotaxis:
-            grad:
-                sensitivity: 10.0
+#food_args:
+#    dx: 4.0
+#    f_0: 1.0
+#    pde_args:
+#        D: 20.0
+#        sink_rate: 0.01
 
-            mem:
-                sensitivity: 10.0
-                t_mem: 10.0
+#attractant_args:
+#    dx: 4.0
+#    D: 20.0
+#    source_rate: 1.0
+#    sink_rate: 0.01
 
-    force:
-        sensitivity: 1000.0
-
-    vicsek:
-        r: 3.0
-
-fields:
-    dx: 4.0
-    f_0: 1.0
-    f_pde_flag: false
-    c_pde_flag: true
-    obstructions_alg: none
-
-    f_pde:
-        D: 20.0
-        sink_rate: 0.01
-
-    c_pde:
-        D: 20.0
-        source_rate: 1.0
-        sink_rate: 0.01
-
-    obstructions:
-        traps:
-            n: 1
-            width: 2.0
-            thickness: 0.02
-            slit_width: 0.05
-
-        maze:
-            thickness: 0.02
-            seed: 110
-
-        parametric:
-            R: 100.0
-            packing_fraction: 0.4
-            alignment_angle: 10.0
+#motile_args:
+#    density: 3.5e-3
+#    v_0: 20.0
+#    rot_diff_args:
+#        D_rot: 2.0
+#    tumble_args:
+#        p_0: 1.0
+#        chemotaxis_args:
+#            mem_args:
+#                    sensitivity: 10.0
+#                    t_mem: 10.0
+#    force_args:
+#        sensitivity: 100000.0
+#    vicsek_args:
+#        R: 3.0

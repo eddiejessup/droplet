@@ -32,7 +32,7 @@ args = parser.parse_args()
 def main():
     if not args.silent: print('Initialising...')
 
-    system = System.System(yaml.safe_load(open(args.f, 'r')))
+    system = System.System(**yaml.safe_load(open(args.f, 'r')))
 
     if args.dir is not None:
         utils.makedirs_safe(args.dir)
@@ -43,14 +43,15 @@ def main():
             lims = [-system.L_half, system.L_half]
             if system.dim == 2:
                 ax = fig.add_subplot(111)
-                parts_plot = ax.scatter([], [], s=1.0, c='k')
-                ax.imshow(system.c.of.T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
-#                dens_plot = ax.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower')
-                if system.c.__class__.__name__ == 'Secretion':
+                ax.imshow(system.o.to_field(4.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+                if system.motiles_flag:
+                    parts_plot = ax.scatter([], [], s=1.0, c='k')
+                if system.attractant_flag and system.c.__class__.__name__ == 'Secretion':
                     c_plot = ax.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest')
             elif system.dim == 3:
                 ax = fig.add_subplot(111, projection='3d')
-                parts_plot = ax.scatter([], [], [])
+                if system.motiles_flag:
+                    parts_plot = ax.scatter([], [], [])
                 ax.set_zticks([])
                 ax.set_zlim(lims)
             ax.set_aspect('equal')
@@ -74,7 +75,7 @@ def main():
                 print('t:%010g i:%08i' % (system.t, system.i), end=' ')
             if args.dir is not None:
                 if not args.silent: print('making output...', end='')
-                f.write('%f %f' % (system.t, system.get_dstd(system.c.dx)))
+                f.write('%f %f' % (system.t, system.m.get_dstd(system.o, 4.0)))
                 if system.o.__class__.__name__ == 'Trap':
                     for frac in system.o.get_fracs(system.m.r):
                         f.write('%f' % frac)
@@ -83,14 +84,14 @@ def main():
                 np.save('%s/r/%f' % (args.dir, system.t), system.m.r)
                 if args.plot:
                     if system.dim == 2:
-                        parts_plot.set_offsets(system.m.r)
-#                        dens_plot.set_data(system.m.get_density_field(30*system.c.dx).T)
-#                        dens_plot.autoscale()
-                        if system.c.__class__.__name__ == 'Secretion':
+                        if system.motiles_flag:
+                            parts_plot.set_offsets(system.m.r)
+                        if system.attractant_flag and system.c.__class__.__name__ == 'Secretion':
                             c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
                             c_plot.autoscale()
                     elif system.dim == 3:
-                        parts_plot._offsets3d = (system.m.r[:, 0], system.m.r[:, 1], system.m.r[:, 2])
+                        if system.motiles_flag:
+                            parts_plot._offsets3d = (system.m.r[:, 0], system.m.r[:, 1], system.m.r[:, 2])
                     fig.savefig('%s/plot/%f.png' % (args.dir, system.t))
                 if not args.silent: print('finished', end='')
             if not args.silent: print()

@@ -6,16 +6,11 @@ import walled_fields
 import motiles
 
 class System(object):
-    def __init__(self, args):
-        self.init_general(args['general'])
-        self.init_fields(args['fields'])
-        self.init_motiles(args['motiles'])
-
-    def init_general(self, args):
-        self.seed = args['seed']
-        self.dt = args['dt']
-        self.dim = args['dimension']
-        self.L = args['L']
+    def __init__(self, seed, dt, dim, L, **kwargs):
+        self.seed = seed
+        self.dt = dt
+        self.dim = dim
+        self.L = L
 
         if self.L <= 0.0:
             raise Exception('Require system size > 0')
@@ -29,60 +24,54 @@ class System(object):
         self.t = 0.0
         self.i = 0.0
 
-    def init_fields(self, args):
-        if args['obstructions_alg'] == 'none':
-            self.o = walls_module.Walls(self, args['dx'])
-        elif args['obstructions_alg'] == 'traps':
-            trap_args = args['obstructions']['traps']
-            self.o = walls_module.Traps(self, args['dx'], trap_args['n'], trap_args['thickness'], trap_args['width'], trap_args['slit_width'])
-        elif args['obstructions_alg'] == 'maze':
-            maze_args = args['obstructions']['maze']
-            self.o = walls_module.Maze(self, args['dx'], maze_args['thickness'], maze_args['seed'])
-        elif args['obstructions_alg'] == 'parametric':
-            para_args = args['obstructions']['parametric']
-            self.o = walls_module.Parametric(self, para_args['R'], para_args['packing_fraction'], para_args['alignment_angle'])
+        if 'trap_args' in kwargs:
+            self.o = walls_module.Traps(self, **kwargs['trap_args'])
+        elif 'maze_args' in kwargs:
+            self.o = walls_module.Maze(self, **kwargs['maze_args'])
+        elif 'parametric_args' in kwargs:
+            self.o = walls_module.Parametric(self, **kwargs['parametric_args'])
         else:
-            raise Exception('Invalid obstruction algorithm')
+            self.o = walls_module.Obstruction(self)
 
-        if args['f_pde_flag']:
-            f_pde_args = args['f_pde']
-            self.f = walled_fields.Food(self, args['dx'], self.o, f_pde_args['D'], f_pde_args['sink_rate'], a_0=args['f_0'])
+        if 'food_args' in kwargs:
+            self.food_flag = True
+            food_args = kwargs['food_args']
+            if 'pde_args' in food_args:
+                self.f = walled_fields.Food(self, food_args['dx'], self.o, a_0=food_args['f_0'], **food_args['pde_args'])
+            else:
+                self.f = walled_fields.Scalar(self, food_args['dx'], self.o, a_0=food_args['f_0'])
         else:
-            self.f = walled_fields.Scalar(self, args['dx'], self.o, a_0=args['f_0'])
+            self.food_flag = False
 
-        if args['c_pde_flag']:
-            c_pde_args = args['c_pde']
-            self.c = walled_fields.Secretion(self, args['dx'], self.o, c_pde_args['D'], c_pde_args['sink_rate'], c_pde_args['source_rate'], a_0=0.0)
+        if 'attractant_args' in kwargs:
+            self.attractant_flag = True
+            self.c = walled_fields.Secretion(self, o=self.o, **kwargs['attractant_args'])
         else:
-            self.c = walled_fields.Scalar(self, args['dx'], self.o, a_0=0.0)
+            self.attractant_flag = False
 
-    def init_motiles(self, args):
-        if self.dim == 1:
-            num_motiles = int(self.o.get_A_free() * args['density_1d'])
-        elif self.dim == 2:
-            num_motiles = int(self.o.get_A_free() * args['density_2d'])
-        elif self.dim == 3:
-            num_motiles = int(self.o.get_A_free() * args['density_3d'])
-        tumble_args = args['tumble'] if args['tumble_flag'] else None
-        force_args = args['force'] if args['force_flag'] else None
-        rot_diff_args = args['rot_diff'] if args['rot_diff_flag'] else None
-        vicsek_args = args['vicsek'] if args['vicsek_flag'] else None
-
-        self.m = motiles.Motiles(self, num_motiles, args['v_0'], self.o, args['tumble_flag'], tumble_args,
-            args['force_flag'], force_args, args['rot_diff_flag'], rot_diff_args, args['vicsek_flag'], vicsek_args)
+        if 'motile_args' in kwargs:
+            self.motiles_flag = True
+            self.m = motiles.Motiles(self, self.o, **kwargs['motile_args'])
+        else:
+            self.motiles_flag = False
 
     def iterate(self):
-        self.m.iterate(self.c, self.o)
-        density = self.m.get_density_field(self.f.dx)
-        self.f.iterate(density)
-        self.c.iterate(density, self.f)
+        if self.motiles_flag:
+            args = {}
+            if self.attractant_flag:
+                args['c'] = self.c
+            self.m.iterate(self.o, **args)
+        if self.food_flag:
+            args = {}
+            if self.f.__class__.__name__ == 'Food':
+                if self.motiles_flag:
+                    args['density'] = self.m.get_density_field(self.f.dx)
+            self.f.iterate(**args)
+        if self.attractant_flag:
+            density = self.m.get_density_field(self.c.dx)
+            self.c.iterate(density, self.f)
         self.t += self.dt
         self.i += 1
 
     def get_A(self):
         return self.L ** self.dim
-
-    def get_dstd(self, dx):
-        density = self.m.get_density_field(dx)
-        valids = np.asarray(np.logical_not(self.o.to_field(dx), dtype=np.bool))
-        return np.std(density[valids])

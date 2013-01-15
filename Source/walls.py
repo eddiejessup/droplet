@@ -28,9 +28,28 @@ def shrink(w_old, n):
                     w_new[x_ + mid, y * n:y_ + mid] = True
     return w_new
 
-class Parametric(object):
-    def __init__(self, parent_env, R, pf, delta):
+class Obstruction(object):
+    def __init__(self, parent_env):
         self.parent_env = parent_env
+        self.d = self.parent_env.L_half
+
+    def get_A_free(self):
+        return self.parent_env.get_A()
+
+    def is_obstructed(self, r):
+        return False
+
+    def obstruct(self, motiles):
+        motiles.r += motiles.v * self.parent_env.dt
+        motiles.r[motiles.r > self.parent_env.L_half] -= self.parent_env.L
+        motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
+
+    def to_field(self, dx):
+        return np.zeros(self.parent_env.dim * [self.parent_env.L / dx], dtype=np.uint8)
+
+class Parametric(Obstruction):
+    def __init__(self, parent_env, R, pf, delta):
+        super(Parametric, self).__init__(parent_env)
         rs = utils.sphere_pack(R / self.parent_env.L, self.parent_env.dim, pf)
         self.r_c = np.array(rs) * self.parent_env.L
         self.R_c = np.ones([self.r_c.shape[0]]) * R
@@ -53,9 +72,7 @@ class Parametric(object):
         return False
 
     def obstruct(self, motiles):
-        motiles.r += motiles.v * self.parent_env.dt
-        motiles.r[motiles.r > self.parent_env.L_half] -= self.parent_env.L
-        motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
+        super(Parametric, self).obstruct(motiles)
 
         r_rels = motiles.r[:, np.newaxis] - self.r_c[np.newaxis, :]
         for n, m in zip(*np.where(utils.vector_mag_sq(r_rels) < self.R_c_sq)):
@@ -84,12 +101,11 @@ class Parametric(object):
         else:
             return np.zeros(self.parent_env.dim * [M], dtype=np.uint8)
 
-class Walls(fields.Field):
+class Walls(Obstruction, fields.Field):
     def __init__(self, parent_env, dx):
+        Obstruction.__init__(self, parent_env)
         fields.Field.__init__(self, parent_env, dx)
-        self.parent_env = parent_env
         self.a = np.zeros(self.parent_env.dim * (self.M,), dtype=np.uint8)
-        self.d = self.parent_env.L_half
 
     def get_A_free_i(self):
         return np.logical_not(self.a).sum()
@@ -102,9 +118,7 @@ class Walls(fields.Field):
 
     def obstruct(self, motiles):
         inds_old = self.r_to_i(motiles.r)
-        motiles.r += motiles.v * self.parent_env.dt
-        motiles.r[motiles.r > self.parent_env.L_half] -= self.parent_env.L
-        motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
+        super(Walls, self).obstruct(motiles)
         inds_new = self.r_to_i(motiles.r)
 
         dx_half = BUFFER_SIZE * (self.dx / 2.0)
@@ -115,10 +129,10 @@ class Walls(fields.Field):
 
         assert not self.is_obstructed(motiles.r).any()
 
-        # Scale speed to v_0
         motiles.v = utils.vector_unit_nullrand(motiles.v) * motiles.v_0
 
-    def to_field(self, dx):
+    def to_field(self, dx=None):
+        if dx is None: dx = self.dx
         if dx == self.dx:
             return self.a
         else:
