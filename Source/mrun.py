@@ -69,7 +69,6 @@ def main():
     if not args.silent: print('Initialisation done! Starting...')
 
     while system.t < args.runtime:
-        system.iterate()
         if not system.i % args.every:
             if not args.silent:
                 print('t:%010g i:%08i' % (system.t, system.i), end=' ')
@@ -95,7 +94,7 @@ def main():
                     fig.savefig('%s/plot/%f.png' % (args.dir, system.t))
                 if not args.silent: print('finished', end='')
             if not args.silent: print()
-
+        system.iterate()
     if not args.silent: print('Finished!')
 
 if args.profile:

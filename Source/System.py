@@ -40,7 +40,7 @@ class System(object):
             self.o = walls_module.Maze(self, args['dx'], maze_args['thickness'], maze_args['seed'])
         elif args['obstructions_alg'] == 'parametric':
             para_args = args['obstructions']['parametric']
-            self.o = walls_module.Parametric(self, para_args['n'], para_args['stickiness'], para_args['radius_min'], para_args['radius_max'])
+            self.o = walls_module.Parametric(self, para_args['R'], para_args['packing_fraction'], para_args['alignment_angle'])
         else:
             raise Exception('Invalid obstruction algorithm')
 

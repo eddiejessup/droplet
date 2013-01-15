@@ -5,7 +5,7 @@ import cell_list
 import tumble_rates as tumble_rates_module
 import motile_numerics
 
-v_TOLERANCE = 1e-12
+v_TOLERANCE = 1e-14
 D_rot_tolerance = 1.0
 
 class Motiles(object):
@@ -86,15 +86,10 @@ class Motiles(object):
 
     def rot_diff(self):
         v_initial = self.v.copy()
-        if self.parent_env.dim == 2:
-            self.v = utils.rot_diff_2d(self.v, self.D_rot, self.parent_env.dt)
-        elif self.parent_env.dim == 3:
-            self.v = utils.rot_diff_3d(self.v, self.D_rot, self.parent_env.dt)
-        else: raise Exception('Rotational diffusion not implemented in this '
-            'dimension')
+        self.v = utils.rot_diff(self.v, self.D_rot, self.parent_env.dt)
         self.check_v()
         D_rot_calc = utils.calc_D_rot(v_initial, self.v, self.parent_env.dt)
-        assert abs((D_rot_calc / self.D_rot) - 1.0) < D_rot_tolerance
+#        assert abs((D_rot_calc / self.D_rot) - 1.0) < D_rot_tolerance / np.sqrt(self.N)
 
     def vicsek(self):
         inters, intersi = cell_list.interacts(self.r, self.parent_env.L, self.vicsek_R)
