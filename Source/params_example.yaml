@@ -29,9 +29,11 @@ L: 1200.0
 
 #attractant_args:
 #    dx: 4.0
-#    D: 20.0
-#    source_rate: 1.0
-#    sink_rate: 0.01
+#    c_0: 0.0
+#    pde_args:
+#        D: 20.0
+#        source_rate: 1.0
+#        sink_rate: 0.01
 
 #motile_args:
 #    density: 3.5e-3
