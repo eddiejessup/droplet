@@ -46,8 +46,11 @@ def main():
                 ax.imshow(system.o.to_field(4.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
                 if system.motiles_flag:
                     parts_plot = ax.scatter([], [], s=1.0, c='k')
-                if system.attractant_flag and system.c.__class__.__name__ == 'Secretion':
+                if system.attractant_flag:
                     c_plot = ax.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest')
+
+                drift_plot = ax.quiver([0.0], [0.0], [1.0], [0.0])
+
             elif system.dim == 3:
                 ax = fig.add_subplot(111, projection='3d')
                 if system.motiles_flag:
@@ -86,9 +89,12 @@ def main():
                     if system.dim == 2:
                         if system.motiles_flag:
                             parts_plot.set_offsets(system.m.r)
-                        if system.attractant_flag and system.c.__class__.__name__ == 'Secretion':
+                        if system.attractant_flag:
                             c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
                             c_plot.autoscale()
+
+                        drift_plot.set_UVC(*np.mean(system.m.v, 0))
+
                     elif system.dim == 3:
                         if system.motiles_flag:
                             parts_plot._offsets3d = (system.m.r[:, 0], system.m.r[:, 1], system.m.r[:, 2])

@@ -24,7 +24,9 @@ class System(object):
         self.t = 0.0
         self.i = 0.0
 
-        if 'trap_args' in kwargs:
+        if 'closed_args' in kwargs:
+            self.o = walls_module.Closed(self, **kwargs['closed_args'])
+        elif 'trap_args' in kwargs:
             self.o = walls_module.Traps(self, **kwargs['trap_args'])
         elif 'maze_args' in kwargs:
             self.o = walls_module.Maze(self, **kwargs['maze_args'])
@@ -45,7 +47,13 @@ class System(object):
 
         if 'attractant_args' in kwargs:
             self.attractant_flag = True
-            self.c = walled_fields.Secretion(self, o=self.o, **kwargs['attractant_args'])
+            attractant_args = kwargs['attractant_args']
+            if 'pde_args' in attractant_args:
+                self.c = walled_fields.Secretion(self, attractant_args['dx'], self.o, a_0=attractant_args['c_0'], **attractant_args['pde_args'])
+            else:
+                self.c = walled_fields.Scalar(self, attractant_args['dx'], self.o, a_0=attractant_args['c_0'])
+                rs = np.transpose(self.c.i_to_r(np.indices(self.c.a.shape)), (1, 2, 0))
+                self.c.a[:, :] = 100.0 * rs[:, :, 0]
         else:
             self.attractant_flag = False
 
@@ -64,12 +72,14 @@ class System(object):
         if self.food_flag:
             args = {}
             if self.f.__class__.__name__ == 'Food':
-                if self.motiles_flag:
-                    args['density'] = self.m.get_density_field(self.f.dx)
+                args['density'] = self.m.get_density_field(self.f.dx)
             self.f.iterate(**args)
         if self.attractant_flag:
-            density = self.m.get_density_field(self.c.dx)
-            self.c.iterate(density, self.f)
+            args = {}
+            if self.c.__class__.__name__ == 'Secretion':
+                args['f'] = self.f
+                args['density'] = self.m.get_density_field(self.c.dx)
+            self.c.iterate(**args)
         self.t += self.dt
         self.i += 1
 

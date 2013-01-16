@@ -82,6 +82,7 @@ class Motiles(object):
         if self.tumble_flag: self.tumble(c)
         if self.force_flag: self.force(c)
         if self.rot_diff_flag: self.rot_diff()
+
         o.obstruct(self)
 
     @check_v

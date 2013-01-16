@@ -139,18 +139,27 @@ class Walls(Obstruction, fields.Field):
             raise NotImplementedError
 
 class Closed(Walls):
-    def __init__(self, parent_env, dx, d):
+    def __init__(self, parent_env, dx, d, closedness=None):
         Walls.__init__(self, parent_env, dx)
         self.d_i = int(d / dx) + 1
         self.d = self.d_i * self.dx
-        self.a[...] = False
-        for i_dim in range(self.a.ndim):
-            inds = self.parent_env.dim * [Ellipsis]
-            for i in range(self.d_i):
-                inds[i_dim] = i
-                self.a[inds] = True
-                inds[i_dim] = -(i + 1)
-                self.a[inds] = True
+        if closedness is None:
+            closedness = self.parent_env.dim
+        self.closedness = closedness
+
+        if not 0 <= self.closedness <= self.parent_env.dim:
+            raise Exception('Require 0 <= closedness <= dimension')
+
+        for dim in range(self.closedness - 1):
+            self.close(dim)
+
+    def close(self, dim):
+        inds = [Ellipsis for i in range(self.parent_env.dim)]
+        for i in range(self.d_i):
+            inds[dim] = i
+            self.a[inds] = True
+            inds[dim] = -(i + 1)
+            self.a[inds] = True
 
 class Traps(Walls):
     def __init__(self, parent_env, dx, n, d, w, s):
@@ -163,6 +172,8 @@ class Traps(Walls):
         self.w = self.w_i * self.dx
         self.s = self.s_i * self.dx
 
+        if self.parent_env.dim != 2:
+            raise Exception('Traps not implemented in this dimension')
         if self.w < 0.0 or self.w > self.parent_env.L:
             raise Exception('Invalid trap width')
         if self.s < 0.0 or self.s > self.w:
