@@ -28,21 +28,47 @@ def shrink(w_old, n):
                     w_new[x_ + mid, y * n:y_ + mid] = True
     return w_new
 
+class ObstructionContainer(object):
+    def __init__(self, parent_env):
+        self.parent_env = parent_env
+        self.obstructs = []
+
+    def add(self, *args):
+        for o in args:
+            assert o.parent_env is self.parent_env
+            self.obstructs.append(o)
+
+    def to_field(self, field):
+        obstruct_field = np.zeros(field.parent_env.dim * [field.M], dtype=np.uint8)
+        for obstruct in self.obstructs:
+            new_obstruct_field = obstruct.to_field(field.dx)
+            if np.logical_and(obstruct_field, new_obstruct_field).any():
+                raise Exception('Obstructions intersect')
+            obstruct_field += new_obstruct_field
+        return obstruct_field
+
+    def get_A_obstructed(self):
+        return sum((o.get_A_obstructed() for o in self.obstructs))
+
+    def get_A_free(self):
+        return self.parent_env.get_A() - self.get_A_obstructed()
+
 class Obstruction(object):
     def __init__(self, parent_env):
         self.parent_env = parent_env
         self.d = self.parent_env.L_half
 
     def get_A_free(self):
-        return self.parent_env.get_A()
+        return self.parent_env.get_A() - self.get_A_obstructed()
+
+    def get_A_obstructed(self):
+        return 0.0
 
     def is_obstructed(self, r):
         return False
 
-    def obstruct(self, motiles):
-        motiles.r += motiles.v * self.parent_env.dt
-        motiles.r[motiles.r > self.parent_env.L_half] -= self.parent_env.L
-        motiles.r[motiles.r < -self.parent_env.L_half] += self.parent_env.L
+    def obstruct(self, motiles, *args, **kwargs):
+        pass
 
     def to_field(self, dx):
         return np.zeros(self.parent_env.dim * [self.parent_env.L / dx], dtype=np.uint8)
@@ -50,20 +76,21 @@ class Obstruction(object):
 class Parametric(Obstruction):
     def __init__(self, parent_env, R, pf, delta):
         super(Parametric, self).__init__(parent_env)
-        rs = utils.sphere_pack(R / self.parent_env.L, self.parent_env.dim, pf)
-        self.r_c = np.array(rs) * self.parent_env.L
+        par=0.8*self.parent_env.L
+        rs = utils.sphere_pack(R / par, self.parent_env.dim, pf)
+        self.r_c = np.array(rs) * par
         self.R_c = np.ones([self.r_c.shape[0]]) * R
         self.R_c_sq = self.R_c ** 2
         self.pf = utils.sphere_volume(self.R_c, self.parent_env.dim).sum() / self.parent_env.get_A()
         self.threshold = np.pi / 2.0 - delta
         self.d = self.R_c.min() if len(self.R_c) > 0 else self.parent_env.L_half
 
-        if self.R_c.min() < 0.0:
+        if self.R_c.size > 0 and self.R_c.min() < 0.0:
             raise Exception('Require obstacle radius >= 0')
         if self.threshold < 0.0:
             raise Exception('Require 0 <= alignment angle <= pi/2')
 
-    def get_A_free(self):
+    def get_A_obstructed(self):
         return self.pf * self.parent_env.get_A()
 
     def is_obstructed(self, r):
@@ -71,9 +98,9 @@ class Parametric(Obstruction):
             if utils.sphere_intersect(r, 0.0, r_c, R_c): return True
         return False
 
-    def obstruct(self, motiles):
-        super(Parametric, self).obstruct(motiles)
-
+    def obstruct(self, motiles, *args, **kwargs):
+        super(Parametric, self).obstruct(motiles, *args, **kwargs)
+        if self.R_c.size == 0: return
         r_rels = motiles.r[:, np.newaxis] - self.r_c[np.newaxis, :]
         for n, m in zip(*np.where(utils.vector_mag_sq(r_rels) < self.R_c_sq)):
             u = utils.vector_unit_nonull(r_rels[n, m])
@@ -85,8 +112,6 @@ class Parametric(Obstruction):
                 # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
                 beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.parent_env.dt) ** 2)
                 motiles.r[n] = self.r_c[m] + 0.995 * u * beta
-            else:
-                print 'weird'
 
     def to_field(self, dx):
         # This is all very clever and numpy-ey, soz
@@ -107,28 +132,28 @@ class Walls(Obstruction, fields.Field):
         fields.Field.__init__(self, parent_env, dx)
         self.a = np.zeros(self.parent_env.dim * (self.M,), dtype=np.uint8)
 
-    def get_A_free_i(self):
-        return np.logical_not(self.a).sum()
+    def get_A_obstructed_i(self):
+        return self.a.sum()
 
-    def get_A_free(self):
-        return self.parent_env.get_A() * (float(self.get_A_free_i()) / float(self.get_A_i()))
+    def get_A_i(self):
+        return self.a.size
+
+    def get_A_obstructed(self):
+        return self.parent_env.get_A() * (float(self.get_A_obstructed_i()) / float(self.get_A_i()))
 
     def is_obstructed(self, r):
         return self.a[tuple(self.r_to_i(r).T)]
 
-    def obstruct(self, motiles):
-        inds_old = self.r_to_i(motiles.r)
-        super(Walls, self).obstruct(motiles)
+    def obstruct(self, motiles, r_old, *args, **kwargs):
+        super(Walls, self).obstruct(motiles, *args, **kwargs)
+        inds_old = self.r_to_i(r_old)
         inds_new = self.r_to_i(motiles.r)
-
         dx_half = BUFFER_SIZE * (self.dx / 2.0)
         for i in np.where(self.is_obstructed(motiles.r))[0]:
             for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
                 motiles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(motiles.v[i, i_dim])
                 motiles.v[i, i_dim] = 0.0
-
         assert not self.is_obstructed(motiles.r).any()
-
         motiles.v = utils.vector_unit_nullrand(motiles.v) * motiles.v_0
 
     def to_field(self, dx=None):
@@ -155,11 +180,10 @@ class Closed(Walls):
 
     def close(self, dim):
         inds = [Ellipsis for i in range(self.parent_env.dim)]
-        for i in range(self.d_i):
-            inds[dim] = i
-            self.a[inds] = True
-            inds[dim] = -(i + 1)
-            self.a[inds] = True
+        inds[dim] = slice(0, self.d_i)
+        self.a[inds] = True
+        inds[dim] = slice(-1, -(self.d_i + 1), -1)
+        self.a[inds] = True
 
 class Traps(Walls):
     def __init__(self, parent_env, dx, n, d, w, s):

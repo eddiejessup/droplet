@@ -24,24 +24,23 @@ class System(object):
         self.t = 0.0
         self.i = 0.0
 
+        self.obstructs = walls_module.ObstructionContainer(self)
         if 'closed_args' in kwargs:
-            self.o = walls_module.Closed(self, **kwargs['closed_args'])
-        elif 'trap_args' in kwargs:
-            self.o = walls_module.Traps(self, **kwargs['trap_args'])
-        elif 'maze_args' in kwargs:
-            self.o = walls_module.Maze(self, **kwargs['maze_args'])
-        elif 'parametric_args' in kwargs:
-            self.o = walls_module.Parametric(self, **kwargs['parametric_args'])
-        else:
-            self.o = walls_module.Obstruction(self)
+            self.obstructs.add(walls_module.Closed(self, **kwargs['closed_args']))
+        if 'trap_args' in kwargs:
+            self.obstructs.add(walls_module.Traps(self, **kwargs['trap_args']))
+        if 'maze_args' in kwargs:
+            self.obstructs.add(walls_module.Maze(self, **kwargs['maze_args']))
+        if 'parametric_args' in kwargs:
+            self.obstructs.add(walls_module.Parametric(self, **kwargs['parametric_args']))
 
         if 'food_args' in kwargs:
             self.food_flag = True
             food_args = kwargs['food_args']
             if 'pde_args' in food_args:
-                self.f = walled_fields.Food(self, food_args['dx'], self.o, a_0=food_args['f_0'], **food_args['pde_args'])
+                self.f = walled_fields.Food(self, food_args['dx'], self.obstructs, a_0=food_args['f_0'], **food_args['pde_args'])
             else:
-                self.f = walled_fields.Scalar(self, food_args['dx'], self.o, a_0=food_args['f_0'])
+                self.f = walled_fields.Scalar(self, food_args['dx'], self.obstructs, a_0=food_args['f_0'])
         else:
             self.food_flag = False
 
@@ -49,9 +48,9 @@ class System(object):
             self.attractant_flag = True
             attractant_args = kwargs['attractant_args']
             if 'pde_args' in attractant_args:
-                self.c = walled_fields.Secretion(self, attractant_args['dx'], self.o, a_0=attractant_args['c_0'], **attractant_args['pde_args'])
+                self.c = walled_fields.Secretion(self, attractant_args['dx'], self.obstructs, a_0=attractant_args['c_0'], **attractant_args['pde_args'])
             else:
-                self.c = walled_fields.Scalar(self, attractant_args['dx'], self.o, a_0=attractant_args['c_0'])
+                self.c = walled_fields.Scalar(self, attractant_args['dx'], self.obstructs, a_0=attractant_args['c_0'])
                 rs = np.transpose(self.c.i_to_r(np.indices(self.c.a.shape)), (1, 2, 0))
                 self.c.a[:, :] = 100.0 * rs[:, :, 0]
         else:
@@ -59,7 +58,7 @@ class System(object):
 
         if 'motile_args' in kwargs:
             self.motiles_flag = True
-            self.m = motiles.Motiles(self, self.o, **kwargs['motile_args'])
+            self.m = motiles.Motiles(self, self.obstructs, **kwargs['motile_args'])
         else:
             self.motiles_flag = False
 
@@ -68,7 +67,7 @@ class System(object):
             args = {}
             if self.attractant_flag:
                 args['c'] = self.c
-            self.m.iterate(self.o, **args)
+            self.m.iterate(self.obstructs, **args)
         if self.food_flag:
             args = {}
             if self.f.__class__.__name__ == 'Food':

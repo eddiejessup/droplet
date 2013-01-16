@@ -23,10 +23,10 @@ def check_D_rot(func):
     return wrapper
 
 class Motiles(object):
-    def __init__(self, parent_env, o, density, v_0, **kwargs):
+    def __init__(self, parent_env, obstructs, density, v_0, **kwargs):
         self.parent_env = parent_env
         self.v_0 = v_0
-        self.N = int(round(o.get_A_free() * density))
+        self.N = int(round(obstructs.get_A_free() * density))
 
         if self.N < 0:
             raise Exception('Require number of motiles >= 0')
@@ -64,26 +64,36 @@ class Motiles(object):
         else:
             self.vicsek_flag = False
 
-        if o.d < self.R_comm:
-            raise Exception('Cannot have inter-obstruction motile communication')
+        for obstruct in obstructs.obstructs:
+            if self.R_comm > obstruct.d:
+                raise Exception('Cannot have inter-obstruction motile communication')
 
-        self.initialise_r(o)
+        self.initialise_r(obstructs)
         self.v = utils.point_pick_cart(self.parent_env.dim, self.N) * self.v_0
 
-    def initialise_r(self, o):
+    def initialise_r(self, obstructs):
         self.r = np.zeros([self.N, self.parent_env.dim], dtype=np.float)
         for i in range(self.N):
             while True:
                 self.r[i] = np.random.uniform(-self.parent_env.L_half, self.parent_env.L_half, self.parent_env.dim)
-                if not o.is_obstructed(self.r[i]): break
+                valid = True
+                for obstruct in obstructs.obstructs:
+                    if obstruct.is_obstructed(self.r[i]):
+                        valid = False
+                if valid: break
 
-    def iterate(self, o, c=None):
+    def iterate(self, obstructs, c=None):
         if self.vicsek_flag: self.vicsek()
         if self.tumble_flag: self.tumble(c)
         if self.force_flag: self.force(c)
         if self.rot_diff_flag: self.rot_diff()
 
-        o.obstruct(self)
+        r_old = self.r.copy()
+        self.r += self.v * self.parent_env.dt
+        self.r[self.r > self.parent_env.L_half] -= self.parent_env.L
+        self.r[self.r < -self.parent_env.L_half] += self.parent_env.L
+        for obstruct in obstructs.obstructs:
+            obstruct.obstruct(self, r_old)
 
     @check_v
     def tumble(self, c):
@@ -113,6 +123,6 @@ class Motiles(object):
     def get_density_field(self, dx):
         return fields.density(self.r, self.parent_env.L, dx)
 
-    def get_dstd(self, o, dx):
-        valids = np.asarray(np.logical_not(o.to_field(dx), dtype=np.bool))
-        return np.std(self.get_density_field(dx)[valids])
+    def get_dstd(self, obstructs, field):
+        valids = np.asarray(np.logical_not(obstructs.to_field(field), dtype=np.bool))
+        return np.std(self.get_density_field(field.dx)[valids])

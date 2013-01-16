@@ -1,15 +1,15 @@
 import numpy as np
 import fields
-import walls as walls_module
+import walls as walls
 
 # Cython extension
 import walled_field_numerics
 
 class Scalar(fields.Scalar):
-    def __init__(self, parent_env, dx, o, a_0=0.0):
+    def __init__(self, parent_env, dx, obstructs, a_0=0.0):
         fields.Scalar.__init__(self, parent_env, dx, a_0=a_0)
         # Make field zero-valued in walls
-        self.of = o.to_field(self.dx)
+        self.of = obstructs.to_field(self)
         self.a *= np.logical_not(self.of)
 
     def get_grad(self):
@@ -24,13 +24,13 @@ class Scalar(fields.Scalar):
 # Note, inheritance order matters to get walled grad & laplacian call
 # (see diamond problem on wikipedia and how python handles it)
 class Diffusing(Scalar, fields.Diffusing):
-    def __init__(self, parent_env, dx, o, D, a_0=0.0):
+    def __init__(self, parent_env, dx, obstructs, D, a_0=0.0):
         fields.Diffusing.__init__(self, parent_env, dx, D, a_0=a_0)
-        Scalar.__init__(self, parent_env, dx, o, a_0=a_0)
+        Scalar.__init__(self, parent_env, dx, obstructs, a_0=a_0)
 
 class Food(Diffusing):
-    def __init__(self, parent_env, dx, o, D, sink_rate, a_0=0.0):
-        Diffusing.__init__(self, parent_env, dx, o, D, a_0=a_0)
+    def __init__(self, parent_env, dx, obstructs, D, sink_rate, a_0=0.0):
+        Diffusing.__init__(self, parent_env, dx, obstructs, D, a_0=a_0)
         self.sink_rate = sink_rate
 
         if self.sink_rate < 0.0:
@@ -42,8 +42,8 @@ class Food(Diffusing):
         self.a = np.maximum(self.a, 0.0)
 
 class Secretion(Diffusing):
-    def __init__(self, parent_env, dx, o, D, sink_rate, source_rate, a_0=0.0):
-        Diffusing.__init__(self, parent_env, dx, o, D, a_0=a_0)
+    def __init__(self, parent_env, dx, obstructs, D, sink_rate, source_rate, a_0=0.0):
+        Diffusing.__init__(self, parent_env, dx, obstructs, D, a_0=a_0)
         self.source_rate = source_rate
         self.sink_rate = sink_rate
 

@@ -43,7 +43,7 @@ def main():
             lims = [-system.L_half, system.L_half]
             if system.dim == 2:
                 ax = fig.add_subplot(111)
-                ax.imshow(system.o.to_field(4.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+                ax.imshow(system.obstructs.to_field(system.f).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
                 if system.motiles_flag:
                     parts_plot = ax.scatter([], [], s=1.0, c='k')
                 if system.attractant_flag:
@@ -65,9 +65,6 @@ def main():
         shutil.copy(args.f, args.dir)
         f = open('%s/log.dat' % (args.dir), 'w')
         f.write('t dstd')
-        if system.o.__class__.__name__ == 'Trap':
-            for i in range(system.o.n):
-                f.write('trap_frac_%i' % i)
         f.write('\n')
 
     if not args.silent: print('Initialisation done! Starting...')
@@ -78,10 +75,7 @@ def main():
                 print('t:%010g i:%08i' % (system.t, system.i), end=' ')
             if args.dir is not None:
                 if not args.silent: print('making output...', end='')
-                f.write('%f %f' % (system.t, system.m.get_dstd(system.o, 4.0)))
-                if system.o.__class__.__name__ == 'Trap':
-                    for frac in system.o.get_fracs(system.m.r):
-                        f.write('%f' % frac)
+                f.write('%f %f' % (system.t, system.m.get_dstd(system.obstructs, system.c)))
                 f.write('\n')
                 f.flush()
                 np.save('%s/r/%f' % (args.dir, system.t), system.m.r)
