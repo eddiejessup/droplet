@@ -15,6 +15,11 @@ L: 1200.0
 #    d: 40.0
 #    seed: 100
 
+#closed_args:
+#    dx: 4.0
+#    d: 10.0
+#    closedness: 1
+
 #parametric_args:
 #    R: 100.0
 #    pf: 0.2
