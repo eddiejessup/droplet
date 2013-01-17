@@ -1,7 +1,7 @@
 import numpy as np
 import utils
 import fields
-import walls as walls_module
+import walls
 import walled_fields
 import motiles
 

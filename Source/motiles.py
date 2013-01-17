@@ -18,13 +18,13 @@ def check_D_rot(func):
     def wrapper(self):
         v_initial = self.v.copy()
         func(self)
-        D_rot_calc = utils.calc_D_rot(v_initial, self.v, self.parent_env.dt)
+        D_rot_calc = utils.calc_D_rot(v_initial, self.v, self.env.dt)
         assert abs((D_rot_calc / self.D_rot) - 1.0) < D_rot_tolerance / np.sqrt(self.N)
     return wrapper
 
 class Motiles(object):
-    def __init__(self, parent_env, obstructs, density, v_0, **kwargs):
-        self.parent_env = parent_env
+    def __init__(self, env, obstructs, density, v_0, **kwargs):
+        self.env = env
         self.v_0 = v_0
         self.N = int(round(obstructs.get_A_free() * density))
 
@@ -69,13 +69,13 @@ class Motiles(object):
                 raise Exception('Cannot have inter-obstruction motile communication')
 
         self.initialise_r(obstructs)
-        self.v = utils.point_pick_cart(self.parent_env.dim, self.N) * self.v_0
+        self.v = utils.point_pick_cart(self.env.dim, self.N) * self.v_0
 
     def initialise_r(self, obstructs):
-        self.r = np.zeros([self.N, self.parent_env.dim], dtype=np.float)
+        self.r = np.zeros([self.N, self.env.dim], dtype=np.float)
         for i in range(self.N):
             while True:
-                self.r[i] = np.random.uniform(-self.parent_env.L_half, self.parent_env.L_half, self.parent_env.dim)
+                self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
                 valid = True
                 for obstruct in obstructs.obstructs:
                     if obstruct.is_obstructed(self.r[i]):
@@ -89,9 +89,9 @@ class Motiles(object):
         if self.rot_diff_flag: self.rot_diff()
 
         r_old = self.r.copy()
-        self.r += self.v * self.parent_env.dt
-        self.r[self.r > self.parent_env.L_half] -= self.parent_env.L
-        self.r[self.r < -self.parent_env.L_half] += self.parent_env.L
+        self.r += self.v * self.env.dt
+        self.r[self.r > self.env.L_half] -= self.env.L
+        self.r[self.r < -self.env.L_half] += self.env.L
         for obstruct in obstructs.obstructs:
             obstruct.obstruct(self, r_old)
 
@@ -99,7 +99,7 @@ class Motiles(object):
     def tumble(self, c):
         i_tumblers = self.tumble_rates.get_tumblers(c)
         v_mags = utils.vector_mag(self.v[i_tumblers])
-        self.v[i_tumblers] = utils.point_pick_cart(self.parent_env.dim, len(i_tumblers))
+        self.v[i_tumblers] = utils.point_pick_cart(self.env.dim, len(i_tumblers))
         self.v[i_tumblers] *= v_mags[:, np.newaxis]
 
     @check_v
@@ -107,21 +107,21 @@ class Motiles(object):
         v_mags = utils.vector_mag(self.v)
         grad_c_i = c.get_grad_i(self.r)
         i_up = np.where(np.sum(self.v * grad_c_i, -1) > 0.0)
-        self.v[i_up] += self.force_sense * grad_c_i[i_up] * self.parent_env.dt
+        self.v[i_up] += self.force_sense * grad_c_i[i_up] * self.env.dt
         self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
 
     @check_D_rot
     @check_v
     def rot_diff(self):
-        self.v = utils.rot_diff(self.v, self.D_rot, self.parent_env.dt)
+        self.v = utils.rot_diff(self.v, self.D_rot, self.env.dt)
 
     @check_v
     def vicsek(self):
-        inters, intersi = cell_list.interacts(self.r, self.parent_env.L, self.vicsek_R)
+        inters, intersi = cell_list.interacts(self.r, self.env.L, self.vicsek_R)
         self.v = motile_numerics.vicsek_inters(self.v, inters, intersi)
 
     def get_density_field(self, dx):
-        return fields.density(self.r, self.parent_env.L, dx)
+        return fields.density(self.r, self.env.L, dx)
 
     def get_dstd(self, obstructs, field):
         valids = np.asarray(np.logical_not(obstructs.to_field(field), dtype=np.bool))

@@ -1,14 +1,11 @@
 import numpy as np
 import fields
-import walls as walls
-
-# Cython extension
 import walled_field_numerics
 
 class Scalar(fields.Scalar):
-    def __init__(self, parent_env, dx, obstructs, a_0=0.0):
-        fields.Scalar.__init__(self, parent_env, dx, a_0=a_0)
-        # Make field zero-valued in walls
+    def __init__(self, env, dx, obstructs, a_0=0.0):
+        fields.Scalar.__init__(self, env, dx, a_0=a_0)
+        # Make field zero-valued when obstructed
         self.of = obstructs.to_field(self)
         self.a *= np.logical_not(self.of)
 
@@ -24,13 +21,13 @@ class Scalar(fields.Scalar):
 # Note, inheritance order matters to get walled grad & laplacian call
 # (see diamond problem on wikipedia and how python handles it)
 class Diffusing(Scalar, fields.Diffusing):
-    def __init__(self, parent_env, dx, obstructs, D, a_0=0.0):
-        fields.Diffusing.__init__(self, parent_env, dx, D, a_0=a_0)
-        Scalar.__init__(self, parent_env, dx, obstructs, a_0=a_0)
+    def __init__(self, env, dx, obstructs, D, a_0=0.0):
+        fields.Diffusing.__init__(self, env, dx, D, a_0=a_0)
+        Scalar.__init__(self, env, dx, obstructs, a_0=a_0)
 
 class Food(Diffusing):
-    def __init__(self, parent_env, dx, obstructs, D, sink_rate, a_0=0.0):
-        Diffusing.__init__(self, parent_env, dx, obstructs, D, a_0=a_0)
+    def __init__(self, env, dx, obstructs, D, sink_rate, a_0=0.0):
+        Diffusing.__init__(self, env, dx, obstructs, D, a_0=a_0)
         self.sink_rate = sink_rate
 
         if self.sink_rate < 0.0:
@@ -38,12 +35,12 @@ class Food(Diffusing):
 
     def iterate(self, density):
         Diffusing.iterate(self)
-        self.a -= self.sink_rate * density * self.parent_env.dt
+        self.a -= self.sink_rate * density * self.env.dt
         self.a = np.maximum(self.a, 0.0)
 
 class Secretion(Diffusing):
-    def __init__(self, parent_env, dx, obstructs, D, sink_rate, source_rate, a_0=0.0):
-        Diffusing.__init__(self, parent_env, dx, obstructs, D, a_0=a_0)
+    def __init__(self, env, dx, obstructs, D, sink_rate, source_rate, a_0=0.0):
+        Diffusing.__init__(self, env, dx, obstructs, D, a_0=a_0)
         self.source_rate = source_rate
         self.sink_rate = sink_rate
 
@@ -54,5 +51,5 @@ class Secretion(Diffusing):
 
     def iterate(self, density, f):
         Diffusing.iterate(self)
-        self.a += (self.source_rate * density * f.a - self.sink_rate * self.a) * self.parent_env.dt
+        self.a += (self.source_rate * density * f.a - self.sink_rate * self.a) * self.env.dt
         self.a = np.maximum(self.a, 0.0)

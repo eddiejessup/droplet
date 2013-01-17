@@ -3,43 +3,18 @@ import utils
 import fields
 import maze as maze_module
 
-BUFFER_SIZE = 0.999
-
-def shrink(w_old, n):
-    if n < 1: raise Exception('Shrink factor >= 1')
-    elif n == 1: return w_old
-    elif n % 2 != 0: raise Exception('Shrink factor must be odd')
-    M = w_old.shape[0]
-    w_new = np.zeros(w_old.ndim * [M * n], dtype=w_old.dtype)
-    mid = n // 2
-    for x in range(M):
-        x_ = x * n
-        for y in range(M):
-            y_ = y * n
-            if w_old[x, y]:
-                w_new[x_ + mid, y_ + mid] = True
-                if w_old[utils.wrap_inc(M, x), y]:
-                    w_new[x_ + mid:x_ + n, y_ + mid] = True
-                if w_old[utils.wrap_dec(M, x), y]:
-                    w_new[x_:x_ + mid, y_ + mid] = True
-                if w_old[x, utils.wrap_inc(M, y)]:
-                    w_new[x_ + mid, y_ + mid:y_ + n] = True
-                if w_old[x, utils.wrap_dec(M, y)]:
-                    w_new[x_ + mid, y * n:y_ + mid] = True
-    return w_new
-
 class ObstructionContainer(object):
-    def __init__(self, parent_env):
-        self.parent_env = parent_env
+    def __init__(self, env):
+        self.env = env
         self.obstructs = []
 
     def add(self, *args):
         for o in args:
-            assert o.parent_env is self.parent_env
+            assert o.env is self.env
             self.obstructs.append(o)
 
     def to_field(self, field):
-        obstruct_field = np.zeros(field.parent_env.dim * [field.M], dtype=np.uint8)
+        obstruct_field = np.zeros(field.env.dim * [field.M], dtype=np.uint8)
         for obstruct in self.obstructs:
             new_obstruct_field = obstruct.to_field(field.dx)
             if np.logical_and(obstruct_field, new_obstruct_field).any():
@@ -51,15 +26,15 @@ class ObstructionContainer(object):
         return sum((o.get_A_obstructed() for o in self.obstructs))
 
     def get_A_free(self):
-        return self.parent_env.get_A() - self.get_A_obstructed()
+        return self.env.get_A() - self.get_A_obstructed()
 
 class Obstruction(object):
-    def __init__(self, parent_env):
-        self.parent_env = parent_env
-        self.d = self.parent_env.L_half
+    def __init__(self, env):
+        self.env = env
+        self.d = self.env.L_half
 
     def get_A_free(self):
-        return self.parent_env.get_A() - self.get_A_obstructed()
+        return self.env.get_A() - self.get_A_obstructed()
 
     def get_A_obstructed(self):
         return 0.0
@@ -71,19 +46,21 @@ class Obstruction(object):
         pass
 
     def to_field(self, dx):
-        return np.zeros(self.parent_env.dim * [self.parent_env.L / dx], dtype=np.uint8)
+        return np.zeros(self.env.dim * [self.env.L / dx], dtype=np.uint8)
 
 class Parametric(Obstruction):
-    def __init__(self, parent_env, R, pf, delta):
-        super(Parametric, self).__init__(parent_env)
-        par=0.8*self.parent_env.L
-        rs = utils.sphere_pack(R / par, self.parent_env.dim, pf)
+    BUFFER_SIZE = 0.995
+
+    def __init__(self, env, R, pf, delta):
+        super(Parametric, self).__init__(env)
+        par=0.8*self.env.L
+        rs = utils.sphere_pack(R / par, self.env.dim, pf)
         self.r_c = np.array(rs) * par
         self.R_c = np.ones([self.r_c.shape[0]]) * R
         self.R_c_sq = self.R_c ** 2
-        self.pf = utils.sphere_volume(self.R_c, self.parent_env.dim).sum() / self.parent_env.get_A()
+        self.pf = utils.sphere_volume(self.R_c, self.env.dim).sum() / self.env.get_A()
         self.threshold = np.pi / 2.0 - delta
-        self.d = self.R_c.min() if len(self.R_c) > 0 else self.parent_env.L_half
+        self.d = self.R_c.min() if len(self.R_c) > 0 else self.env.L_half
 
         if self.R_c.size > 0 and self.R_c.min() < 0.0:
             raise Exception('Require obstacle radius >= 0')
@@ -91,7 +68,7 @@ class Parametric(Obstruction):
             raise Exception('Require 0 <= alignment angle <= pi/2')
 
     def get_A_obstructed(self):
-        return self.pf * self.parent_env.get_A()
+        return self.pf * self.env.get_A()
 
     def is_obstructed(self, r):
         for r_c, R_c in zip(self.r_c, self.R_c):
@@ -110,27 +87,29 @@ class Parametric(Obstruction):
                 v_mag = utils.vector_mag(motiles.v[n])
                 motiles.v[n] = v_mag * direction_new
                 # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
-                beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.parent_env.dt) ** 2)
-                motiles.r[n] = self.r_c[m] + 0.995 * u * beta
+                beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.env.dt) ** 2)
+                motiles.r[n] = self.r_c[m] + Parametric.BUFFER_SIZE * u * beta
 
     def to_field(self, dx):
         # This is all very clever and numpy-ey, soz
-        M = int(self.parent_env.L / dx)
+        M = int(self.env.L / dx)
         if len(self.r_c) > 0:
-            axes = [i + 1 for i in range(self.parent_env.dim)] + [0]
-            inds = np.transpose(np.indices(self.parent_env.dim * [M]), axes=axes)
-            rs = -self.parent_env.L_half + (inds + 0.5) * dx
+            axes = [i + 1 for i in range(self.env.dim)] + [0]
+            inds = np.transpose(np.indices(self.env.dim * [M]), axes=axes)
+            rs = -self.env.L_half + (inds + 0.5) * dx
             r_rels = rs[:, :, np.newaxis, :] - self.r_c[np.newaxis, np.newaxis, :, :]
             r_rels_mag_sq = utils.vector_mag_sq(r_rels)
             return np.asarray(np.any(r_rels_mag_sq < self.R_c_sq, axis=-1), dtype=np.uint8)
         else:
-            return np.zeros(self.parent_env.dim * [M], dtype=np.uint8)
+            return np.zeros(self.env.dim * [M], dtype=np.uint8)
 
 class Walls(Obstruction, fields.Field):
-    def __init__(self, parent_env, dx):
-        Obstruction.__init__(self, parent_env)
-        fields.Field.__init__(self, parent_env, dx)
-        self.a = np.zeros(self.parent_env.dim * (self.M,), dtype=np.uint8)
+    BUFFER_SIZE = 0.999
+
+    def __init__(self, env, dx):
+        Obstruction.__init__(self, env)
+        fields.Field.__init__(self, env, dx)
+        self.a = np.zeros(self.env.dim * (self.M,), dtype=np.uint8)
 
     def get_A_obstructed_i(self):
         return self.a.sum()
@@ -139,7 +118,7 @@ class Walls(Obstruction, fields.Field):
         return self.a.size
 
     def get_A_obstructed(self):
-        return self.parent_env.get_A() * (float(self.get_A_obstructed_i()) / float(self.get_A_i()))
+        return self.env.get_A() * (float(self.get_A_obstructed_i()) / float(self.get_A_i()))
 
     def is_obstructed(self, r):
         return self.a[tuple(self.r_to_i(r).T)]
@@ -148,7 +127,7 @@ class Walls(Obstruction, fields.Field):
         super(Walls, self).obstruct(motiles, *args, **kwargs)
         inds_old = self.r_to_i(r_old)
         inds_new = self.r_to_i(motiles.r)
-        dx_half = BUFFER_SIZE * (self.dx / 2.0)
+        dx_half = Walls.BUFFER_SIZE * (self.dx / 2.0)
         for i in np.where(self.is_obstructed(motiles.r))[0]:
             for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
                 motiles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(motiles.v[i, i_dim])
@@ -164,30 +143,27 @@ class Walls(Obstruction, fields.Field):
             raise NotImplementedError
 
 class Closed(Walls):
-    def __init__(self, parent_env, dx, d, closedness=None):
-        Walls.__init__(self, parent_env, dx)
+    def __init__(self, env, dx, d, closedness=None):
+        Walls.__init__(self, env, dx)
         self.d_i = int(d / dx) + 1
         self.d = self.d_i * self.dx
         if closedness is None:
-            closedness = self.parent_env.dim
+            closedness = self.env.dim
         self.closedness = closedness
 
-        if not 0 <= self.closedness <= self.parent_env.dim:
+        if not 0 <= self.closedness <= self.env.dim:
             raise Exception('Require 0 <= closedness <= dimension')
 
         for dim in range(self.closedness - 1):
-            self.close(dim)
-
-    def close(self, dim):
-        inds = [Ellipsis for i in range(self.parent_env.dim)]
-        inds[dim] = slice(0, self.d_i)
-        self.a[inds] = True
-        inds[dim] = slice(-1, -(self.d_i + 1), -1)
-        self.a[inds] = True
+            inds = [Ellipsis for i in range(self.env.dim)]
+            inds[dim] = slice(0, self.d_i)
+            self.a[inds] = True
+            inds[dim] = slice(-1, -(self.d_i + 1), -1)
+            self.a[inds] = True
 
 class Traps(Walls):
-    def __init__(self, parent_env, dx, n, d, w, s):
-        Walls.__init__(self, parent_env, dx)
+    def __init__(self, env, dx, n, d, w, s):
+        super(Traps, self).__init__(env, dx)
         self.n = n
         self.d_i = int(d / self.dx) + 1
         self.w_i = int(w / self.dx) + 1
@@ -196,9 +172,9 @@ class Traps(Walls):
         self.w = self.w_i * self.dx
         self.s = self.s_i * self.dx
 
-        if self.parent_env.dim != 2:
+        if self.env.dim != 2:
             raise Exception('Traps not implemented in this dimension')
-        if self.w < 0.0 or self.w > self.parent_env.L:
+        if self.w < 0.0 or self.w > self.env.L:
             raise Exception('Invalid trap width')
         if self.s < 0.0 or self.s > self.w:
             raise Exception('Invalid slit length')
@@ -248,19 +224,43 @@ class Traps(Walls):
         return [float(n_trap) / float(r.shape[0]) for n_trap in n_traps]
 
 class Maze(Walls):
-    def __init__(self, parent_env, dx, d, seed=None):
-        Walls.__init__(self, parent_env, dx)
-        if self.parent_env.L / self.dx % 1 != 0:
+    def __init__(self, env, dx, d, seed=None):
+        super(Maze, self).__init__(env, dx)
+        if self.env.L / self.dx % 1 != 0:
             raise Exception('Require L / dx to be an integer')
-        if self.parent_env.L / self.d % 1 != 0:
+        if self.env.L / self.d % 1 != 0:
             raise Exception('Require L / d to be an integer')
-        if (self.parent_env.L / self.dx) / (self.parent_env.L / self.d) % 1 != 0:
+        if (self.env.L / self.dx) / (self.env.L / self.d) % 1 != 0:
             raise Exception('Require array size / maze size to be integer')
 
         self.seed = seed
         self.d = d
 
-        self.M_m = int(self.parent_env.L / self.d)
+        self.M_m = int(self.env.L / self.d)
         self.d_i = int(self.M / self.M_m)
-        maze = maze_module.make_maze_dfs(self.M_m, self.parent_env.dim, self.seed)
+        maze = maze_module.make_maze_dfs(self.M_m, self.env.dim, self.seed)
         self.a[...] = utils.extend_array(maze, self.d_i)
+
+    @static_method
+    def shrink(w_old, n):
+        if n < 1: raise Exception('Shrink factor >= 1')
+        elif n == 1: return w_old
+        elif n % 2 != 0: raise Exception('Shrink factor must be odd')
+        M = w_old.shape[0]
+        w_new = np.zeros(w_old.ndim * [M * n], dtype=w_old.dtype)
+        mid = n // 2
+        for x in range(M):
+            x_ = x * n
+            for y in range(M):
+                y_ = y * n
+                if w_old[x, y]:
+                    w_new[x_ + mid, y_ + mid] = True
+                    if w_old[utils.wrap_inc(M, x), y]:
+                        w_new[x_ + mid:x_ + n, y_ + mid] = True
+                    if w_old[utils.wrap_dec(M, x), y]:
+                        w_new[x_:x_ + mid, y_ + mid] = True
+                    if w_old[x, utils.wrap_inc(M, y)]:
+                        w_new[x_ + mid, y_ + mid:y_ + n] = True
+                    if w_old[x, utils.wrap_dec(M, y)]:
+                        w_new[x_ + mid, y * n:y_ + mid] = True
+        return w_new
