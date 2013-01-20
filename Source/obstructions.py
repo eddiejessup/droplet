@@ -3,6 +3,8 @@ import utils
 import fields
 import maze as maze_module
 
+import numexpr as ne
+
 class ObstructionContainer(object):
     def __init__(self, env):
         self.env = env
@@ -53,7 +55,7 @@ class Parametric(Obstruction):
 
     def __init__(self, env, R, pf, delta):
         super(Parametric, self).__init__(env)
-        par=0.8*self.env.L
+        par=0.9*self.env.L
         rs = utils.sphere_pack(R / par, self.env.dim, pf)
         self.r_c = np.array(rs) * par
         self.R_c = np.ones([self.r_c.shape[0]]) * R
@@ -241,7 +243,6 @@ class Maze(Walls):
         maze = maze_module.make_maze_dfs(self.M_m, self.env.dim, self.seed)
         self.a[...] = utils.extend_array(maze, self.d_i)
 
-    @static_method
     def shrink(w_old, n):
         if n < 1: raise Exception('Shrink factor >= 1')
         elif n == 1: return w_old

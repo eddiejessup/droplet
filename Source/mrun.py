@@ -43,13 +43,13 @@ def main():
             lims = [-system.L_half, system.L_half]
             if system.dim == 2:
                 ax = fig.add_subplot(111)
-                ax.imshow(system.obstructs.to_field(system.f).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
-                if system.motiles_flag:
-                    parts_plot = ax.scatter([], [], s=1.0, c='k')
-                if system.attractant_flag:
-                    c_plot = ax.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest')
+#                ax.imshow(system.obstructs.to_field(system.f).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+#                if system.motiles_flag:
+#                    parts_plot = ax.scatter([], [], s=1.0, c='k')
+#                if system.attractant_flag:
+#                    c_plot = ax.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
 
-                drift_plot = ax.quiver([0.0], [0.0], [1.0], [0.0])
+                dist_plot = ax.scatter([], [], s=10.0, c='red')
 
             elif system.dim == 3:
                 ax = fig.add_subplot(111, projection='3d')
@@ -57,11 +57,12 @@ def main():
                     parts_plot = ax.scatter([], [], [])
                 ax.set_zticks([])
                 ax.set_zlim(lims)
-            ax.set_aspect('equal')
-            ax.set_xticks([])
-            ax.set_yticks([])
+#            ax.set_aspect('equal')
+#            ax.set_xticks([])
+#            ax.set_yticks([])
             ax.set_xlim(lims)
-            ax.set_ylim(lims)
+#            ax.set_ylim(lims)
+            ax.set_ylim([0.0, 1.0])
         shutil.copy(args.f, args.dir)
         f = open('%s/log.dat' % (args.dir), 'w')
         f.write('t dstd')
@@ -81,14 +82,20 @@ def main():
                 np.save('%s/r/%f' % (args.dir, system.t), system.m.r)
                 if args.plot:
                     if system.dim == 2:
-                        if system.motiles_flag:
-                            parts_plot.set_offsets(system.m.r)
-                        if system.attractant_flag:
-                            c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
-                            c_plot.autoscale()
+#                        if system.motiles_flag:
+#                            parts_plot.set_offsets(system.m.r)
+#                        if system.attractant_flag:
+#                            c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
+#                            c_plot.autoscale()
 
-                        drift_plot.set_UVC(*np.mean(system.m.v, 0))
-
+                        nums, bins = np.histogram(system.m.r[:, 0], range=[-system.L_half, system.L_half], density=True)
+                        print(nums, bins)
+                        hist = np.zeros((len(nums), 2))
+                        hist[:, 0] = nums
+                        hist[:, 1] = bins[:-1]
+                        dist_plot.set_offsets((hist[:, 1], hist[:, 0]))
+                        ax.set_ylim([0.0, max(nums)])
+                        ax.set_xlim([min(bins), max(bins[:-1])])
                     elif system.dim == 3:
                         if system.motiles_flag:
                             parts_plot._offsets3d = (system.m.r[:, 0], system.m.r[:, 1], system.m.r[:, 2])
@@ -101,6 +108,10 @@ def main():
 if args.profile:
     args.silent = True
     args.dir = None
-    cProfile.run('main()', sort='cum')
+    import profile
+    import pstats
+    cProfile.run('main()', 'prof')
+    p = pstats.Stats('prof')
+    p.strip_dirs().sort_stats('cum').print_callers(0.5)
 else:
     main()

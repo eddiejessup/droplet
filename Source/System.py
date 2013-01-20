@@ -1,7 +1,7 @@
 import numpy as np
 import utils
 import fields
-import walls
+import obstructions
 import walled_fields
 import motiles
 
@@ -24,15 +24,15 @@ class System(object):
         self.t = 0.0
         self.i = 0.0
 
-        self.obstructs = walls_module.ObstructionContainer(self)
+        self.obstructs = obstructions.ObstructionContainer(self)
         if 'closed_args' in kwargs:
-            self.obstructs.add(walls_module.Closed(self, **kwargs['closed_args']))
+            self.obstructs.add(obstructions.Closed(self, **kwargs['closed_args']))
         if 'trap_args' in kwargs:
-            self.obstructs.add(walls_module.Traps(self, **kwargs['trap_args']))
+            self.obstructs.add(obstructions.Traps(self, **kwargs['trap_args']))
         if 'maze_args' in kwargs:
-            self.obstructs.add(walls_module.Maze(self, **kwargs['maze_args']))
+            self.obstructs.add(obstructions.Maze(self, **kwargs['maze_args']))
         if 'parametric_args' in kwargs:
-            self.obstructs.add(walls_module.Parametric(self, **kwargs['parametric_args']))
+            self.obstructs.add(obstructions.Parametric(self, **kwargs['parametric_args']))
 
         if 'food_args' in kwargs:
             self.food_flag = True
