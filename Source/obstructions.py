@@ -1,9 +1,7 @@
 import numpy as np
 import utils
 import fields
-import maze as maze_module
-
-import numexpr as ne
+import maze
 
 class ObstructionContainer(object):
     def __init__(self, env):
@@ -23,6 +21,11 @@ class ObstructionContainer(object):
                 raise Exception('Obstructions intersect')
             obstruct_field += new_obstruct_field
         return obstruct_field
+
+    def is_obstructed(self, r):
+        for obstruct in self.obstructs:
+            if obstruct.is_obstructed(r): return True
+        return False
 
     def get_A_obstructed(self):
         return sum((o.get_A_obstructed() for o in self.obstructs))
@@ -55,7 +58,7 @@ class Parametric(Obstruction):
 
     def __init__(self, env, R, pf, delta):
         super(Parametric, self).__init__(env)
-        par=0.9*self.env.L
+        par=self.env.L
         rs = utils.sphere_pack(R / par, self.env.dim, pf)
         self.r_c = np.array(rs) * par
         self.R_c = np.ones([self.r_c.shape[0]]) * R
@@ -69,6 +72,9 @@ class Parametric(Obstruction):
         if self.threshold < 0.0:
             raise Exception('Require 0 <= alignment angle <= pi/2')
 
+        print self.pf
+        raw_input()
+
     def get_A_obstructed(self):
         return self.pf * self.env.get_A()
 
@@ -80,28 +86,46 @@ class Parametric(Obstruction):
     def obstruct(self, motiles, *args, **kwargs):
         super(Parametric, self).obstruct(motiles, *args, **kwargs)
         if self.R_c.size == 0: return
-        r_rels = motiles.r[:, np.newaxis] - self.r_c[np.newaxis, :]
-        for n, m in zip(*np.where(utils.vector_mag_sq(r_rels) < self.R_c_sq)):
-            u = utils.vector_unit_nonull(r_rels[n, m])
-            if utils.vector_angle(motiles.v[n], u) > self.threshold:
-                # New direction is old one without component parallel to surface normal
-                direction_new = utils.vector_unit_nonull(motiles.v[n] - np.dot(motiles.v[n], u) * u)
-                v_mag = utils.vector_mag(motiles.v[n])
-                motiles.v[n] = v_mag * direction_new
-                # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
-                beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.env.dt) ** 2)
-                motiles.r[n] = self.r_c[m] + Parametric.BUFFER_SIZE * u * beta
+#        r_rels = motiles.r[:, np.newaxis] - self.r_c[np.newaxis, :]
+#        for n, m in zip(*np.where(utils.vector_mag_sq(r_rels) < self.R_c_sq)):
+#            u = utils.vector_unit_nonull(r_rels[n, m])
+#            if utils.vector_angle(motiles.v[n], u) > self.threshold:
+#                # New direction is old one without component parallel to surface normal
+#                direction_new = utils.vector_unit_nonull(motiles.v[n] - np.dot(motiles.v[n], u) * u)
+#                v_mag = utils.vector_mag(motiles.v[n])
+#                motiles.v[n] = v_mag * direction_new
+#                # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
+#                beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.env.dt) ** 2)
+#                motiles.r[n] = self.r_c[m] + Parametric.BUFFER_SIZE * u * beta
+
+        for m in range(len(self.R_c)):
+            r_rel = motiles.r - self.r_c[np.newaxis, m]
+            for n in np.where(utils.vector_mag_sq(r_rel) < self.R_c_sq[m])[0]:
+                u = utils.vector_unit_nonull(r_rel[n])
+                if utils.vector_angle(motiles.v[n], u) > self.threshold:
+                    # New direction is old one without component parallel to surface normal
+                    direction_new = utils.vector_unit_nonull(motiles.v[n] - np.dot(motiles.v[n], u) * u)
+                    v_mag = utils.vector_mag(motiles.v[n])
+                    motiles.v[n] = v_mag * direction_new
+                    # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
+                    beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.env.dt) ** 2)
+                    motiles.r[n] = self.r_c[m] + Parametric.BUFFER_SIZE * u * beta
 
     def to_field(self, dx):
         # This is all very clever and numpy-ey, soz
         M = int(self.env.L / dx)
+        field = np.zeros(self.env.dim * [M], dtype=np.uint8)
         if len(self.r_c) > 0:
             axes = [i + 1 for i in range(self.env.dim)] + [0]
             inds = np.transpose(np.indices(self.env.dim * [M]), axes=axes)
             rs = -self.env.L_half + (inds + 0.5) * dx
-            r_rels = rs[:, :, np.newaxis, :] - self.r_c[np.newaxis, np.newaxis, :, :]
-            r_rels_mag_sq = utils.vector_mag_sq(r_rels)
-            return np.asarray(np.any(r_rels_mag_sq < self.R_c_sq, axis=-1), dtype=np.uint8)
+#            r_rels = rs[:, :, np.newaxis, :] - self.r_c[np.newaxis, np.newaxis, :, :]
+#            r_rels_mag_sq = utils.vector_mag_sq(r_rels)
+            for m in range(len(self.R_c)):
+                r_rels_mag_sq = utils.vector_mag_sq(rs - self.r_c[np.newaxis, np.newaxis, m])
+                field += r_rels_mag_sq < self.R_c_sq[m]
+#            return np.asarray(np.any(r_rels_mag_sq < self.R_c_sq, axis=-1), dtype=np.uint8)
+            return field
         else:
             return np.zeros(self.env.dim * [M], dtype=np.uint8)
 
@@ -156,7 +180,7 @@ class Closed(Walls):
         if not 0 <= self.closedness <= self.env.dim:
             raise Exception('Require 0 <= closedness <= dimension')
 
-        for dim in range(self.closedness - 1):
+        for dim in range(self.closedness):
             inds = [Ellipsis for i in range(self.env.dim)]
             inds[dim] = slice(0, self.d_i)
             self.a[inds] = True
@@ -240,8 +264,8 @@ class Maze(Walls):
 
         self.M_m = int(self.env.L / self.d)
         self.d_i = int(self.M / self.M_m)
-        maze = maze_module.make_maze_dfs(self.M_m, self.env.dim, self.seed)
-        self.a[...] = utils.extend_array(maze, self.d_i)
+        maze_array = maze.make_maze_dfs(self.M_m, self.env.dim, self.seed)
+        self.a[...] = utils.extend_array(maze_array, self.d_i)
 
     def shrink(w_old, n):
         if n < 1: raise Exception('Shrink factor >= 1')

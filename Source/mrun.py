@@ -39,35 +39,34 @@ def main():
         utils.makedirs_soft('%s/r' % args.dir)
         if args.plot:
             utils.makedirs_soft('%s/plot' % args.dir)
-            fig = pp.figure()
             lims = [-system.L_half, system.L_half]
+
+            fig_box = pp.figure()
             if system.dim == 2:
-                ax = fig.add_subplot(111)
-#                ax.imshow(system.obstructs.to_field(system.f).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
-#                if system.motiles_flag:
-#                    parts_plot = ax.scatter([], [], s=1.0, c='k')
-#                if system.attractant_flag:
-#                    c_plot = ax.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
-
-                dist_plot = ax.scatter([], [], s=10.0, c='red')
-
-            elif system.dim == 3:
-                ax = fig.add_subplot(111, projection='3d')
+                ax_box = fig_box.add_subplot(111)
+                ax_box.imshow(system.obstructs.to_field(system.obstructs.obstructs[0]).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
                 if system.motiles_flag:
-                    parts_plot = ax.scatter([], [], [])
-                ax.set_zticks([])
-                ax.set_zlim(lims)
-#            ax.set_aspect('equal')
-#            ax.set_xticks([])
-#            ax.set_yticks([])
-            ax.set_xlim(lims)
-#            ax.set_ylim(lims)
-            ax.set_ylim([0.0, 1.0])
+                    parts_plot = ax_box.scatter([], [], s=1.0, c='k')
+                if system.attractant_flag:
+                    c_plot = ax_box.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
+                utils.makedirs_soft('%s/dist' % args.dir)
+                fig_dist = pp.figure()
+                ax_dist = fig_dist.add_subplot(111)
+            elif system.dim == 3:
+                ax_box = fig.add_subplot(111, projection='3d')
+                if system.motiles_flag:
+                    parts_plot = ax_box.scatter([], [], [])
+                ax_box.set_zticks([])
+                ax_box.set_zlim(lims)
+            ax_box.set_aspect('equal')
+            ax_box.set_xticks([])
+            ax_box.set_yticks([])
+            ax_box.set_xlim(lims)
+            ax_box.set_ylim(lims)
         shutil.copy(args.f, args.dir)
         f = open('%s/log.dat' % (args.dir), 'w')
         f.write('t dstd')
         f.write('\n')
-
     if not args.silent: print('Initialisation done! Starting...')
 
     while system.t < args.runtime:
@@ -76,30 +75,26 @@ def main():
                 print('t:%010g i:%08i' % (system.t, system.i), end=' ')
             if args.dir is not None:
                 if not args.silent: print('making output...', end='')
-                f.write('%f %f' % (system.t, system.m.get_dstd(system.obstructs, system.c)))
+#                f.write('%f %f' % (system.t, system.m.get_dstd(system.obstructs, system.c)))
                 f.write('\n')
                 f.flush()
                 np.save('%s/r/%f' % (args.dir, system.t), system.m.r)
                 if args.plot:
                     if system.dim == 2:
-#                        if system.motiles_flag:
-#                            parts_plot.set_offsets(system.m.r)
-#                        if system.attractant_flag:
-#                            c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
-#                            c_plot.autoscale()
-
-                        nums, bins = np.histogram(system.m.r[:, 0], range=[-system.L_half, system.L_half], density=True)
-                        print(nums, bins)
-                        hist = np.zeros((len(nums), 2))
-                        hist[:, 0] = nums
-                        hist[:, 1] = bins[:-1]
-                        dist_plot.set_offsets((hist[:, 1], hist[:, 0]))
-                        ax.set_ylim([0.0, max(nums)])
-                        ax.set_xlim([min(bins), max(bins[:-1])])
+                        if system.motiles_flag:
+                            parts_plot.set_offsets(system.m.r)
+                        if system.attractant_flag:
+                            c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
+                            c_plot.autoscale()
+                        ax_dist.set_xlim(lims)
+                        ax_dist.set_ylim([0.0, 1.0/(20**2)])
+                        ax_dist.hist(system.m.r[:, 0], bins=50, range=lims, normed=True)
+                        fig_dist.savefig('%s/dist/%f.png' % (args.dir, system.t))
+                        ax_dist.cla()
                     elif system.dim == 3:
                         if system.motiles_flag:
                             parts_plot._offsets3d = (system.m.r[:, 0], system.m.r[:, 1], system.m.r[:, 2])
-                    fig.savefig('%s/plot/%f.png' % (args.dir, system.t))
+                    fig_box.savefig('%s/plot/%f.png' % (args.dir, system.t))
                 if not args.silent: print('finished', end='')
             if not args.silent: print()
         system.iterate()

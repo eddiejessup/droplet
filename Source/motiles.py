@@ -68,19 +68,21 @@ class Motiles(object):
             if self.R_comm > obstruct.d:
                 raise Exception('Cannot have inter-obstruction motile communication')
 
-        self.initialise_r(obstructs)
+        self.initialise_r(obstructs, kwargs['dist'])
         self.v = utils.point_pick_cart(self.env.dim, self.N) * self.v_0
 
-    def initialise_r(self, obstructs):
+    def initialise_r(self, obstructs, dist):
         self.r = np.zeros([self.N, self.env.dim], dtype=np.float)
-        for i in range(self.N):
-            while True:
-                self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
-                valid = True
-                for obstruct in obstructs.obstructs:
-                    if obstruct.is_obstructed(self.r[i]):
-                        valid = False
-                if valid: break
+        if dist == 'point':
+            if obstructs.is_obstructed(self.r[0]):
+                raise Exception('Require box centre to be free for point distribution')
+        elif dist == 'uniform':
+            for i in range(self.N):
+                while True:
+                    self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
+                    if not obstructs.is_obstructed(self.r[i]): break
+        else:
+            raise Exception('Unknown distribution')
 
     def iterate(self, obstructs, c=None):
         if self.vicsek_flag: self.vicsek()
@@ -94,6 +96,10 @@ class Motiles(object):
         self.r[self.r < -self.env.L_half] += self.env.L
         for obstruct in obstructs.obstructs:
             obstruct.obstruct(self, r_old)
+
+#        print utils.calc_D(r_old, self.r, self.env.dt)
+        print np.var(self.r) / (2.0 * self.env.t)
+        if (np.abs(self.r) > 0.98*self.env.L_half).any(): raise Exception
 
     @check_v
     def tumble(self, c):
