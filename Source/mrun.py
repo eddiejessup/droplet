@@ -44,7 +44,7 @@ def main():
             fig_box = pp.figure()
             if system.dim == 2:
                 ax_box = fig_box.add_subplot(111)
-                ax_box.imshow(system.obstructs.to_field(system.obstructs.obstructs[0]).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+                ax_box.imshow(system.obstructs.to_field(4.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
                 if system.motiles_flag:
                     parts_plot = ax_box.scatter([], [], s=1.0, c='k')
                 if system.attractant_flag:
@@ -68,14 +68,19 @@ def main():
         f.write('t dstd')
         f.write('\n')
     if not args.silent: print('Initialisation done! Starting...')
-
+    Ds=[]
     while system.t < args.runtime:
         if not system.i % args.every:
             if not args.silent:
                 print('t:%010g i:%08i' % (system.t, system.i), end=' ')
+                if system.t > 20.0:
+                    Ds.append(utils.calc_D(system.m.get_r_unwrapped(), system.m.r_0, system.t))
+                    print(Ds[-1])
+
+        #        print 'drift v: ', np.mean(self.v[:, 0])
             if args.dir is not None:
                 if not args.silent: print('making output...', end='')
-#                f.write('%f %f' % (system.t, system.m.get_dstd(system.obstructs, system.c)))
+                f.write('%f %f' % (system.t, system.m.get_dstd(system.obstructs, 4.0)))
                 f.write('\n')
                 f.flush()
                 np.save('%s/r/%f' % (args.dir, system.t), system.m.r)

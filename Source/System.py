@@ -25,14 +25,9 @@ class System(object):
         self.i = 0.0
 
         self.obstructs = obstructions.ObstructionContainer(self)
-        if 'closed_args' in kwargs:
-            self.obstructs.add(obstructions.Closed(self, **kwargs['closed_args']))
-        if 'trap_args' in kwargs:
-            self.obstructs.add(obstructions.Traps(self, **kwargs['trap_args']))
-        if 'maze_args' in kwargs:
-            self.obstructs.add(obstructions.Maze(self, **kwargs['maze_args']))
-        if 'parametric_args' in kwargs:
-            self.obstructs.add(obstructions.Parametric(self, **kwargs['parametric_args']))
+        if 'obstruction_args' in kwargs:
+            for key in kwargs['obstruction_args']:
+                self.obstructs.add(obstructions.factory(key, kwargs['obstruction_args'][key]))
 
         if 'food_args' in kwargs:
             self.food_flag = True
@@ -52,7 +47,7 @@ class System(object):
             else:
                 self.c = walled_fields.Scalar(self, attractant_args['dx'], self.obstructs, a_0=attractant_args['c_0'])
                 rs = np.transpose(self.c.i_to_r(np.indices(self.c.a.shape)), (1, 2, 0))
-                self.c.a[:, :] = 100.0 * rs[:, :, 0]
+                self.c.a[:, :] = rs[:, :, 0] / rs[:, :, 0].max()
         else:
             self.attractant_flag = False
 

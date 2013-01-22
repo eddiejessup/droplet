@@ -64,9 +64,16 @@ class Motiles(object):
         else:
             self.vicsek_flag = False
 
-        for obstruct in obstructs.obstructs:
-            if self.R_comm > obstruct.d:
-                raise Exception('Cannot have inter-obstruction motile communication')
+        if 'diff_args' in kwargs:
+            self.diff_flag = True
+            self.D = kwargs['diff_args']['D']
+            if self.D < 0.0:
+                raise Exception('Require diffusion constant >= 0.0')
+        else:
+            self.diff_flag = False
+
+        if self.R_comm > obstructs.d:
+            raise Exception('Cannot have inter-obstruction motile communication')
 
         self.initialise_r(obstructs, kwargs['dist'])
         self.v = utils.point_pick_cart(self.env.dim, self.N) * self.v_0
@@ -74,8 +81,9 @@ class Motiles(object):
     def initialise_r(self, obstructs, dist):
         self.r = np.zeros([self.N, self.env.dim], dtype=np.float)
         if dist == 'point':
-            if obstructs.is_obstructed(self.r[0]):
-                raise Exception('Require box centre to be free for point distribution')
+            while True:
+                self.r[:] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
+                if not obstructs.is_obstructed(self.r[0]): break
         elif dist == 'uniform':
             for i in range(self.N):
                 while True:
@@ -83,6 +91,10 @@ class Motiles(object):
                     if not obstructs.is_obstructed(self.r[i]): break
         else:
             raise Exception('Unknown distribution')
+
+        # Count number of times wrapped around and initial positions for displacement calculations
+        self.wrapping_number = np.zeros([self.N, self.env.dim], dtype=np.int)
+        self.r_0 = self.r.copy()
 
     def iterate(self, obstructs, c=None):
         if self.vicsek_flag: self.vicsek()
@@ -92,14 +104,11 @@ class Motiles(object):
 
         r_old = self.r.copy()
         self.r += self.v * self.env.dt
-        self.r[self.r > self.env.L_half] -= self.env.L
-        self.r[self.r < -self.env.L_half] += self.env.L
-        for obstruct in obstructs.obstructs:
-            obstruct.obstruct(self, r_old)
-
-#        print utils.calc_D(r_old, self.r, self.env.dt)
-        print np.var(self.r) / (2.0 * self.env.t)
-        if (np.abs(self.r) > 0.98*self.env.L_half).any(): raise Exception
+        if self.diff_flag: self.r = utils.diff(self.r, self.D, self.env.dt)
+        i_wrap = np.where(np.abs(self.r) > self.env.L_half)
+        self.wrapping_number[i_wrap] += np.sign(self.r[i_wrap])
+        self.r[i_wrap] -= np.sign(self.r[i_wrap]) * self.env.L
+        obstructs.obstruct(self, r_old)
 
     @check_v
     def tumble(self, c):
@@ -126,9 +135,12 @@ class Motiles(object):
         inters, intersi = cell_list.interacts(self.r, self.env.L, self.vicsek_R)
         self.v = motile_numerics.vicsek_inters(self.v, inters, intersi)
 
+    def get_r_unwrapped(self):
+        return self.r + self.env.L * self.wrapping_number
+
     def get_density_field(self, dx):
         return fields.density(self.r, self.env.L, dx)
 
-    def get_dstd(self, obstructs, field):
-        valids = np.asarray(np.logical_not(obstructs.to_field(field), dtype=np.bool))
-        return np.std(self.get_density_field(field.dx)[valids])
+    def get_dstd(self, obstructs, dx):
+        valids = np.asarray(np.logical_not(obstructs.to_field(dx), dtype=np.bool))
+        return np.std(self.get_density_field(dx)[valids])

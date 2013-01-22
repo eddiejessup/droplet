@@ -44,7 +44,8 @@ class TumbleRates(object):
     def get_happy_mem(self, c):
         ''' approximate unit(v) dot grad(c) via temporal integral '''
         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
-        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.motiles.r))
+#        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.motiles.r))
+        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.motiles.r)) * self.motiles.wrapping_number[:, 0]
         return self.sense * np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
 
     def get_tumblers(self, c=None):

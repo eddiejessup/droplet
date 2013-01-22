@@ -6,7 +6,7 @@ class Scalar(fields.Scalar):
     def __init__(self, env, dx, obstructs, a_0=0.0):
         fields.Scalar.__init__(self, env, dx, a_0=a_0)
         # Make field zero-valued when obstructed
-        self.of = obstructs.to_field(self)
+        self.of = obstructs.to_field(self.dx)
         self.a *= np.logical_not(self.of)
 
     def get_grad(self):
