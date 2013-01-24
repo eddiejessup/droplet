@@ -11,15 +11,14 @@ D_rot_tolerance = 10.0
 def check_v(func):
     def wrapper(self, *args):
         func(self, *args)
-        assert np.abs(utils.vector_mag(self.v) / self.v_0 - 1.0).max() < v_TOLERANCE, "%f %f" % (utils.vector_mag(self.v).max(), utils.vector_mag(self.v).min())
+        assert np.allclose(utils.vector_mag(self.v), self.v_0)
     return wrapper
 
 def check_D_rot(func):
     def wrapper(self):
-        v_initial = self.v.copy()
+        v_init = self.v.copy()
         func(self)
-        D_rot_calc = utils.calc_D_rot(v_initial, self.v, self.env.dt)
-        assert abs((D_rot_calc / self.D_rot) - 1.0) < D_rot_tolerance / np.sqrt(self.N)
+        assert np.allclose(utils.calc_D_rot(v_init, self.v, self.env.dt), self.D_rot, rtol=10 / np.sqrt(self.N))
     return wrapper
 
 class Motiles(object):
@@ -110,7 +109,7 @@ class Motiles(object):
         self.r[i_wrap] -= np.sign(self.r[i_wrap]) * self.env.L
         obstructs.obstruct(self, r_old)
 
-    @check_v
+#    @check_v
     def tumble(self, c):
         i_tumblers = self.tumble_rates.get_tumblers(c)
         v_mags = utils.vector_mag(self.v[i_tumblers])
@@ -125,8 +124,8 @@ class Motiles(object):
         self.v[i_up] += self.force_sense * grad_c_i[i_up] * self.env.dt
         self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
 
-    @check_D_rot
-    @check_v
+#    @check_D_rot
+#    @check_v
     def rot_diff(self):
         self.v = utils.rot_diff(self.v, self.D_rot, self.env.dt)
 
