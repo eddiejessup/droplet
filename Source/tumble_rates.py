@@ -12,6 +12,7 @@ class TumbleRates(object):
             raise Exception('Time-step too large for p_0')
 
         if 'chemotaxis_args' in kwargs:
+            self.chemotaxis_flag = True
             if 'grad_args' in kwargs['chemotaxis_args']:
                 self.get_happy = self.get_happy_grad
                 self.sense = kwargs['chemotaxis_args']['grad_args']['sensitivity']
@@ -28,12 +29,10 @@ class TumbleRates(object):
                 self.calculate_mem_kernel()
                 self.c_mem = np.zeros([self.motiles.N, len(self.K_dt)], dtype=np.float)
             else:
+
                 raise Exception('No chemotaxis arguments found')
         else:
-            self.get_happy = self.get_happy_const
-
-    def get_happy_const(self, *args):
-       return np.zeros([self.motiles.N], dtype=np.float)
+            self.chemotaxis_flag = False
 
     def get_happy_grad(self, c):
         ''' Approximate unit(v) dot grad(c), so happy if going up c
@@ -51,9 +50,11 @@ class TumbleRates(object):
     def get_tumblers(self, c=None):
         ''' p(happy) is a logistic curve saturating at zero at +inf, p_0 at
         0.0. '''
-        p = self.p_0 * 2.0 * (1.0 - 1.0 / (1.0 + np.exp(-self.get_happy(c))))
-        # One-sided response
-        p = np.minimum(self.p_0, p)
+        if self.chemotaxis_flag:
+            p = self.p_0 * 2.0 * (1.0 - 1.0 / (1.0 + np.exp(-self.get_happy(c))))
+            p = np.minimum(self.p_0, p)
+        else:
+            p = self.p_0
         random_sample = np.random.uniform(size=self.motiles.N)
         return np.where(random_sample < p * self.motiles.env.dt)[0]
 
