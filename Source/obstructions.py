@@ -3,11 +3,11 @@ import utils
 import fields
 import maze
 
-def factory(key, kwargs):
-    if key == 'closed_args': return obstructions.Closed(self, **kwargs)
-    elif key == 'trap_args': return obstructions.Traps(self, **kwargs)
-    elif key == 'maze_args': return obstructions.Maze(self, **kwargs)
-    elif key == 'parametric_args': return obstructions.Parametric(self, **kwargs)
+def factory(key, env, kwargs):
+    if key == 'closed_args': return Closed(env, **kwargs)
+    elif key == 'trap_args': return Traps(env, **kwargs)
+    elif key == 'maze_args': return Maze(env, **kwargs)
+    elif key == 'parametric_args': return Parametric(env, **kwargs)
     else: raise Exception('Unknown obstruction string')
 
 class ObstructionContainer(object):

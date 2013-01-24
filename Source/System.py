@@ -27,7 +27,7 @@ class System(object):
         self.obstructs = obstructions.ObstructionContainer(self)
         if 'obstruction_args' in kwargs:
             for key in kwargs['obstruction_args']:
-                self.obstructs.add(obstructions.factory(key, kwargs['obstruction_args'][key]))
+                self.obstructs.add(obstructions.factory(key, self, kwargs['obstruction_args'][key]))
 
         if 'food_args' in kwargs:
             self.food_flag = True
