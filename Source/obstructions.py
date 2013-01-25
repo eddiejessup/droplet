@@ -1,5 +1,6 @@
 import numpy as np
 import utils
+import cl
 import fields
 import maze
 
@@ -88,6 +89,7 @@ class Parametric(Obstruction):
 
         print self.pf
         raw_input()
+        self.cl = cl.get_cl(self.r_c, self.R_c, self.env.L)
 
     def to_field(self, dx):
         M = int(self.env.L / dx)
@@ -109,10 +111,11 @@ class Parametric(Obstruction):
         super(Parametric, self).obstruct(motiles, *args, **kwargs)
         if self.R_c.size == 0: return
 
-        for m in range(len(self.R_c)):
-            r_rel = motiles.r - self.r_c[np.newaxis, m]
-            for n in np.where(utils.vector_mag_sq(r_rel) < self.R_c_sq[m])[0]:
-                u = utils.vector_unit_nonull(r_rel[n])
+        ch = cl.get_checks(self.cl, motiles.r, self.env.L)
+        inters = cl.get_inters(ch, motiles.r, self.r_c, self.R_c, self.cl)
+        for n in range(len(motiles.r)):
+            for m in inters[n]:
+                u = utils.vector_unit_nonull(motiles.r[n] - self.r_c[m])
                 if utils.vector_angle(motiles.v[n], u) > self.threshold:
                     # New direction is old one without component parallel to surface normal
                     direction_new = utils.vector_unit_nonull(motiles.v[n] - np.dot(motiles.v[n], u) * u)
