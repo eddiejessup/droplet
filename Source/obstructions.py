@@ -73,23 +73,33 @@ class Parametric(Obstruction):
 
     def __init__(self, env, R, pf, delta):
         super(Parametric, self).__init__(env)
-        par=self.env.L
-        rs = utils.sphere_pack(R / par, self.env.dim, pf)
-        self.r_c = np.array(rs) * par
+        rs = utils.sphere_pack(R / self.env.L, self.env.dim, pf)
+        self.r_c = np.array(rs) * self.env.L
         self.R_c = np.ones([self.r_c.shape[0]]) * R
         self.R_c_sq = self.R_c ** 2
         self.pf = utils.sphere_volume(self.R_c, self.env.dim).sum() / self.env.get_A()
         self.threshold = np.pi / 2.0 - delta
         self.d = self.R_c.min() if len(self.R_c) > 0 else self.env.L_half
 
-        if self.R_c.size > 0 and self.R_c.min() < 0.0:
-            raise Exception('Require obstacle radius >= 0')
         if self.threshold < 0.0:
             raise Exception('Require 0 <= alignment angle <= pi/2')
 
-        print self.pf
-        raw_input()
-        self.cl = cl.get_cl(self.r_c, self.R_c, self.env.L)
+#        self.init_cell_list()
+
+    def init_cell_list(self):
+        dx = self.R_c.min() / 2.0
+        M = int(self.env.L / dx)
+        dx = self.env.L / M
+        self.cl = np.zeros(self.env.dim * [M] + [self.env.dim * 2], dtype=np.int)
+        self.cli = np.zeros(self.env.dim * [M], dtype=np.int)
+        axes = [i + 1 for i in range(self.env.dim)] + [0]
+        inds = np.transpose(np.indices(self.cl.shape[:-1]), axes=axes).reshape(M ** self.env.dim, self.env.dim)
+        for ind in inds:
+            r = -self.env.L_half + (ind + 0.5) * dx
+            r_rels_mag_sq = utils.vector_mag_sq(r[np.newaxis, :] - self.r_c)
+            for m in np.where(r_rels_mag_sq < np.square(self.R_c + dx / 2.0))[0]:
+                self.cl[tuple(ind)][self.cli[tuple(ind)]] = m
+                self.cli[tuple(ind)] += 1
 
     def to_field(self, dx):
         M = int(self.env.L / dx)
@@ -111,19 +121,28 @@ class Parametric(Obstruction):
         super(Parametric, self).obstruct(motiles, *args, **kwargs)
         if self.R_c.size == 0: return
 
-        ch = cl.get_checks(self.cl, motiles.r, self.env.L)
-        inters = cl.get_inters(ch, motiles.r, self.r_c, self.R_c, self.cl)
-        for n in range(len(motiles.r)):
-            for m in inters[n]:
-                u = utils.vector_unit_nonull(motiles.r[n] - self.r_c[m])
-                if utils.vector_angle(motiles.v[n], u) > self.threshold:
-                    # New direction is old one without component parallel to surface normal
-                    direction_new = utils.vector_unit_nonull(motiles.v[n] - np.dot(motiles.v[n], u) * u)
-                    v_mag = utils.vector_mag(motiles.v[n])
-                    motiles.v[n] = v_mag * direction_new
-                    # New position is on the surface, slightly inside (by a distance b) to keep particle inside at next iteration
-                    beta = np.sqrt(self.R_c_sq[m] - (v_mag * self.env.dt) ** 2)
-                    motiles.r[n] = self.r_c[m] + Parametric.BUFFER_SIZE * u * beta
+        inds = utils.r_to_i(motiles.r, self.env.L, self.env.L / self.cl.shape[0])
+        cl_subs = self.cl[tuple(inds.T)]
+        cli_subs = self.cli[tuple(inds.T)]
+        for n in np.where(cli_subs > 0)[0]:
+            for m in cl_subs[n, :cli_subs[n]]:
+                r_rel_sq = np.square(motiles.r[n] - self.r_c[m])
+                r_rel_mag_sq = np.sum(r_rel_sq)
+                if r_rel_mag_sq < self.R_c_sq[m]:
+                    u_rel = r_rel_sq / r_rel_mag_sq
+                    v_new_sq = np.square(motiles.v[n] - np.sum(motiles.v[n] * u_rel))
+                    motiles.v[n] = np.sqrt((v_new_sq / np.sum(v_new_sq)) * np.sum(np.square(motiles.v[n])))
+                    motiles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
+
+#        for m in range(len(self.R_c)):
+#            r_rel_sq = np.square(motiles.r - self.r_c[np.newaxis, m])
+#            r_rel_mag_sq = np.sum(r_rel_sq)
+#            for n in np.where(r_rel_mag_sq < self.R_c_sq[m])[0]:
+#                if r_rel_mag_sq[n] < self.R_c_sq[m]:
+#                    u_rel = r_rel_sq[n] / r_rel_mag_sq[n]
+#                    v_new_sq = np.square(motiles.v[n] - np.sum(motiles.v[n] * u_rel))
+#                    motiles.v[n] = np.sqrt((v_new_sq / np.sum(v_new_sq)) * np.sum(np.square(motiles.v[n])))
+#                    motiles.r[n] = self.r_c[m] * u_rel * self.R_c[m]
 
     def get_A_obstructed(self):
         return self.pf * self.env.get_A()
