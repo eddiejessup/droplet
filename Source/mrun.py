@@ -13,7 +13,7 @@ import utils
 import System
 import csv
 
-parser = argparse.ArgumentParser(description='Run a motile system simulation')
+parser = argparse.ArgumentParser(description='Run a particle simulation')
 parser.add_argument('f',
     help='YAML file containing system parameters')
 parser.add_argument('-t', '--runtime', type=float, default=float('inf'),
@@ -25,7 +25,7 @@ parser.add_argument('-e', '--every', type=int, default=1,
 parser.add_argument('-p', '--plot', default=False, action='store_true',
     help='plot system directly, default is false')
 parser.add_argument('-r', '--positions', default=False, action='store_true',
-    help='output motile positions, default is false')
+    help='output particle positions, default is false')
 parser.add_argument('-s', '--silent', default=False, action='store_true',
     help='don''t print to stdout')
 parser.add_argument('--profile', default=False, action='store_true',
@@ -41,6 +41,9 @@ def csv_write(f, delimiter=' ', *args):
 def main():
     if not args.silent: print('Initialising...')
 
+    if args.dir is not None:
+        utils.makedirs_safe(args.dir)
+
     system = System.System(**yaml.safe_load(open(args.f, 'r')))
 
     if args.dir is not None:
@@ -55,14 +58,14 @@ def main():
             fig_box = pp.figure()
             if system.dim == 2:
                 ax_box = fig_box.add_subplot(111)
-                ax_box.imshow(system.obstructs.to_field(4.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
-                if system.motiles_flag:
+                ax_box.imshow(system.obstructs.to_field(1.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+                if system.particles_flag:
                     parts_plot = ax_box.scatter([], [], s=1.0, c='k')
                 if system.attractant_flag:
                     c_plot = ax_box.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
             elif system.dim == 3:
                 ax_box = fig.add_subplot(111, projection='3d')
-                if system.motiles_flag:
+                if system.particles_flag:
                     parts_plot = ax_box.scatter([], [], [])
                 ax_box.set_zticks([])
                 ax_box.set_zlim(lims)
@@ -80,19 +83,19 @@ def main():
 
             if args.dir is not None:
                 if not args.silent: print('making output...', end='')
-                csv_log.writerow([system.t, system.m.get_dstd(system.obstructs, 4.0), utils.calc_D(system.m.get_r_unwrapped(), system.m.r_0, system.t)])
+                csv_log.writerow([system.t, system.p.get_dstd(system.obstructs, 4.0), utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)])
                 f_log.flush()
-                if args.positions: np.save('%s/r/%f' % (args.dir, system.t), system.m.r)
+                if args.positions: np.save('%s/r/%f' % (args.dir, system.t), system.p.r)
                 if args.plot:
                     if system.dim == 2:
-                        if system.motiles_flag:
-                            parts_plot.set_offsets(system.m.r)
+                        if system.particles_flag:
+                            parts_plot.set_offsets(system.p.r)
                         if system.attractant_flag:
                             c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
                             c_plot.autoscale()
                     elif system.dim == 3:
-                        if system.motiles_flag:
-                            parts_plot._offsets3d = (system.m.r[:, 0], system.m.r[:, 1], system.m.r[:, 2])
+                        if system.particles_flag:
+                            parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%f.png' % (args.dir, system.t))
                 if not args.silent: print('finished', end='')
             if not args.silent: print()

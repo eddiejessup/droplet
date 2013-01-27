@@ -4,5 +4,7 @@ old_Data/
 *.so
 *.pyc
 *.*~
+TODO~
+README~
 Source/*.yaml
 !Source/params_example.yaml

@@ -1,7 +1,6 @@
 - HIGH: Finish off vicsek results!
-- MED: Profile for bottlenecks (looking at you chemotactic memory)
+- HIGH: D(pf) and D(r_para)
+- MED: v_drift(pf) and v_drift(r_para)
 - MED: Investigate reason for sqrt(2) difference for 3d rot diff
-- MED: Get some preliminary investigations of chemotaxis in parametric environment
 - LOW: Make traps & maze work in 3d
-- LOW: Put back validations, assertions etc.
 - LOW: Set up proper unit-testing

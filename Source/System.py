@@ -3,7 +3,7 @@ import utils
 import fields
 import obstructions
 import walled_fields
-import motiles
+import particles
 
 class System(object):
     def __init__(self, seed, dt, dim, L, **kwargs):
@@ -51,18 +51,18 @@ class System(object):
         else:
             self.attractant_flag = False
 
-        if 'motile_args' in kwargs:
-            self.motiles_flag = True
-            self.m = motiles.Motiles(self, self.obstructs, **kwargs['motile_args'])
+        if 'particle_args' in kwargs:
+            self.particles_flag = True
+            self.p = particles.Particles(self, self.obstructs, **kwargs['particle_args'])
         else:
-            self.motiles_flag = False
+            self.particles_flag = False
 
     def iterate(self):
-        if self.motiles_flag:
+        if self.particles_flag:
             args = {}
             if self.attractant_flag:
                 args['c'] = self.c
-            self.m.iterate(self.obstructs, **args)
+            self.p.iterate(self.obstructs, **args)
         if self.food_flag:
             args = {}
             if self.f.__class__.__name__ == 'Food':
@@ -72,7 +72,7 @@ class System(object):
             args = {}
             if self.c.__class__.__name__ == 'Secretion':
                 args['f'] = self.f
-                args['density'] = self.m.get_density_field(self.c.dx)
+                args['density'] = self.p.get_density_field(self.c.dx)
             self.c.iterate(**args)
         self.t += self.dt
         self.i += 1

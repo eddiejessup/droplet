@@ -38,9 +38,9 @@ class ObstructionContainer(object):
             if obstruct.is_obstructed(r): return True
         return False
 
-    def obstruct(self, motiles, *args, **kwargs):
+    def obstruct(self, particles, *args, **kwargs):
         for obstruct in self.obstructs:
-            obstruct.obstruct(motiles, *args, **kwargs)
+            obstruct.obstruct(particles, *args, **kwargs)
 
     def get_A_obstructed(self):
         return sum((o.get_A_obstructed() for o in self.obstructs))
@@ -59,7 +59,7 @@ class Obstruction(object):
     def is_obstructed(self, r):
         return False
 
-    def obstruct(self, motiles, *args, **kwargs):
+    def obstruct(self, *args, **kwargs):
         pass
 
     def get_A_obstructed(self):
@@ -84,10 +84,10 @@ class Parametric(Obstruction):
         if self.threshold < 0.0:
             raise Exception('Require 0 <= alignment angle <= pi/2')
 
-#        self.init_cell_list()
+        if len(self.R_c) > 0: self.init_cell_list()
 
     def init_cell_list(self):
-        dx = self.R_c.min() / 2.0
+        dx = np.mean(self.R_c) / 6.0
         M = int(self.env.L / dx)
         dx = self.env.L / M
         self.cl = np.zeros(self.env.dim * [M] + [self.env.dim * 2], dtype=np.int)
@@ -103,6 +103,7 @@ class Parametric(Obstruction):
 
     def to_field(self, dx):
         M = int(self.env.L / dx)
+        dx = self.env.L / M
         field = np.zeros(self.env.dim * [M], dtype=np.uint8)
         axes = [i + 1 for i in range(self.env.dim)] + [0]
         inds = np.transpose(np.indices(self.env.dim * [M]), axes=axes)
@@ -117,32 +118,30 @@ class Parametric(Obstruction):
             if utils.sphere_intersect(r, 0.0, r_c, R_c): return True
         return False
 
-    def obstruct(self, motiles, *args, **kwargs):
-        super(Parametric, self).obstruct(motiles, *args, **kwargs)
+    def obstruct(self, particles, *args, **kwargs):
+        super(Parametric, self).obstruct(particles, *args, **kwargs)
         if self.R_c.size == 0: return
 
-        inds = utils.r_to_i(motiles.r, self.env.L, self.env.L / self.cl.shape[0])
+        inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
         cl_subs = self.cl[tuple(inds.T)]
         cli_subs = self.cli[tuple(inds.T)]
         for n in np.where(cli_subs > 0)[0]:
             for m in cl_subs[n, :cli_subs[n]]:
-                r_rel_sq = np.square(motiles.r[n] - self.r_c[m])
-                r_rel_mag_sq = np.sum(r_rel_sq)
+                r_rel = particles.r[n] - self.r_c[m]
+                r_rel_mag_sq = np.sum(np.square(r_rel))
                 if r_rel_mag_sq < self.R_c_sq[m]:
-                    u_rel = r_rel_sq / r_rel_mag_sq
-                    v_new_sq = np.square(motiles.v[n] - np.sum(motiles.v[n] * u_rel))
-                    motiles.v[n] = np.sqrt((v_new_sq / np.sum(v_new_sq)) * np.sum(np.square(motiles.v[n])))
-                    motiles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
+                    u_rel = r_rel / np.sqrt(r_rel_mag_sq)
 
 #        for m in range(len(self.R_c)):
-#            r_rel_sq = np.square(motiles.r - self.r_c[np.newaxis, m])
-#            r_rel_mag_sq = np.sum(r_rel_sq)
+#            r_rel = particles.r - self.r_c[np.newaxis, m]
+#            r_rel_mag_sq = np.sum(np.square(r_rel), -1)
 #            for n in np.where(r_rel_mag_sq < self.R_c_sq[m])[0]:
 #                if r_rel_mag_sq[n] < self.R_c_sq[m]:
 #                    u_rel = r_rel_sq[n] / r_rel_mag_sq[n]
-#                    v_new_sq = np.square(motiles.v[n] - np.sum(motiles.v[n] * u_rel))
-#                    motiles.v[n] = np.sqrt((v_new_sq / np.sum(v_new_sq)) * np.sum(np.square(motiles.v[n])))
-#                    motiles.r[n] = self.r_c[m] * u_rel * self.R_c[m]
+                    particles.r[n] = self.r_c[m] + 0.99*u_rel * self.R_c[m]
+                    if particles.motile_flag:
+                        v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
+                        particles.v[n] = v_new * np.sqrt(np.sum(np.square(particles.v[n])) / np.sum(np.square(v_new)))
 
     def get_A_obstructed(self):
         return self.pf * self.env.get_A()
@@ -165,17 +164,17 @@ class Walls(Obstruction, fields.Field):
         else:
             raise NotImplementedError
 
-    def obstruct(self, motiles, r_old, *args, **kwargs):
-        super(Walls, self).obstruct(motiles, *args, **kwargs)
+    def obstruct(self, particles, r_old, *args, **kwargs):
+        super(Walls, self).obstruct(particles, r_old, *args, **kwargs)
         inds_old = self.r_to_i(r_old)
-        inds_new = self.r_to_i(motiles.r)
+        inds_new = self.r_to_i(particles.r)
         dx_half = Walls.BUFFER_SIZE * (self.dx / 2.0)
-        for i in np.where(self.is_obstructed(motiles.r))[0]:
+        for i in np.where(self.is_obstructed(particles.r))[0]:
             for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
-                motiles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(motiles.v[i, i_dim])
-                motiles.v[i, i_dim] = 0.0
-        assert not self.is_obstructed(motiles.r).any()
-        motiles.v = utils.vector_unit_nullrand(motiles.v) * motiles.v_0
+                particles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(particles.v[i, i_dim])
+                if particles.motile_flag: particles.v[i, i_dim] = 0.0
+        assert not self.is_obstructed(particles.r).any()
+        if particles.motiel_flag: particles.v = utils.vector_unit_nullrand(particles.v) * particles.v_0
 
     def get_A_obstructed_i(self):
         return self.a.sum()

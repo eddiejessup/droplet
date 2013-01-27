@@ -6,7 +6,7 @@ import numpy
 setup(
     cmdclass = {'build_ext': build_ext},
     ext_modules = [
-        Extension("motile_numerics", ["motile_numerics.pyx",]),
+        Extension("particle_numerics", ["particle_numerics.pyx",]),
     ],
     include_dirs = [numpy.get_include()],
 )
