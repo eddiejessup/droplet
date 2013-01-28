@@ -32,22 +32,15 @@ parser.add_argument('--profile', default=False, action='store_true',
     help='profile program (implies -s -d None)')
 args = parser.parse_args()
 
-def csv_write(f, delimiter=' ', *args):
-    for i in range(len(args)):
-        f.write(args[i])
-        if i < len(args) - 1: f.write(delimiter)
-    f.write('\n')
-
 def main():
-    if not args.silent: print('Initialising...')
-
     if args.dir is not None:
         utils.makedirs_safe(args.dir)
+
+    if not args.silent: print('Initialising...')
 
     system = System.System(**yaml.safe_load(open(args.f, 'r')))
 
     if args.dir is not None:
-        utils.makedirs_safe(args.dir)
         f_log = open('%s/log.csv' % (args.dir), 'w')
         csv_log = csv.writer(f_log, delimiter=' ')
         csv_log.writerow(['t', 'dstd', 'D'])

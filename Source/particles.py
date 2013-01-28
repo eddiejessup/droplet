@@ -18,15 +18,15 @@ def check_D_rot(func):
     def wrapper(self):
         v_init = self.v.copy()
         func(self)
-        assert np.allclose(utils.calc_D_rot(v_init, self.v, self.env.dt), self.D_rot, rtol=10 / np.sqrt(self.N))
+        assert np.allclose(utils.calc_D_rot(v_init, self.v, self.env.dt), self.D_rot, rtol=10 / np.sqrt(self.n))
     return wrapper
 
 class Particles(object):
     def __init__(self, env, obstructs, density, **kwargs):
         self.env = env
-        self.N = int(round(obstructs.get_A_free() * density))
+        self.n = int(round(obstructs.get_A_free() * density))
 
-        if self.N < 0:
+        if self.n < 0:
             raise Exception('Require number of particles >= 0')
 
         self.R_comm = 0.0
@@ -47,7 +47,7 @@ class Particles(object):
             if self.v_0 < 0.0:
                 raise Exception('Require base speed >= 0')
 
-            self.v = utils.point_pick_cart(self.env.dim, self.N) * self.v_0
+            self.v = utils.point_pick_cart(self.env.dim, self.n) * self.v_0
 
             if 'tumble_args' in motile_args:
                 self.tumble_flag = True
@@ -83,24 +83,17 @@ class Particles(object):
         if self.R_comm > obstructs.d:
             raise Exception('Cannot have inter-obstruction particle communication')
 
-        self.initialise_r(obstructs, kwargs['dist'])
+        self.initialise_r(obstructs)
 
-    def initialise_r(self, obstructs, dist):
-        self.r = np.zeros([self.N, self.env.dim], dtype=np.float)
-        if dist == 'point':
+    def initialise_r(self, obstructs):
+        self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
+        for i in range(self.n):
             while True:
-                self.r[:] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
-                if not obstructs.is_obstructed(self.r[0]): break
-        elif dist == 'uniform':
-            for i in range(self.N):
-                while True:
-                    self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
-                    if not obstructs.is_obstructed(self.r[i]): break
-        else:
-            raise Exception('Unknown distribution')
+                self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
+                if not obstructs.is_obstructed(self.r[i]): break
 
         # Count number of times wrapped around and initial positions for displacement calculations
-        self.wrapping_number = np.zeros([self.N, self.env.dim], dtype=np.int)
+        self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
         self.r_0 = self.r.copy()
 
     def iterate(self, obstructs, c=None):

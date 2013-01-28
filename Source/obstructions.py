@@ -131,18 +131,18 @@ class Parametric(Obstruction):
                 r_rel_mag_sq = np.sum(np.square(r_rel))
                 if r_rel_mag_sq < self.R_c_sq[m]:
                     u_rel = r_rel / np.sqrt(r_rel_mag_sq)
-
-#        for m in range(len(self.R_c)):
-#            r_rel = particles.r - self.r_c[np.newaxis, m]
-#            r_rel_mag_sq = np.sum(np.square(r_rel), -1)
-#            for n in np.where(r_rel_mag_sq < self.R_c_sq[m])[0]:
-#                if r_rel_mag_sq[n] < self.R_c_sq[m]:
-#                    u_rel = r_rel_sq[n] / r_rel_mag_sq[n]
-                    particles.r[n] = self.r_c[m] + 0.99*u_rel * self.R_c[m]
                     if particles.motile_flag:
-                        v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
-                        particles.v[n] = v_new * np.sqrt(np.sum(np.square(particles.v[n])) / np.sum(np.square(v_new)))
-
+                        v_mag = np.sqrt(np.sum(np.square(particles.v[n])))
+                        R_c_mod = Parametric.BUFFER_SIZE * np.sqrt(self.R_c_sq[m] - (v_mag * self.env.dt) ** 2)
+                        particles.r[n] = self.r_c[m] + u_rel * R_c_mod
+                        v_dot_u = np.sum(particles.v[n] * u_rel)
+                        if np.arccos(v_dot_u / v_mag) > self.threshold:
+                            print 'stuck!'
+                            v_new = particles.v[n] - v_dot_u * u_rel
+                            particles.v[n] = v_new * v_mag / np.sqrt(np.sum(np.square(v_new)))
+                        else: print 'esc!'
+                    else:
+                        particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
     def get_A_obstructed(self):
         return self.pf * self.env.get_A()
 
@@ -162,7 +162,7 @@ class Walls(Obstruction, fields.Field):
         if dx == self.dx:
             return self.a
         else:
-            raise NotImplementedError
+            raise NotImplementedErrofffr
 
     def obstruct(self, particles, r_old, *args, **kwargs):
         super(Walls, self).obstruct(particles, r_old, *args, **kwargs)

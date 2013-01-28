@@ -1,10 +1,10 @@
-Data*/
-old_Data/
+Data/
 *.o
 *.so
 *.pyc
 *.*~
+*.c
 TODO~
 README~
-Source/*.yaml
-!Source/params_example.yaml
+*.yaml
+!Source/example.yaml
