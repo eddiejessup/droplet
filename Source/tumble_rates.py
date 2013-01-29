@@ -27,7 +27,7 @@ class TumbleRates(object):
                     raise Exception('Chemotactic memory requires >= 5 lattice points per run')
 
                 self.calculate_mem_kernel()
-                self.c_mem = np.zeros([self.particles.N, len(self.K_dt)], dtype=np.float)
+                self.c_mem = np.zeros([self.particles.n, len(self.K_dt)], dtype=np.float)
             else:
 
                 raise Exception('No chemotaxis arguments found')
@@ -55,7 +55,7 @@ class TumbleRates(object):
             p = np.minimum(self.p_0, p)
         else:
             p = self.p_0
-        random_sample = np.random.uniform(size=self.particles.N)
+        random_sample = np.random.uniform(size=self.particles.n)
         return np.where(random_sample < p * self.particles.env.dt)[0]
 
     def calculate_mem_kernel(self):
