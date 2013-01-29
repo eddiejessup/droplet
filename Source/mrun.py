@@ -13,6 +13,9 @@ import utils
 import System
 import csv
 
+plot_dx = 2.0
+dstd_dx = 4.0
+
 parser = argparse.ArgumentParser(description='Run a particle simulation')
 parser.add_argument('f',
     help='YAML file containing system parameters')
@@ -30,28 +33,46 @@ parser.add_argument('-s', '--silent', default=False, action='store_true',
     help='don''t print to stdout')
 parser.add_argument('--profile', default=False, action='store_true',
     help='profile program (implies -s -d None)')
+
+ # Temp args for making experiments easier
+parser.add_argument('--pf', default=None)
+
 args = parser.parse_args()
 
 def main():
     if args.dir is not None:
         utils.makedirs_safe(args.dir)
 
-    if not args.silent: print('Initialising...')
+    if not args.silent: print('Initialising system...', end='')
+    yaml_args = yaml.safe_load(open(args.f, 'r'))
 
-    system = System.System(**yaml.safe_load(open(args.f, 'r')))
+    # Temp hacks
+    if args.pf is not None: yaml_args['obstruction_args']['parametric_args']['pf'] = float(args.pf)
+    system = System.System(**yaml_args)
+    print(system.obstructs.obstructs[0].pf)
+    if not args.silent: print('done!')
 
     if args.dir is not None:
+        if not args.silent: print('Initialising output...', end='')
+        shutil.copy(args.f, args.dir)
+
         f_log = open('%s/log.csv' % (args.dir), 'w')
         csv_log = csv.writer(f_log, delimiter=' ')
-        csv_log.writerow(['t', 'dstd', 'D'])
+        log_header = ['t']
+        log_header.append('dstd')
+        log_header.append('D')
+        if system.p.motile_flag: log_header.append('v_drift')
+        csv_log.writerow(log_header)
+
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
+
         if args.plot:
             utils.makedirs_soft('%s/plot' % args.dir)
             lims = [-system.L_half, system.L_half]
             fig_box = pp.figure()
             if system.dim == 2:
                 ax_box = fig_box.add_subplot(111)
-                ax_box.imshow(system.obstructs.to_field(1.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+                ax_box.imshow(system.obstructs.to_field(plot_dx).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
                 if system.particles_flag:
                     parts_plot = ax_box.scatter([], [], s=1.0, c='k')
                 if system.attractant_flag:
@@ -67,18 +88,27 @@ def main():
             ax_box.set_yticks([])
             ax_box.set_xlim(lims)
             ax_box.set_ylim(lims)
-        shutil.copy(args.f, args.dir)
-    if not args.silent: print('Initialisation done! Starting...')
+        if not args.silent: print('done!')
+
+    if not args.silent: print('\nStarting simulation...')
     while system.t < args.runtime:
+
         if not system.i % args.every:
             if not args.silent:
                 print('t:%010g i:%08i' % (system.t, system.i), end=' ')
 
             if args.dir is not None:
                 if not args.silent: print('making output...', end='')
-                csv_log.writerow([system.t, system.p.get_dstd(system.obstructs, 4.0), utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)])
+
+                log_data = [system.t]
+                log_data.append(system.p.get_dstd(system.obstructs, dstd_dx))
+                log_data.append(utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t))
+                if system.p.motile_flag: log_data.append(np.mean(system.p.v[:, 0]) / system.p.v_0)
+                csv_log.writerow(log_data)
                 f_log.flush()
+
                 if args.positions: np.save('%s/r/%f' % (args.dir, system.t), system.p.r)
+
                 if args.plot:
                     if system.dim == 2:
                         if system.particles_flag:
@@ -90,10 +120,12 @@ def main():
                         if system.particles_flag:
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%f.png' % (args.dir, system.t))
+
                 if not args.silent: print('finished', end='')
             if not args.silent: print()
+
         system.iterate()
-    if not args.silent: print('Finished!')
+    if not args.silent: print('Simulation finished!')
 
 if args.profile:
     args.silent = True
