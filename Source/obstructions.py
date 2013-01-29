@@ -137,10 +137,8 @@ class Parametric(Obstruction):
                         particles.r[n] = self.r_c[m] + u_rel * R_c_mod
                         v_dot_u = np.sum(particles.v[n] * u_rel)
                         if np.arccos(v_dot_u / v_mag) > self.threshold:
-                            print 'stuck!'
                             v_new = particles.v[n] - v_dot_u * u_rel
                             particles.v[n] = v_new * v_mag / np.sqrt(np.sum(np.square(v_new)))
-                        else: print 'esc!'
                     else:
                         particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
     def get_A_obstructed(self):
@@ -161,8 +159,10 @@ class Walls(Obstruction, fields.Field):
         if dx is None: dx = self.dx
         if dx == self.dx:
             return self.a
+        elif self.dx % dx == 0.0:
+            return utils.extend_array(self.a, int(self.dx // dx))
         else:
-            raise NotImplementedErrofffr
+            raise NotImplementedError
 
     def obstruct(self, particles, r_old, *args, **kwargs):
         super(Walls, self).obstruct(particles, r_old, *args, **kwargs)
@@ -174,7 +174,7 @@ class Walls(Obstruction, fields.Field):
                 particles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(particles.v[i, i_dim])
                 if particles.motile_flag: particles.v[i, i_dim] = 0.0
         assert not self.is_obstructed(particles.r).any()
-        if particles.motiel_flag: particles.v = utils.vector_unit_nullrand(particles.v) * particles.v_0
+        if particles.motile_flag: particles.v = utils.vector_unit_nullrand(particles.v) * particles.v_0
 
     def get_A_obstructed_i(self):
         return self.a.sum()
