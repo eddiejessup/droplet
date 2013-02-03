@@ -3,27 +3,28 @@ dt: 0.1
 dim: 2
 L: 1200.0
 
-#trap_args:
-#    dx: 4.0
-#    n: 1
-#    d: 40.0
-#    w: 150.0
-#    s: 20.0
+#obstruction_args:
+#    trap_args:
+#        dx: 4.0
+#        n: 1
+#        d: 40.0
+#        w: 150.0
+#        s: 20.0
 
-#maze_args:
-#    dx: 4.0
-#    d: 40.0
-#    seed: 100
+#    maze_args:
+#        dx: 4.0
+#        d: 40.0
+#        seed: 100
 
-#closed_args:
-#    dx: 4.0
-#    d: 10.0
-#    closedness: 1
+#    closed_args:
+#        dx: 4.0
+#        d: 10.0
+#        closedness: 1
 
-#parametric_args:
-#    R: 100.0
-#    pf: 0.2
-#    delta: 0.5
+#    parametric_args:
+#        R: 100.0
+#        pf: 0.2
+#        delta: 0.5
 
 #food_args:
 #    dx: 4.0
@@ -40,18 +41,23 @@ L: 1200.0
 #        source_rate: 1.0
 #        sink_rate: 0.01
 
-#motile_args:
+#particle_args:
 #    density: 3.5e-3
-#    v_0: 20.0
-#    rot_diff_args:
-#        D_rot: 2.0
-#    tumble_args:
-#        p_0: 1.0
-#        chemotaxis_args:
-#            mem_args:
-#                    sensitivity: 10.0
-#                    t_mem: 10.0
-#    force_args:
-#        sensitivity: 100000.0
-#    vicsek_args:
-#        R: 3.0
+
+#    diff_args:
+#        D: 20.0
+
+#    motile_args:
+#        v_0: 20.0
+#        rot_diff_args:
+#            D_rot: 2.0
+#        tumble_args:
+#            p_0: 1.0
+#            chemotaxis_args:
+#                mem_args:
+#                        sensitivity: 10.0
+#                        t_mem: 10.0
+#        force_args:
+#            sensitivity: 100000.0
+#        vicsek_args:
+#            R: 3.0

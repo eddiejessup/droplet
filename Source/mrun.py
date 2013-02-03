@@ -45,11 +45,9 @@ def main():
 
     if not args.silent: print('Initialising system...', end='')
     yaml_args = yaml.safe_load(open(args.f, 'r'))
-
     # Temp hacks
     if args.pf is not None: yaml_args['obstruction_args']['parametric_args']['pf'] = float(args.pf)
     system = System.System(**yaml_args)
-    print(system.obstructs.obstructs[0].pf)
     if not args.silent: print('done!')
 
     if args.dir is not None:
@@ -62,6 +60,7 @@ def main():
         log_header.append('dstd')
         log_header.append('D')
         if system.p.motile_flag: log_header.append('v_drift')
+
         csv_log.writerow(log_header)
 
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
@@ -107,7 +106,7 @@ def main():
                 csv_log.writerow(log_data)
                 f_log.flush()
 
-                if args.positions: np.save('%s/r/%f' % (args.dir, system.t), system.p.r)
+                if args.positions: np.save('%s/r/%010f' % (args.dir, system.t), system.p.r)
 
                 if args.plot:
                     if system.dim == 2:
@@ -119,7 +118,7 @@ def main():
                     elif system.dim == 3:
                         if system.particles_flag:
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
-                    fig_box.savefig('%s/plot/%f.png' % (args.dir, system.t))
+                    fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
 
                 if not args.silent: print('finished', end='')
             if not args.silent: print()

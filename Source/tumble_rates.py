@@ -44,7 +44,7 @@ class TumbleRates(object):
         ''' approximate unit(v) dot grad(c) via temporal integral '''
         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
 #        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.particles.r))
-        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.particles.r)) * self.particles.wrapping_number[:, 0]
+        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.particles.r)) * (1.0 + self.particles.wrapping_number[:, 0])
         return self.sense * np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
 
     def get_tumblers(self, c=None):
