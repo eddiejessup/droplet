@@ -14,7 +14,7 @@ import System
 import csv
 
 plot_dx = 2.0
-dstd_dx = 4.0
+dstd_dx = 1.0
 
 parser = argparse.ArgumentParser(description='Run a particle simulation')
 parser.add_argument('f',
@@ -52,7 +52,7 @@ def main():
 
     if args.dir is not None:
         if not args.silent: print('Initialising output...', end='')
-        shutil.copy(args.f, args.dir)
+        shutil.copy(args.f, '%s/params.yaml' % args.dir)
 
         f_log = open('%s/log.csv' % (args.dir), 'w')
         csv_log = csv.writer(f_log, delimiter=' ')
@@ -71,7 +71,7 @@ def main():
             fig_box = pp.figure()
             if system.dim == 2:
                 ax_box = fig_box.add_subplot(111)
-                ax_box.imshow(system.obstructs.to_field(plot_dx).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+                ax_box.imshow(system.obstructs.to_field(system.L / 1000.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
                 if system.particles_flag:
                     parts_plot = ax_box.scatter([], [], s=1.0, c='k')
                 if system.attractant_flag:
@@ -89,6 +89,11 @@ def main():
             ax_box.set_ylim(lims)
         if not args.silent: print('done!')
 
+#    fig=pp.figure()
+#    ax=fig.gca()
+#    fig.show()
+#    pp.ion()
+
     if not args.silent: print('\nStarting simulation...')
     while system.t < args.runtime:
 
@@ -100,7 +105,7 @@ def main():
                 if not args.silent: print('making output...', end='')
 
                 log_data = [system.t]
-                log_data.append(system.p.get_dstd(system.obstructs, dstd_dx))
+#                log_data.append(system.p.get_dstd(system.obstructs, dstd_dx))
                 log_data.append(utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t))
                 if system.p.motile_flag: log_data.append(np.mean(system.p.v[:, 0]) / system.p.v_0)
                 csv_log.writerow(log_data)
@@ -121,7 +126,24 @@ def main():
                     fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
 
                 if not args.silent: print('finished', end='')
+
             if not args.silent: print()
+            print(utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t))
+#            rs = utils.vector_mag(system.p.r)
+#            rs_hist, rs_bins = np.histogram(rs, bins=80)
+#            r_max = system.p.r_ho * system.p.v_0
+##            r_max = system.obstructs.obstructs[0].R
+##            gamma = r_max / system.p.tumble_rates.get_base_run_length()
+#            gamma = r_max / (system.p.D_rot * system.p.v_0)
+#            print(gamma)
+#            rs_bins /= r_max
+#            areas = np.pi * (rs_bins[1:] ** 2 - rs_bins[:-1] ** 2)
+#            denses = rs_hist / areas
+#            denses /= denses.mean()
+#            ax.bar(rs_bins[:-1], denses, width=(rs_bins[1]-rs_bins[0]))
+#            print('max at (%f, %f)' % (rs_bins[denses.argmax()], denses.max()))
+#            fig.canvas.draw()
+#            ax.cla()
 
         system.iterate()
     if not args.silent: print('Simulation finished!')

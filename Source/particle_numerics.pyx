@@ -30,16 +30,21 @@ def collide(np.ndarray[np.float_t, ndim=2] v,
 
 def collide_inters(np.ndarray[np.float_t, ndim=2] v,
         np.ndarray[np.float_t, ndim=2] r,
+        double L,
         np.ndarray[int, ndim=2] inters,
         np.ndarray[int, ndim=1] intersi):
     cdef unsigned int i_1, i_i_2, i_2
-    cdef double v_dot_r_sep, R_sep_sq
+    cdef double v_dot_r_sep, R_sep_sq, L_half = L / 2.0
     cdef np.ndarray r_sep
 
     for i_1 in range(v.shape[0]):
         for i_i_2 in range(intersi[i_1]):
             i_2 = inters[i_1, i_i_2] - 1
+
             r_sep = r[i_2] - r[i_1]
+            r_sep[r_sep > L_half] -= L
+            r_sep[r_sep < -L_half] += L
+
             # Reflect component parallel to separation vector
             v_dot_r_sep = np.sum(v[i_1] * r_sep)
             if v_dot_r_sep > 0.0:

@@ -9,6 +9,7 @@ def factory(key, env, kwargs):
     elif key == 'trap_args': return Traps(env, **kwargs)
     elif key == 'maze_args': return Maze(env, **kwargs)
     elif key == 'parametric_args': return Parametric(env, **kwargs)
+    elif key == 'droplet_args': return Droplet(env, **kwargs)
     else: raise Exception('Unknown obstruction string')
 
 class ObstructionContainer(object):
@@ -79,7 +80,7 @@ class Parametric(Obstruction):
         self.R_c_sq = self.R_c ** 2
         self.pf = utils.sphere_volume(self.R_c, self.env.dim).sum() / self.env.get_A()
         self.threshold = np.pi / 2.0 - delta
-        self.d = self.R_c.min() if len(self.R_c) > 0 else self.env.L_half
+        if len(self.R_c) > 0: self.d = self.R_c.min()
 
         if self.threshold < 0.0:
             raise Exception('Require 0 <= alignment angle <= pi/2')
@@ -143,6 +144,44 @@ class Parametric(Obstruction):
                         particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
     def get_A_obstructed(self):
         return self.pf * self.env.get_A()
+
+class Droplet(Obstruction):
+    BUFFER_SIZE = 0.995
+
+    def __init__(self, env, R):
+        super(Droplet, self).__init__(env)
+        self.R = R
+        self.R_sq = R ** 2
+
+        if self.R >= self.env.L_half:
+            raise Exception('Require droplet diameter < system size')
+
+    def to_field(self, dx):
+        M = int(self.env.L / dx)
+        dx = self.env.L / M
+        field = np.zeros(self.env.dim * [M], dtype=np.uint8)
+        axes = [i + 1 for i in range(self.env.dim)] + [0]
+        inds = np.transpose(np.indices(self.env.dim * [M]), axes=axes)
+        rs = -self.env.L_half + (inds + 0.5) * dx
+        field[...] = np.logical_not(utils.vector_mag_sq(rs) < self.R_sq)
+        return field
+
+    def is_obstructed(self, r):
+        return np.logical_not(utils.sphere_intersect(r, 0.0, 0.0, self.R))
+
+    def obstruct(self, particles, *args, **kwargs):
+        super(Droplet, self).obstruct(particles, *args, **kwargs)
+        for n in np.where(self.is_obstructed(particles.r))[0]:
+            u_rel = -particles.r[n] / utils.vector_mag(particles.r[n])
+            particles.r[n] = -Droplet.BUFFER_SIZE * u_rel * self.R
+            if particles.motile_flag:
+                v_dot_u = np.sum(particles.v[n] * u_rel)
+                v_new = particles.v[n] - v_dot_u * u_rel
+                particles.v[n] = v_new * np.sqrt(np.sum(np.square(particles.v[n])) / np.sum(np.square(v_new)))
+#                particles.v[n] *= -1.0
+
+    def get_A_obstructed(self):
+        return self.env.get_A() - utils.sphere_volume(self.R, self.env.dim)
 
 class Walls(Obstruction, fields.Field):
     BUFFER_SIZE = 0.999

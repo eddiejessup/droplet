@@ -34,6 +34,9 @@ class TumbleRates(object):
         else:
             self.chemotaxis_flag = False
 
+    def get_base_run_length(self):
+        return self.particles.v_0 / self.p_0
+
     def get_happy_grad(self, c):
         ''' Approximate unit(v) dot grad(c), so happy if going up c
         'i' suffix indicates it's an array of vectors, not a field. '''
@@ -53,6 +56,7 @@ class TumbleRates(object):
         if self.chemotaxis_flag:
             p = self.p_0 * 2.0 * (1.0 - 1.0 / (1.0 + np.exp(-self.get_happy(c))))
             p = np.minimum(self.p_0, p)
+            if np.min(p / self.p_0) < 0.5: raise Exception('Unrealistic tumble rate %f' % np.minimum(p))
         else:
             p = self.p_0
         random_sample = np.random.uniform(size=self.particles.n)
