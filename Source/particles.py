@@ -100,7 +100,7 @@ class Particles(object):
                 else:
                     self.quorum_v_flag = False
             else:
-                self.quorum_v_flag = False
+                self.quorum_flag = False
 
         else:
             self.motile_flag = False
@@ -134,8 +134,9 @@ class Particles(object):
 
     def iterate(self, obstructs, c=None):
         r_old = self.r.copy()
-        self.v = utils.vector_unit_nullrand(self.v) * self.v_0
+
         if self.motile_flag:
+            self.v = utils.vector_unit_nullrand(self.v) * self.v_0
             if self.vicsek_flag: self.vicsek()
             if self.tumble_flag: self.tumble(c)
             if self.force_flag: self.force(c)

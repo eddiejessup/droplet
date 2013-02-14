@@ -40,23 +40,28 @@ class TumbleRates(object):
     def get_happy_grad(self, c):
         ''' Approximate unit(v) dot grad(c), so happy if going up c
         'i' suffix indicates it's an array of vectors, not a field. '''
-        grad_c_i = c.get_grad_i(self.particles.r)
-        return self.sense * np.sum(utils.vector_unit_nullnull(self.particles.v) * grad_c_i, 1)
+#        grad_c_i = c.get_grad_i(self.particles.r)
+        grad_c_i = np.empty_like(self.particles.v)
+        grad_c_i[:, 0] = 1.0
+        grad_c_i[:, 1] = 0.0
+        return np.sum(utils.vector_unit_nullnull(self.particles.v) * grad_c_i, 1)
 
     def get_happy_mem(self, c):
         ''' approximate unit(v) dot grad(c) via temporal integral '''
         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
 #        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.particles.r))
         self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.particles.r)) * (1.0 + self.particles.wrapping_number[:, 0])
-        return self.sense * np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
+        return np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
 
     def get_tumblers(self, c=None):
         ''' p(happy) is a logistic curve saturating at zero at +inf, p_0 at
         0.0. '''
         if self.chemotaxis_flag:
-            p = self.p_0 * 2.0 * (1.0 - 1.0 / (1.0 + np.exp(-self.get_happy(c))))
+            p = self.p_0 * (1.0 - self.sense * self.get_happy(c))
             p = np.minimum(self.p_0, p)
-            if np.min(p / self.p_0) < 0.5: raise Exception('Unrealistic tumble rate %f' % np.minimum(p))
+            if self.particles.env.t > (10.0 / self.p_0):
+                if np.mean(p / self.p_0) < 0.5: raise Exception('Unrealistic tumble rate %f' % np.min(p))
+#            if np.min(p / self.p_0) < 0.2: raise Exception('Unrealistic tumble rate %f' % np.min(p))
         else:
             p = self.p_0
         random_sample = np.random.uniform(size=self.particles.n)

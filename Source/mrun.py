@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 from __future__ import print_function
 import argparse
@@ -57,10 +57,9 @@ def main():
         f_log = open('%s/log.csv' % (args.dir), 'w')
         csv_log = csv.writer(f_log, delimiter=' ')
         log_header = ['t']
-        log_header.append('dstd')
+#        log_header.append('dstd')
         log_header.append('D')
         if system.p.motile_flag: log_header.append('v_drift')
-
         csv_log.writerow(log_header)
 
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
@@ -87,12 +86,12 @@ def main():
             ax_box.set_yticks([])
             ax_box.set_xlim(lims)
             ax_box.set_ylim(lims)
-        if not args.silent: print('done!')
 
-#    fig=pp.figure()
-#    ax=fig.gca()
-#    fig.show()
-#    pp.ion()
+            fig=pp.figure()
+            ax=fig.gca()
+            fig.show()
+            pp.ion()
+        if not args.silent: print('done!')
 
     if not args.silent: print('\nStarting simulation...')
     while system.t < args.runtime:
@@ -125,26 +124,23 @@ def main():
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
 
+#                    rs = utils.vector_mag(system.p.r)
+#                    rs_hist, rs_bins = np.histogram(rs, bins=80)
+#                    r_max = system.p.r_ho * system.p.v_0
+#        #            r_max = system.obstructs.obstructs[0].R
+#        #            gamma = r_max / system.p.tumble_rates.get_base_run_length()
+#                    gamma = r_max / (system.p.D_rot * system.p.v_0)
+#                    print(gamma)
+#                    rs_bins /= r_max
+#                    areas = np.pi * (rs_bins[1:] ** 2 - rs_bins[:-1] ** 2)
+#                    denses = rs_hist / areas
+#                    denses /= denses.mean()
+#                    ax.bar(rs_bins[:-1], denses, width=(rs_bins[1]-rs_bins[0]))
+#                    print('max at (%f, %f)' % (rs_bins[denses.argmax()], denses.max()))
+#                    fig.canvas.draw()
+#                    ax.cla()
                 if not args.silent: print('finished', end='')
-
             if not args.silent: print()
-            print(utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t))
-#            rs = utils.vector_mag(system.p.r)
-#            rs_hist, rs_bins = np.histogram(rs, bins=80)
-#            r_max = system.p.r_ho * system.p.v_0
-##            r_max = system.obstructs.obstructs[0].R
-##            gamma = r_max / system.p.tumble_rates.get_base_run_length()
-#            gamma = r_max / (system.p.D_rot * system.p.v_0)
-#            print(gamma)
-#            rs_bins /= r_max
-#            areas = np.pi * (rs_bins[1:] ** 2 - rs_bins[:-1] ** 2)
-#            denses = rs_hist / areas
-#            denses /= denses.mean()
-#            ax.bar(rs_bins[:-1], denses, width=(rs_bins[1]-rs_bins[0]))
-#            print('max at (%f, %f)' % (rs_bins[denses.argmax()], denses.max()))
-#            fig.canvas.draw()
-#            ax.cla()
-
         system.iterate()
     if not args.silent: print('Simulation finished!')
 
