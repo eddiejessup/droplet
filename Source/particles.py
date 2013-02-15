@@ -105,11 +105,24 @@ class Particles(object):
         else:
             self.motile_flag = False
 
-        self.potential_flag = False
+        self.potential_flag = True
         if self.potential_flag:
-            self.F = self.F_ho
-            self.r_ho = 1.0
-            self.r_max = self.v_0 * self.r_ho
+            self.r_U = 40.0
+            self.F_0 = self.v_0
+            self.k = 1.0
+            self.F = self.F_step
+            if self.F == self.F_step:
+                self.r_max = self.r_U + np.arctanh(np.sqrt(1.0 - self.v_0 / self.F_0)) / self.k
+            elif self.F == self.F_ho:
+                self.r_max = self.r_U * (self.v_0 / self.F_0)
+            else:
+                raise Exception
+            if self.tumble_flag:
+                self.l = system.p.tumble_rates.get_base_run_length()
+            elif self.rot_diff_flag:
+                self.l = self.D_rot * self.v_0
+            else:
+                raise Exception
 
         if self.R_comm > obstructs.d:
             raise Exception('Cannot have inter-obstruction particle communication')
@@ -130,7 +143,10 @@ class Particles(object):
         self.r_0 = self.r.copy()
 
     def F_ho(self, r):
-        return r / self.r_ho
+        return -self.F_0 * (r / self.r_U)
+
+    def F_step(self, r):
+        return -self.F_0 * utils.vector_unit_nullnull(r) * (1.0 - np.square(np.tanh(self.k * (utils.vector_mag(r) - self.r_U))))[:, np.newaxis]
 
     def iterate(self, obstructs, c=None):
         r_old = self.r.copy()
@@ -144,7 +160,7 @@ class Particles(object):
             if self.collide_flag: self.collide()
             if self.rot_diff_flag: self.rot_diff()
             v = self.v.copy()
-            if self.potential_flag: v -= self.F(self.r)
+            if self.potential_flag: v += self.F(self.r)
             self.r += v * self.env.dt
         if self.diff_flag:
             self.r = utils.diff(self.r, self.D, self.env.dt)
