@@ -119,6 +119,25 @@ class Parametric(Obstruction):
             if utils.sphere_intersect(r, 0.0, r_c, R_c): return True
         return False
 
+    def obstruct(self, particles, *args, **kwargs):
+        super(Parametric, self).obstruct(particles, *args, **kwargs)
+        if self.R_c.size == 0: return
+
+        inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
+        cl_subs = self.cl[tuple(inds.T)]
+        cli_subs = self.cli[tuple(inds.T)]
+        v_mag = utils.vector_mag(particles.v)
+        for n in np.where(cli_subs > 0)[0]:
+            for m in cl_subs[n, :cli_subs[n]]:
+                r_rel = particles.r[n] - self.r_c[m]
+                r_rel_mag_sq = r_rel.dot(r_rel)
+                if r_rel_mag_sq < self.R_c_sq[m]:
+                    u_rel = r_rel / np.sqrt(r_rel_mag_sq)
+                    particles.r[n] = self.r_c[m] + 1.0001 * self.R_c[m] * u_rel
+                    if particles.motile_flag:
+                        v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
+                        particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
+
 #    def obstruct(self, particles, *args, **kwargs):
 #        super(Parametric, self).obstruct(particles, *args, **kwargs)
 #        if self.R_c.size == 0: return
@@ -134,35 +153,15 @@ class Parametric(Obstruction):
 #                if r_rel_mag_sq < self.R_c_sq[m]:
 #                    u_rel = r_rel / np.sqrt(r_rel_mag_sq)
 #                    if particles.motile_flag:
-#                        particles.r[n] = self.r_c[m] + 1.0001 * self.R_c[m] * u_rel
-#                        v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
-#                        particles.v[n] = v_new * v_mag[n] / np.sqrt(np.sum(np.square(v_new)))
+#                        R_c_mod = Parametric.BUFFER_SIZE * np.sqrt(self.R_c_sq[m] - (v_mag[n] * self.env.dt) ** 2)
+#                        particles.r[n] = self.r_c[m] + u_rel * R_c_mod
+#                        v_dot_u = np.sum(particles.v[n] * u_rel)
+#                        if np.arccos(v_dot_u / v_mag[n]) > self.threshold:
+#                            v_new = particles.v[n] - v_dot_u * u_rel
+#                            particles.v[n] = v_new * v_mag[n] / np.sqrt(np.sum(np.square(v_new)))
 #                    else:
 #                        particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
 
-    def obstruct(self, particles, *args, **kwargs):
-        super(Parametric, self).obstruct(particles, *args, **kwargs)
-        if self.R_c.size == 0: return
-
-        inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
-        cl_subs = self.cl[tuple(inds.T)]
-        cli_subs = self.cli[tuple(inds.T)]
-        v_mag = utils.vector_mag(particles.v)
-        for n in np.where(cli_subs > 0)[0]:
-            for m in cl_subs[n, :cli_subs[n]]:
-                r_rel = particles.r[n] - self.r_c[m]
-                r_rel_mag_sq = np.sum(np.square(r_rel))
-                if r_rel_mag_sq < self.R_c_sq[m]:
-                    u_rel = r_rel / np.sqrt(r_rel_mag_sq)
-                    if particles.motile_flag:
-                        R_c_mod = Parametric.BUFFER_SIZE * np.sqrt(self.R_c_sq[m] - (v_mag[n] * self.env.dt) ** 2)
-                        particles.r[n] = self.r_c[m] + u_rel * R_c_mod
-                        v_dot_u = np.sum(particles.v[n] * u_rel)
-                        if np.arccos(v_dot_u / v_mag[n]) > self.threshold:
-                            v_new = particles.v[n] - v_dot_u * u_rel
-                            particles.v[n] = v_new * v_mag[n] / np.sqrt(np.sum(np.square(v_new)))
-                    else:
-                        particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
     def get_A_obstructed(self):
         return self.pf * self.env.get_A()
 
