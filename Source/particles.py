@@ -105,24 +105,27 @@ class Particles(object):
         else:
             self.motile_flag = False
 
-        self.potential_flag = True
+        self.potential_flag = False
+        if self.tumble_flag:
+            self.l = self.tumble_rates.get_base_run_length()
+        elif self.rot_diff_flag:
+            self.l = self.D_rot * self.v_0
+        else:
+            raise Exception
         if self.potential_flag:
-            self.r_U = 40.0
+            self.r_U = 80.0
             self.F_0 = self.v_0
             self.k = 1.0
-            self.F = self.F_step
+            self.F = self.F_ho
             if self.F == self.F_step:
                 self.r_max = self.r_U + np.arctanh(np.sqrt(1.0 - self.v_0 / self.F_0)) / self.k
             elif self.F == self.F_ho:
                 self.r_max = self.r_U * (self.v_0 / self.F_0)
             else:
                 raise Exception
-            if self.tumble_flag:
-                self.l = system.p.tumble_rates.get_base_run_length()
-            elif self.rot_diff_flag:
-                self.l = self.D_rot * self.v_0
-            else:
-                raise Exception
+        else:
+            self.r_U = obstructs.obstructs[0].R
+            self.r_max = self.r_U
 
         if self.R_comm > obstructs.d:
             raise Exception('Cannot have inter-obstruction particle communication')
@@ -131,6 +134,7 @@ class Particles(object):
 
     def initialise_r(self, obstructs):
         self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
+#        self.r = utils.disk_pick(self.n) * self.r_U
         for i in range(self.n):
             while True:
                 self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)

@@ -55,12 +55,13 @@ def main():
         shutil.copy(args.f, '%s/params.yaml' % args.dir)
 
         f_log = open('%s/log.csv' % (args.dir), 'w')
-        csv_log = csv.writer(f_log, delimiter=' ')
-        log_header = ['t']
+        log_header = ['t', 'D']
 #        log_header.append('dstd')
-        log_header.append('D')
         if system.p.motile_flag: log_header.append('v_drift')
-        csv_log.writerow(log_header)
+        log_header.append('e')
+        log = csv.DictWriter(f_log, log_header, delimiter=' ')
+        log.writeheader()
+        log_data = {}
 
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
 
@@ -87,11 +88,10 @@ def main():
             ax_box.set_xlim(lims)
             ax_box.set_ylim(lims)
 
-        fig=pp.figure()
-        ax=fig.gca()
-        fig.show()
-        pp.ion()
-        if not args.silent: print('done!')
+            utils.makedirs_soft('%s/hist' % args.dir)
+            fig_hist = pp.figure()
+            ax_hist = fig_hist.gca()
+            if not args.silent: print('done!')
 
     if not args.silent: print('\nStarting simulation...')
     while system.t < args.runtime:
@@ -103,14 +103,14 @@ def main():
             if args.dir is not None:
                 if not args.silent: print('making output...', end='')
 
-                log_data = [system.t]
-#                log_data.append(system.p.get_dstd(system.obstructs, dstd_dx))
-                log_data.append(utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t))
-                if system.p.motile_flag: log_data.append(np.mean(system.p.v[:, 0]) / system.p.v_0)
-                csv_log.writerow(log_data)
-                f_log.flush()
-
                 if args.positions: np.save('%s/r/%010f' % (args.dir, system.t), system.p.r)
+
+                rs = utils.vector_mag(system.p.r)
+                rs_hist, rs_bins = np.histogram(rs, bins=80)
+                rs_bins /= system.p.r_max
+                areas = np.pi * (rs_bins[1:] ** 2 - rs_bins[:-1] ** 2)
+                denses = rs_hist / areas
+                denses /= denses.mean()
 
                 if args.plot:
                     if system.dim == 2:
@@ -124,18 +124,19 @@ def main():
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
 
-                rs = utils.vector_mag(system.p.r)
-                rs_hist, rs_bins = np.histogram(rs, bins=80)
-                gamma = system.p.r_max / system.p.l
-                print(gamma)
-                rs_bins /= system.p.r_max
-                areas = np.pi * (rs_bins[1:] ** 2 - rs_bins[:-1] ** 2)
-                denses = rs_hist / areas
-                denses /= denses.mean()
-                ax.bar(rs_bins[:-1], denses, width=(rs_bins[1]-rs_bins[0]))
-                print('max at (%f, %f)' % (rs_bins[denses.argmax()], denses.max()))
-                fig.canvas.draw()
-                ax.cla()
+                    ax_hist.bar(rs_bins[:-1], denses, width=(rs_bins[1]-rs_bins[0]))
+    #                print('max at (%f, %f)' % (rs_bins[denses.argmax()], denses.max()))
+                    fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
+                    ax_hist.cla()
+
+                log_data['t'] = system.t
+                log_data['D'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
+#                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
+                if system.p.motile_flag: log_data['v_drift'] = np.mean(system.p.v[:, 0]) / system.p.v_0
+                log_data['e'] = denses[-1]
+                log.writerow(log_data)
+                f_log.flush()
+
                 if not args.silent: print('finished', end='')
             if not args.silent: print()
         system.iterate()
