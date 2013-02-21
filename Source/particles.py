@@ -4,7 +4,6 @@ import fields
 import cell_list
 import tumble_rates as tumble_rates_module
 import particle_numerics
-import scipy.ndimage.filters as filters
 
 v_TOLERANCE = 1e-10
 D_rot_tolerance = 10.0
@@ -58,7 +57,7 @@ class Particles(object):
             if self.v_0 < 0.0:
                 raise Exception('Require base speed >= 0')
 
-            self.v = utils.point_pick_cart(self.env.dim, self.n) * self.v_0
+            self.v = utils.sphere_pick(self.env.dim, self.n) * self.v_0
 
             if 'tumble_args' in motile_args:
                 self.tumble_flag = True
@@ -105,7 +104,7 @@ class Particles(object):
         else:
             self.motile_flag = False
 
-        self.potential_flag = False
+        self.potential_flag = True
         if self.tumble_flag:
             self.l = self.tumble_rates.get_base_run_length()
         elif self.rot_diff_flag:
@@ -113,9 +112,9 @@ class Particles(object):
         else:
             raise Exception
         if self.potential_flag:
-            self.r_U = 80.0
+            self.r_U = 1.0
             self.F_0 = self.v_0
-            self.k = 1.0
+            self.k = 100.0 * self.r_U
             self.F = self.F_ho
             if self.F == self.F_step:
                 self.r_max = self.r_U + np.arctanh(np.sqrt(1.0 - self.v_0 / self.F_0)) / self.k
@@ -134,14 +133,15 @@ class Particles(object):
 
     def initialise_r(self, obstructs):
         self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
-#        self.r = utils.disk_pick(self.n) * self.r_U
-        for i in range(self.n):
-            while True:
-                self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
-                valid = True
-                if obstructs.is_obstructed(self.r[i]): valid = False
-                if self.collide_flag and (utils.vector_mag_sq(self.r[i] - self.r[:i]) < self.collide_R ** 2).any(): valid = False
-                if valid: break
+        self.r = utils.disk_pick(self.n) * self.r_max
+#        for i in range(self.n):
+#            while True:
+#                self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
+#                valid = True
+#                if obstructs.is_obstructed(self.r[i]): valid = False
+#                if self.collide_flag and (utils.vector_mag_sq(self.r[i] - self.r[:i]) < self.collide_R ** 2).any(): valid = False
+#                if valid: break
+
         # Count number of times wrapped around and initial positions for displacement calculations
         self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
         self.r_0 = self.r.copy()
@@ -154,20 +154,23 @@ class Particles(object):
 
     def iterate(self, obstructs, c=None):
         r_old = self.r.copy()
-
+        v = np.zeros_like(self.r)
         if self.motile_flag:
+            # Randomise stationary particles
             self.v = utils.vector_unit_nullrand(self.v) * self.v_0
+            # Update motile velocity according to various rules
             if self.vicsek_flag: self.vicsek()
             if self.tumble_flag: self.tumble(c)
             if self.force_flag: self.force(c)
             if self.quorum_flag: self.quorum()
-            if self.collide_flag: self.collide()
             if self.rot_diff_flag: self.rot_diff()
-            v = self.v.copy()
-            if self.potential_flag: v += self.F(self.r)
-            self.r += v * self.env.dt
+            if self.collide_flag: self.collide()
+            v += self.v
         if self.diff_flag:
-            self.r = utils.diff(self.r, self.D, self.env.dt)
+            v += utils.diff(self.r, self.D, self.env.dt)
+        if self.potential_flag:
+            v += self.F(self.r)
+        self.r += v * self.env.dt
 
         i_wrap = np.where(np.abs(self.r) > self.env.L_half)
         self.wrapping_number[i_wrap] += np.sign(self.r[i_wrap])
@@ -176,10 +179,15 @@ class Particles(object):
         obstructs.obstruct(self, r_old)
 
 #    @check_v
+    def vicsek(self):
+        inters, intersi = cell_list.interacts(self.r, self.env.L, self.vicsek_R)
+        self.v = particle_numerics.vicsek_inters(self.v, inters, intersi)
+
+#    @check_v
     def tumble(self, c):
         i_tumblers = self.tumble_rates.get_tumblers(c)
         v_mags = utils.vector_mag(self.v[i_tumblers])
-        self.v[i_tumblers] = utils.point_pick_cart(self.env.dim, len(i_tumblers))
+        self.v[i_tumblers] = utils.sphere_pick(self.env.dim, len(i_tumblers))
         self.v[i_tumblers] *= v_mags[:, np.newaxis]
 
 #    @check_v
@@ -192,9 +200,13 @@ class Particles(object):
 
     def quorum(self):
         inters, intersi = cell_list.interacts(self.r, self.env.L, self.quorum_R)
-        densities = intersi / (np.pi * self.quorum_R ** 2)
         if self.quorum_v_flag:
             self.v *= np.exp(-self.quorum_v_sense * intersi)[:, np.newaxis]
+
+#    @check_D_rot
+#    @check_v
+    def rot_diff(self):
+        self.v = utils.rot_diff(self.v, self.D_rot, self.env.dt)
 
     def collide(self):
         inters, intersi = cell_list.interacts(self.r, self.env.L, self.collide_R)
@@ -203,23 +215,10 @@ class Particles(object):
 #            if (utils.vector_mag_sq(self.r[i] - self.r) < self.collide_R ** 2).sum() > 1:
 ##                self.v[i] *= -1
 ##                self.r[i] += self.v[i] * self.env.dt
-#                self.v[i] = utils.point_pick_cart(self.env.dim) * utils.vector_mag(self.v[i])
-
-#    @check_D_rot
-#    @check_v
-    def rot_diff(self):
-        self.v = utils.rot_diff(self.v, self.D_rot, self.env.dt)
-
-#    @check_v
-    def vicsek(self):
-        inters, intersi = cell_list.interacts(self.r, self.env.L, self.vicsek_R)
-        self.v = particle_numerics.vicsek_inters(self.v, inters, intersi)
+#                self.v[i] = utils.sphere_pick(self.env.dim) * utils.vector_mag(self.v[i])
 
     def get_r_unwrapped(self):
         return self.r + self.env.L * self.wrapping_number
-
-    def get_field_i(self, fieddx):
-        return
 
     def get_density_field(self, dx):
         return fields.density(self.r, self.env.L, dx)

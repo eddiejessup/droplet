@@ -59,6 +59,8 @@ def main():
 #        log_header.append('dstd')
         if system.p.motile_flag: log_header.append('v_drift')
         log_header.append('e')
+        log_header.append('r_max')
+        log_header.append('rho_max')
         log = csv.DictWriter(f_log, log_header, delimiter=' ')
         log.writeheader()
         log_data = {}
@@ -105,12 +107,12 @@ def main():
 
                 if args.positions: np.save('%s/r/%010f' % (args.dir, system.t), system.p.r)
 
-                rs = utils.vector_mag(system.p.r)
-                rs_hist, rs_bins = np.histogram(rs, bins=80)
-                rs_bins /= system.p.r_max
-                areas = np.pi * (rs_bins[1:] ** 2 - rs_bins[:-1] ** 2)
-                denses = rs_hist / areas
-                denses /= denses.mean()
+                n, r = np.histogram(utils.vector_mag(system.p.r), bins=100)
+                rho = n / (r[1:] ** 2 - r[:-1] ** 2)
+                r /= system.p.r_max
+                rho /= rho.mean()
+                log_data['r_max'] = r[rho.argmax()]
+                log_data['rho_max'] = rho.max()
 
                 if args.plot:
                     if system.dim == 2:
@@ -124,8 +126,8 @@ def main():
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
 
-                    ax_hist.bar(rs_bins[:-1], denses, width=(rs_bins[1]-rs_bins[0]))
-    #                print('max at (%f, %f)' % (rs_bins[denses.argmax()], denses.max()))
+                    ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
+                    ax_hist.set_xlim([0.0, 1.0])
                     fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
                     ax_hist.cla()
 
@@ -133,7 +135,7 @@ def main():
                 log_data['D'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
 #                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
                 if system.p.motile_flag: log_data['v_drift'] = np.mean(system.p.v[:, 0]) / system.p.v_0
-                log_data['e'] = denses[-1]
+                log_data['e'] = rho[-1]
                 log.writerow(log_data)
                 f_log.flush()
 

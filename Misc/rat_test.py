@@ -11,13 +11,13 @@ D_theory = v_0 ** 2 / (d * p_0)
 
 def main():
     r = np.zeros([n, d], dtype=np.float)
-    v = v_0 * utils.point_pick_cart(d, n)
+    v = v_0 * utils.sphere_pick(d, n)
     p = np.ones([n]) * p_0
     t = 0
     i = 0
     while True:
         i_tumblers = np.where(np.random.uniform(size=(n,)) < p*dt)[0]
-        v[i_tumblers] = v_0 * utils.point_pick_cart(d, len(i_tumblers))
+        v[i_tumblers] = v_0 * utils.sphere_pick(d, len(i_tumblers))
         r += v * dt
         if i % every == 0:
             D = np.mean(utils.vector_mag_sq(r)) / (2.0 * d * t)
