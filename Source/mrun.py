@@ -58,9 +58,9 @@ def main():
         log_header = ['t', 'D']
 #        log_header.append('dstd')
         if system.p.motile_flag: log_header.append('v_drift')
-        log_header.append('e')
-        log_header.append('r_max')
-        log_header.append('rho_max')
+#        log_header.append('e')
+#        log_header.append('r_max')
+#        log_header.append('rho_max')
         log = csv.DictWriter(f_log, log_header, delimiter=' ')
         log.writeheader()
         log_data = {}
@@ -90,10 +90,10 @@ def main():
             ax_box.set_xlim(lims)
             ax_box.set_ylim(lims)
 
-            utils.makedirs_soft('%s/hist' % args.dir)
-            fig_hist = pp.figure()
-            ax_hist = fig_hist.gca()
-            if not args.silent: print('done!')
+#            utils.makedirs_soft('%s/hist' % args.dir)
+#            fig_hist = pp.figure()
+#            ax_hist = fig_hist.gca()
+#            if not args.silent: print('done!')
 
     if not args.silent: print('\nStarting simulation...')
     while system.t < args.runtime:
@@ -107,12 +107,12 @@ def main():
 
                 if args.positions: np.save('%s/r/%010f' % (args.dir, system.t), system.p.r)
 
-                n, r = np.histogram(utils.vector_mag(system.p.r), bins=100)
-                rho = n / (r[1:] ** 2 - r[:-1] ** 2)
-                r /= system.p.r_max
-                rho /= rho.mean()
-                log_data['r_max'] = r[rho.argmax()]
-                log_data['rho_max'] = rho.max()
+#                n, r = np.histogram(utils.vector_mag(system.p.r), bins=100)
+#                rho = n / (r[1:] ** 2 - r[:-1] ** 2)
+#                r /= system.p.r_max
+#                rho /= rho.mean()
+#                log_data['r_max'] = r[rho.argmax()]
+#                log_data['rho_max'] = rho.max()
 
                 if args.plot:
                     if system.dim == 2:
@@ -126,16 +126,18 @@ def main():
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
 
-                    ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
-                    ax_hist.set_xlim([0.0, 1.0])
-                    fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
-                    ax_hist.cla()
+#                    ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
+#                    ax_hist.set_xlim([0.0, 1.0])
+#                    fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
+#                    ax_hist.cla()
 
                 log_data['t'] = system.t
+                print((np.var(system.p.get_r_unwrapped()) - np.var(system.p.r_0)) / (2.0 * system.dim * system.t))
                 log_data['D'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
+                print(log_data['D'])
 #                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
                 if system.p.motile_flag: log_data['v_drift'] = np.mean(system.p.v[:, 0]) / system.p.v_0
-                log_data['e'] = rho[-1]
+#                log_data['e'] = rho[-1]
                 log.writerow(log_data)
                 f_log.flush()
 

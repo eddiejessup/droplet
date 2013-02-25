@@ -104,7 +104,7 @@ class Particles(object):
         else:
             self.motile_flag = False
 
-        self.potential_flag = True
+        self.potential_flag = False
         if self.tumble_flag:
             self.l = self.tumble_rates.get_base_run_length()
         elif self.rot_diff_flag:
@@ -114,17 +114,17 @@ class Particles(object):
         if self.potential_flag:
             self.r_U = 1.0
             self.F_0 = self.v_0
-            self.k = 100.0 * self.r_U
-            self.F = self.F_ho
+            self.k = 100.0 / self.r_U
+            self.F = self.F_
             if self.F == self.F_step:
                 self.r_max = self.r_U + np.arctanh(np.sqrt(1.0 - self.v_0 / self.F_0)) / self.k
             elif self.F == self.F_ho:
                 self.r_max = self.r_U * (self.v_0 / self.F_0)
             else:
                 raise Exception
-        else:
-            self.r_U = obstructs.obstructs[0].R
-            self.r_max = self.r_U
+#        else:
+#            self.r_U = obstructs.obstructs[0].R
+#            self.r_max = self.r_U
 
         if self.R_comm > obstructs.d:
             raise Exception('Cannot have inter-obstruction particle communication')
@@ -133,14 +133,14 @@ class Particles(object):
 
     def initialise_r(self, obstructs):
         self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
-        self.r = utils.disk_pick(self.n) * self.r_max
-#        for i in range(self.n):
-#            while True:
-#                self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
-#                valid = True
-#                if obstructs.is_obstructed(self.r[i]): valid = False
-#                if self.collide_flag and (utils.vector_mag_sq(self.r[i] - self.r[:i]) < self.collide_R ** 2).any(): valid = False
-#                if valid: break
+#        self.r = utils.disk_pick(self.n) * self.r_max
+        for i in range(self.n):
+            while True:
+                self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
+                valid = True
+                if obstructs.is_obstructed(self.r[i]): valid = False
+                if self.collide_flag and (utils.vector_mag_sq(self.r[i] - self.r[:i]) < self.collide_R ** 2).any(): valid = False
+                if valid: break
 
         # Count number of times wrapped around and initial positions for displacement calculations
         self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
