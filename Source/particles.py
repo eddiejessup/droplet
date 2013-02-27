@@ -105,12 +105,13 @@ class Particles(object):
             self.motile_flag = False
 
         self.potential_flag = False
-        if self.tumble_flag:
-            self.l = self.tumble_rates.get_base_run_length()
-        elif self.rot_diff_flag:
-            self.l = self.D_rot * self.v_0
-        else:
-            raise Exception
+        if self.motile_flag:
+            if self.tumble_flag:
+                self.l = self.tumble_rates.get_base_run_length()
+            elif self.rot_diff_flag:
+                self.l = self.D_rot * self.v_0
+            else:
+                raise Exception
         if self.potential_flag:
             self.r_U = 1.0
             self.F_0 = self.v_0
@@ -166,10 +167,10 @@ class Particles(object):
             if self.rot_diff_flag: self.rot_diff()
             if self.collide_flag: self.collide()
             v += self.v
-        if self.diff_flag:
-            v += utils.diff(self.r, self.D, self.env.dt)
         if self.potential_flag:
             v += self.F(self.r)
+        if self.diff_flag:
+            self.r = utils.diff(self.r, self.D, self.env.dt)
         self.r += v * self.env.dt
 
         i_wrap = np.where(np.abs(self.r) > self.env.L_half)
@@ -193,9 +194,13 @@ class Particles(object):
 #    @check_v
     def force(self, c):
         v_mags = utils.vector_mag(self.v)
-        grad_c_i = c.get_grad_i(self.r)
+#        grad_c_i = c.get_grad_i(self.r)
+        grad_c_i = np.empty_like(self.r)
+        grad_c_i[:, 0] = 1.0
+        grad_c_i[:, 1] = 0.0
         i_up = np.where(np.sum(self.v * grad_c_i, -1) > 0.0)
-        self.v[i_up] += self.force_sense * grad_c_i[i_up] * self.env.dt
+#        self.v[i_up] += self.force_sense * grad_c_i[i_up] * self.env.dt
+        self.v += self.force_sense * grad_c_i * self.env.dt
         self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
 
     def quorum(self):
@@ -206,6 +211,7 @@ class Particles(object):
 #    @check_D_rot
 #    @check_v
     def rot_diff(self):
+        v_old = self.v.copy()
         self.v = utils.rot_diff(self.v, self.D_rot, self.env.dt)
 
     def collide(self):

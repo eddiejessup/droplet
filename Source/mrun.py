@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-from __future__ import print_function
 import argparse
 import os
 import shutil
@@ -132,9 +131,7 @@ def main():
 #                    ax_hist.cla()
 
                 log_data['t'] = system.t
-                print((np.var(system.p.get_r_unwrapped()) - np.var(system.p.r_0)) / (2.0 * system.dim * system.t))
                 log_data['D'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
-                print(log_data['D'])
 #                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
                 if system.p.motile_flag: log_data['v_drift'] = np.mean(system.p.v[:, 0]) / system.p.v_0
 #                log_data['e'] = rho[-1]
