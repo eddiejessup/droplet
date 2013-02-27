@@ -59,9 +59,8 @@ class TumbleRates(object):
         if self.chemotaxis_flag:
             p = self.p_0 * (1.0 - self.sense * self.get_happy(c))
             p = np.minimum(self.p_0, p)
-            if self.particles.env.t > (10.0 / self.p_0):
-                if np.mean(p / self.p_0) < 0.5: raise Exception('Unrealistic tumble rate %f' % np.min(p))
-#            if np.min(p / self.p_0) < 0.2: raise Exception('Unrealistic tumble rate %f' % np.min(p))
+            if self.particles.env.t * self.p_0 > 10.0:
+                if np.mean(p / self.p_0) < 0.5: raise Exception('Unrealistic tumble rate %f' % np.mean(p))
         else:
             p = self.p_0
         random_sample = np.random.uniform(size=self.particles.n)
