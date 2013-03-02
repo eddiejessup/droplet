@@ -72,7 +72,10 @@ def main():
             fig_box = pp.figure()
             if system.dim == 2:
                 ax_box = fig_box.add_subplot(111)
-                ax_box.imshow(system.obstructs.to_field(system.L / 1000.0).T, extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds')
+                cli = np.logical_not(system.obstructs.obstructs[0].cli > 0).T
+                ax_box.imshow(np.ma.array(cli, mask=cli), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Greens_r')
+                o = np.logical_not(system.obstructs.to_field(system.L / 1000.0).T)
+                ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
                 if system.particles_flag:
                     parts_plot = ax_box.scatter([], [], s=1.0, c='k')
                 if system.attractant_flag:

@@ -199,8 +199,8 @@ class Particles(object):
         grad_c_i[:, 0] = 1.0
         grad_c_i[:, 1] = 0.0
         i_up = np.where(np.sum(self.v * grad_c_i, -1) > 0.0)
-#        self.v[i_up] += self.force_sense * grad_c_i[i_up] * self.env.dt
-        self.v += self.force_sense * grad_c_i * self.env.dt
+        self.v[i_up] += self.force_sense * grad_c_i[i_up] * self.env.dt
+#        self.v += self.force_sense * grad_c_i * self.env.dt
         self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
 
     def quorum(self):
