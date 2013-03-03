@@ -1,19 +1,15 @@
 #!/usr/bin/python3
 
 import argparse
-import os
 import shutil
-import yaml
 import cProfile
+import csv
+import yaml
 import matplotlib.pyplot as pp
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import utils
 import System
-import csv
-
-plot_dx = 2.0
-dstd_dx = 1.0
 
 parser = argparse.ArgumentParser(description='Run a particle simulation')
 parser.add_argument('f',
@@ -33,9 +29,6 @@ parser.add_argument('-s', '--silent', default=False, action='store_true',
 parser.add_argument('--profile', default=False, action='store_true',
     help='profile program (implies -s -d None)')
 
- # Temp args for making experiments easier
-parser.add_argument('--pf', default=None)
-
 args = parser.parse_args()
 
 def main():
@@ -44,8 +37,6 @@ def main():
 
     if not args.silent: print('Initialising system...', end='')
     yaml_args = yaml.safe_load(open(args.f, 'r'))
-    # Temp hacks
-    if args.pf is not None: yaml_args['obstruction_args']['parametric_args']['pf'] = float(args.pf)
     system = System.System(**yaml_args)
     if not args.silent: print('done!')
 
@@ -115,6 +106,14 @@ def main():
 #                rho /= rho.mean()
 #                log_data['r_max'] = r[rho.argmax()]
 #                log_data['rho_max'] = rho.max()
+#                log_data['e'] = rho[-1]
+
+                log_data['t'] = system.t
+                log_data['D'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
+#                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
+                if system.p.motile_flag: log_data['v_drift'] = np.mean(system.p.v[:, 0]) / system.p.v_0
+                log.writerow(log_data)
+                f_log.flush()
 
                 if args.plot:
                     if system.dim == 2:
@@ -132,14 +131,6 @@ def main():
 #                    ax_hist.set_xlim([0.0, 1.0])
 #                    fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
 #                    ax_hist.cla()
-
-                log_data['t'] = system.t
-                log_data['D'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
-#                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
-                if system.p.motile_flag: log_data['v_drift'] = np.mean(system.p.v[:, 0]) / system.p.v_0
-#                log_data['e'] = rho[-1]
-                log.writerow(log_data)
-                f_log.flush()
 
                 if not args.silent: print('finished', end='')
             if not args.silent: print()
