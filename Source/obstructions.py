@@ -73,7 +73,7 @@ class Porous(Obstruction):
     BUFFER_SIZE = 0.005
 
     def __init__(self, env, R, porosity, delta):
-        super(Porous, self).__init__(env)
+        super().__init__(env)
         rs = utils.sphere_pack(R / self.env.L, self.env.dim, 1.0 - porosity)
         self.r_c = np.array(rs) * self.env.L
         self.R_c = np.ones([self.r_c.shape[0]]) * R
@@ -123,7 +123,7 @@ class Porous(Obstruction):
         return False
 
     def obstruct(self, particles, *args, **kwargs):
-        super(Porous, self).obstruct(particles, *args, **kwargs)
+        super().obstruct(particles, *args, **kwargs)
         inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
         cl_subs = self.cl[tuple(inds.T)]
         cli_subs = self.cli[tuple(inds.T)]
@@ -162,7 +162,7 @@ class Droplet(Obstruction):
     BUFFER_SIZE = 0.995
 
     def __init__(self, env, R):
-        super(Droplet, self).__init__(env)
+        super().__init__(env)
         self.R = R
         self.R_sq = R ** 2
 
@@ -183,7 +183,7 @@ class Droplet(Obstruction):
         return np.logical_not(utils.sphere_intersect(r, 0.0, 0.0, self.R))
 
     def obstruct(self, particles, *args, **kwargs):
-        super(Droplet, self).obstruct(particles, *args, **kwargs)
+        super().obstruct(particles, *args, **kwargs)
         for n in np.where(self.is_obstructed(particles.r))[0]:
             u_rel = -particles.r[n] / utils.vector_mag(particles.r[n])
             particles.r[n] = -Droplet.BUFFER_SIZE * u_rel * self.R
@@ -191,7 +191,6 @@ class Droplet(Obstruction):
                 v_dot_u = np.sum(particles.v[n] * u_rel)
                 v_new = particles.v[n] - v_dot_u * u_rel
                 particles.v[n] = v_new * np.sqrt(np.sum(np.square(particles.v[n])) / np.sum(np.square(v_new)))
-#                particles.v[n] *= -1.0
 
     def get_A_obstructed(self):
         return self.env.get_A() - utils.sphere_volume(self.R, self.env.dim)
@@ -217,7 +216,7 @@ class Walls(Obstruction, fields.Field):
             raise NotImplementedError
 
     def obstruct(self, particles, r_old, *args, **kwargs):
-        super(Walls, self).obstruct(particles, r_old, *args, **kwargs)
+        super().obstruct(particles, r_old, *args, **kwargs)
         inds_old = self.r_to_i(r_old)
         inds_new = self.r_to_i(particles.r)
         dx_half = Walls.BUFFER_SIZE * (self.dx / 2.0)
@@ -258,7 +257,7 @@ class Closed(Walls):
 
 class Traps(Walls):
     def __init__(self, env, dx, n, d, w, s):
-        super(Traps, self).__init__(env, dx)
+        super().__init__(env, dx)
         self.n = n
         self.d_i = int(d / self.dx) + 1
         self.w_i = int(w / self.dx) + 1
@@ -320,7 +319,7 @@ class Traps(Walls):
 
 class Maze(Walls):
     def __init__(self, env, dx, d, seed=None):
-        super(Maze, self).__init__(env, dx)
+        super().__init__(env, dx)
         if self.env.L / self.dx % 1 != 0:
             raise Exception('Require L / dx to be an integer')
         if self.env.L / self.d % 1 != 0:
