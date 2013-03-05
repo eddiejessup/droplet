@@ -34,12 +34,12 @@ parser.add_argument('--profile', default=False, action='store_true',
 args = parser.parse_args()
 
 def main():
+    yaml_args = yaml.safe_load(open(args.f, 'r'))
+
     if args.dir is not None:
         utils.makedirs_safe(args.dir)
         if not args.silent: print('Initialising output...', end='')
-        yaml_args = yaml.safe_load(open(args.f, 'r'))
         shutil.copy(args.f, '%s/params.yaml' % args.dir)
-
         f_log = open('%s/log.csv' % (args.dir), 'w')
         log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
 #        log_header.append('dstd')
@@ -49,7 +49,6 @@ def main():
         log = csv.DictWriter(f_log, log_header, delimiter=' ')
         log.writeheader()
         log_data = {}
-
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
 
     if not args.silent: print('Initialising system...', end='')
