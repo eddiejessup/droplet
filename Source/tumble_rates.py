@@ -23,8 +23,8 @@ class TumbleRates(object):
 
                 if self.t_mem < 0.0:
                     raise Exception('Require particle memory >= 0')
-                if (self.particles.v_0 / self.p_0) / self.particles.env.c.dx < 5:
-                    raise Exception('Chemotactic memory requires >= 5 lattice points per run')
+#                if (self.particles.v_0 / self.p_0) / self.particles.env.c.dx < 5:
+#                    raise Exception('Chemotactic memory requires >= 5 lattice points per run')
 
                 self.calculate_mem_kernel()
                 self.c_mem = np.zeros([self.particles.n, len(self.K_dt)], dtype=np.float)
@@ -50,7 +50,7 @@ class TumbleRates(object):
         ''' approximate unit(v) dot grad(c) via temporal integral '''
         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
 #        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.particles.r))
-        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.particles.r)) * (1.0 + self.particles.wrapping_number[:, 0])
+        self.c_mem[:, 0] = self.particles.get_r_unwrapped()[:, 0] + self.particles.env.L_half
         return np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
 
     def get_tumblers(self, c=None):
@@ -59,8 +59,8 @@ class TumbleRates(object):
         if self.chemotaxis_flag:
             p = self.p_0 * (1.0 - self.sense * self.get_happy(c))
             p = np.minimum(self.p_0, p)
-            if self.particles.env.t * self.p_0 > 10.0:
-                if np.mean(p / self.p_0) < 0.5: raise Exception('Unrealistic tumble rate %f' % np.mean(p))
+            if self.particles.env.t * self.p_0 > 10.0 and np.min(p / self.p_0) < 0.1:
+                raise Exception('Unrealistic tumble rate %f' % np.min(p))
         else:
             p = self.p_0
         random_sample = np.random.uniform(size=self.particles.n)

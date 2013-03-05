@@ -85,7 +85,7 @@ class Porous(Obstruction):
         if self.threshold < 0.0:
             raise Exception('Require 0 <= alignment angle <= pi/2')
 
-        print('True porosity: %f' % self.porosity)
+#        print('True porosity: %f' % self.porosity)
         self.init_cell_list()
 
     def init_cell_list(self):

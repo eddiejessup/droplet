@@ -22,7 +22,7 @@ class System(object):
         np.random.seed(self.seed)
         self.L_half = self.L / 2.0
         self.t = 0.0
-        self.i = 0.0
+        self.i = 0
 
         self.obstructs = obstructions.ObstructionContainer(self)
         if 'obstruction_args' in kwargs:
