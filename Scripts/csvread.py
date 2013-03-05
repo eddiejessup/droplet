@@ -8,6 +8,7 @@ d = mlb.csv2rec(fname, delimiter=' ')
 t_0 = float(sys.argv[3])
 field = sys.argv[2]
 samples = d[field][np.where(d['t'] > t_0)]
+#samples = d[field][np.where(np.logical_and(d['t'] > t_0, d['t'] < 125.0))]
 
 n = len(samples)
 mean = np.mean(samples)
