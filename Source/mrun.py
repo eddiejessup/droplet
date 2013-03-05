@@ -5,6 +5,8 @@ import shutil
 import cProfile
 import csv
 import yaml
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as pp
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -34,20 +36,13 @@ args = parser.parse_args()
 def main():
     if args.dir is not None:
         utils.makedirs_safe(args.dir)
-
-    if not args.silent: print('Initialising system...', end='')
-    yaml_args = yaml.safe_load(open(args.f, 'r'))
-    system = System.System(**yaml_args)
-    if not args.silent: print('done!')
-
-    if args.dir is not None:
         if not args.silent: print('Initialising output...', end='')
+        yaml_args = yaml.safe_load(open(args.f, 'r'))
         shutil.copy(args.f, '%s/params.yaml' % args.dir)
 
         f_log = open('%s/log.csv' % (args.dir), 'w')
-        log_header = ['t', 'D']
+        log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
 #        log_header.append('dstd')
-        if system.p.motile_flag: log_header.append('v_drift')
 #        log_header.append('e')
 #        log_header.append('r_max')
 #        log_header.append('rho_max')
@@ -57,36 +52,40 @@ def main():
 
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
 
-        if args.plot:
-            utils.makedirs_soft('%s/plot' % args.dir)
-            lims = [-system.L_half, system.L_half]
-            fig_box = pp.figure()
-            if system.dim == 2:
-                ax_box = fig_box.add_subplot(111)
-                cli = np.logical_not(system.obstructs.obstructs[0].cli > 0).T
-                ax_box.imshow(np.ma.array(cli, mask=cli), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Greens_r')
-                o = np.logical_not(system.obstructs.to_field(system.L / 1000.0).T)
-                ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
-                if system.particles_flag:
-                    parts_plot = ax_box.scatter([], [], s=1.0, c='k')
-                if system.attractant_flag:
-                    c_plot = ax_box.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
-            elif system.dim == 3:
-                ax_box = fig.add_subplot(111, projection='3d')
-                if system.particles_flag:
-                    parts_plot = ax_box.scatter([], [], [])
-                ax_box.set_zticks([])
-                ax_box.set_zlim(lims)
-            ax_box.set_aspect('equal')
-            ax_box.set_xticks([])
-            ax_box.set_yticks([])
-            ax_box.set_xlim(lims)
-            ax_box.set_ylim(lims)
+    if not args.silent: print('Initialising system...', end='')
+    system = System.System(**yaml_args)
+    if not args.silent: print('done!')
 
-#            utils.makedirs_soft('%s/hist' % args.dir)
-#            fig_hist = pp.figure()
-#            ax_hist = fig_hist.gca()
-#            if not args.silent: print('done!')
+    if args.dir is not None and args.plot:
+        utils.makedirs_soft('%s/plot' % args.dir)
+        lims = [-system.L_half, system.L_half]
+        fig_box = pp.figure()
+        if system.dim == 2:
+            ax_box = fig_box.add_subplot(111)
+            cli = np.logical_not(system.obstructs.obstructs[0].cli > 0).T
+            ax_box.imshow(np.ma.array(cli, mask=cli), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Greens_r')
+            o = np.logical_not(system.obstructs.to_field(system.L / 1000.0).T)
+            ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
+            if system.particles_flag:
+                parts_plot = ax_box.scatter([], [], s=1.0, c='k')
+            if system.attractant_flag:
+                c_plot = ax_box.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
+        elif system.dim == 3:
+            ax_box = fig.add_subplot(111, projection='3d')
+            if system.particles_flag:
+                parts_plot = ax_box.scatter([], [], [])
+            ax_box.set_zticks([])
+            ax_box.set_zlim(lims)
+        ax_box.set_aspect('equal')
+        ax_box.set_xticks([])
+        ax_box.set_yticks([])
+        ax_box.set_xlim(lims)
+        ax_box.set_ylim(lims)
+
+#        utils.makedirs_soft('%s/hist' % args.dir)
+#        fig_hist = pp.figure()
+#        ax_hist = fig_hist.gca()
+#        if not args.silent: print('done!')
 
     if not args.silent: print('\nStarting simulation...')
     while system.t < args.runtime:
@@ -109,9 +108,10 @@ def main():
 #                log_data['e'] = rho[-1]
 
                 log_data['t'] = system.t
-                log_data['D'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
+                log_data['D'], log_data['D_err'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
 #                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
-                if system.p.motile_flag: log_data['v_drift'] = np.mean(system.p.v[:, 0]) / system.p.v_0
+                v_drift, v_drift_err = utils.calc_v_drift(system.p.get_r_unwrapped(), system.p.r_0, system.t)
+                log_data['v_drift'], log_data['v_drift_err'] = v_drift[0] / system.p.v_0, v_drift_err[0] / system.p.v_0
                 log.writerow(log_data)
                 f_log.flush()
 
