@@ -33,23 +33,25 @@ parser.add_argument('--profile', default=False, action='store_true',
 
 args = parser.parse_args()
 
+if args.profile and args.runtime == float('inf'):
+    raise Exception('Cannot profile a simulation without a specified run-time')
+
 def main():
+    yaml_args = yaml.safe_load(open(args.f, 'r'))
+
     if args.dir is not None:
         utils.makedirs_safe(args.dir)
         if not args.silent: print('Initialising output...', end='')
-        yaml_args = yaml.safe_load(open(args.f, 'r'))
         shutil.copy(args.f, '%s/params.yaml' % args.dir)
-
         f_log = open('%s/log.csv' % (args.dir), 'w')
         log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
 #        log_header.append('dstd')
 #        log_header.append('e')
 #        log_header.append('r_max')
 #        log_header.append('rho_max')
-        log = csv.DictWriter(f_log, log_header, delimiter=' ')
+        log = csv.DictWriter(f_log, log_header, delimiter=' ', extrasaction='ignore')
         log.writeheader()
         log_data = {}
-
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
 
     if not args.silent: print('Initialising system...', end='')
@@ -62,8 +64,8 @@ def main():
         fig_box = pp.figure()
         if system.dim == 2:
             ax_box = fig_box.add_subplot(111)
-            cli = np.logical_not(system.obstructs.obstructs[0].cli > 0).T
-            ax_box.imshow(np.ma.array(cli, mask=cli), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Greens_r')
+#            cli = np.logical_not(system.obstructs.obstructs[0].cli > 0).T
+#            ax_box.imshow(np.ma.array(cli, mask=cli), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Greens_r')
             o = np.logical_not(system.obstructs.to_field(system.L / 1000.0).T)
             ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
             if system.particles_flag:
@@ -82,10 +84,10 @@ def main():
         ax_box.set_xlim(lims)
         ax_box.set_ylim(lims)
 
-#        utils.makedirs_soft('%s/hist' % args.dir)
-#        fig_hist = pp.figure()
-#        ax_hist = fig_hist.gca()
-#        if not args.silent: print('done!')
+        utils.makedirs_soft('%s/hist' % args.dir)
+        fig_hist = pp.figure()
+        ax_hist = fig_hist.gca()
+        if not args.silent: print('done!')
 
     if not args.silent: print('\nStarting simulation...')
     while system.t < args.runtime:
@@ -99,13 +101,12 @@ def main():
 
                 if args.positions: np.save('%s/r/%010f' % (args.dir, system.t), system.p.r)
 
-#                n, r = np.histogram(utils.vector_mag(system.p.r), bins=100)
-#                rho = n / (r[1:] ** 2 - r[:-1] ** 2)
-#                r /= system.p.r_max
-#                rho /= rho.mean()
-#                log_data['r_max'] = r[rho.argmax()]
-#                log_data['rho_max'] = rho.max()
-#                log_data['e'] = rho[-1]
+                n, r = np.histogram(utils.vector_mag(system.p.r), bins=15)
+                rho = n / (r[1:] ** 2 - r[:-1] ** 2)
+                r /= system.p.r_max
+                rho /= rho.mean()
+                log_data['r_max'] = r[rho.argmax()]
+                log_data['rho_max'] = rho.max()
 
                 log_data['t'] = system.t
                 log_data['D'], log_data['D_err'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
@@ -127,10 +128,10 @@ def main():
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
 
-#                    ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
-#                    ax_hist.set_xlim([0.0, 1.0])
-#                    fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
-#                    ax_hist.cla()
+                    ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
+                    ax_hist.set_xlim([0.0, 1.0])
+                    fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
+                    ax_hist.cla()
 
                 if not args.silent: print('finished', end='')
             if not args.silent: print()
