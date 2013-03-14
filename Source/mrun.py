@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 import argparse
-import shutil
 import cProfile
+import pstats
 import csv
 import yaml
 import matplotlib as mpl
@@ -34,7 +34,7 @@ parser.add_argument('--profile', default=False, action='store_true',
 args = parser.parse_args()
 
 if args.profile and args.runtime == float('inf'):
-    raise Exception('Cannot profile a simulation without a specified run-time')
+    raise Exception('Cannot profile a simulation run without a specified run-time')
 
 def main():
     yaml_args = yaml.safe_load(open(args.f, 'r'))
@@ -42,7 +42,8 @@ def main():
     if args.dir is not None:
         utils.makedirs_safe(args.dir)
         if not args.silent: print('Initialising output...', end='')
-        shutil.copy(args.f, '%s/params.yaml' % args.dir)
+#        shutil.copy(args.f, '%s/params.yaml' % args.dir)
+        yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
         log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
 #        log_header.append('dstd')
@@ -53,12 +54,14 @@ def main():
         log.writeheader()
         log_data = {}
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
+        if not args.silent: print('done!')
 
     if not args.silent: print('Initialising system...', end='')
     system = System.System(**yaml_args)
     if not args.silent: print('done!')
 
     if args.dir is not None and args.plot:
+        if not args.silent: print('Initialising plotting...', end='')
         utils.makedirs_soft('%s/plot' % args.dir)
         lims = [-system.L_half, system.L_half]
         fig_box = pp.figure()
@@ -94,11 +97,9 @@ def main():
 
         if not system.i % args.every:
             if not args.silent:
-                print('t:%010g i:%08i' % (system.t, system.i), end=' ')
+                print('\tt:%010g i:%08i...' % (system.t, system.i), end='')
 
             if args.dir is not None:
-                if not args.silent: print('making output...', end='')
-
                 if args.positions: np.save('%s/r/%010f' % (args.dir, system.t), system.p.r)
 
                 n, r = np.histogram(utils.vector_mag(system.p.r), bins=15)
@@ -132,17 +133,14 @@ def main():
                     ax_hist.set_xlim([0.0, 1.0])
                     fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
                     ax_hist.cla()
-
-                if not args.silent: print('finished', end='')
-            if not args.silent: print()
+            if not args.silent: print('done!')
         system.iterate()
-    if not args.silent: print('Simulation finished!')
+    if not args.silent: print('Simulation done!')
 
+if not args.silent: print('\n' + 5*'*' + ' Bannock simulation ' + 5*'*' + '\n')
 if args.profile:
     args.silent = True
     args.dir = None
-    import profile
-    import pstats
     cProfile.run('main()', 'prof')
     p = pstats.Stats('prof')
     p.strip_dirs().sort_stats('cum').print_callers(0.5)
