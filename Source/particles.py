@@ -1,7 +1,7 @@
 import numpy as np
 import utils
 import fields
-import cell_list
+from cell_list import intro as cl_intro
 import particle_numerics
 
 v_TOLERANCE = 1e-10
@@ -231,11 +231,11 @@ class Particles(object):
         obstructs.obstruct(self, r_old)
 
     def vicsek(self):
-        inters, intersi = cell_list.interacts(self.r, self.env.L, self.vicsek_R)
+        inters, intersi = cl_intro.get_inters(self.r, self.env.L, self.vicsek_R)
         self.v = particle_numerics.vicsek_inters(self.v, inters, intersi)
 
     def quorum(self):
-        inters, intersi = cell_list.interacts(self.r, self.env.L, self.quorum_R)
+        inters, intersi = cl_intro.get_inters(self.r, self.env.L, self.quorum_R)
         if self.quorum_v_flag:
             self.v *= np.exp(-self.quorum_v_sense * intersi)[:, np.newaxis]
 
@@ -292,7 +292,7 @@ class Particles(object):
         self.v = utils.rot_diff(self.v, D_rot, self.env.dt)
 
     def collide(self):
-        inters, intersi = cell_list.interacts(self.r, self.env.L, self.collide_R)
+        inters, intersi = cl_intro.get_inters(self.r, self.env.L, self.collide_R)
         particle_numerics.collide_inters(self.v, self.r, self.env.L, inters, intersi)
 
     def get_r_unwrapped(self):
