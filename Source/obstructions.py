@@ -1,6 +1,5 @@
 import numpy as np
 import utils
-import cl
 import fields
 import maze
 
