@@ -40,8 +40,8 @@ def main():
     yaml_args = yaml.safe_load(open(args.f, 'r'))
 
     if args.dir is not None:
+        if not args.silent: print('Initialising output...')
         utils.makedirs_safe(args.dir)
-        if not args.silent: print('Initialising output...', end='')
 #        shutil.copy(args.f, '%s/params.yaml' % args.dir)
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
@@ -54,14 +54,14 @@ def main():
         log.writeheader()
         log_data = {}
         if args.positions: utils.makedirs_soft('%s/r' % args.dir)
-        if not args.silent: print('done!')
+        if not args.silent: print('done!\n')
 
-    if not args.silent: print('Initialising system...', end='')
+    if not args.silent: print('Initialising system...')
     system = System.System(**yaml_args)
-    if not args.silent: print('done!')
+    if not args.silent: print('done!\n')
 
     if args.dir is not None and args.plot:
-        if not args.silent: print('Initialising plotting...', end='')
+        if not args.silent: print('Initialising plotting...')
         utils.makedirs_soft('%s/plot' % args.dir)
         lims = [-system.L_half, system.L_half]
         fig_box = pp.figure()
@@ -90,9 +90,9 @@ def main():
         utils.makedirs_soft('%s/hist' % args.dir)
         fig_hist = pp.figure()
         ax_hist = fig_hist.gca()
-        if not args.silent: print('done!')
+        if not args.silent: print('done!\n')
 
-    if not args.silent: print('\nStarting simulation...')
+    if not args.silent: print('Iterating system...')
     while system.t < args.runtime:
 
         if not system.i % args.every:
@@ -135,7 +135,7 @@ def main():
                     ax_hist.cla()
             if not args.silent: print('done!')
         system.iterate()
-    if not args.silent: print('Simulation done!')
+    if not args.silent: print('Simulation done!\n')
 
 if not args.silent: print('\n' + 5*'*' + ' Bannock simulation ' + 5*'*' + '\n')
 if args.profile:
