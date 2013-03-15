@@ -4,7 +4,6 @@ import os
 import sys
 import glob
 import yaml
-import matplotlib.pyplot as pp
 import numpy as np
 import utils
 
@@ -29,9 +28,9 @@ for dirname in sys.argv[1:]:
             l_rot = float(rot_diff_args['l_rot_0'])
         except KeyError:
             D_rot = float(yaml_args['particle_args']['motile_args']['rot_diff_args']['D_rot_0'])
-            v_0 = float(yaml_args['particle_args']['motile_args']['v_0'])
+            v = float(yaml_args['particle_args']['motile_args']['v_0'])
             try:
-                l_rot = v_0 / D_rot_0
+                l_rot = v / D_rot
             except ZeroDivisionError:
                 l_rot = np.inf
     try:
@@ -53,6 +52,7 @@ for dirname in sys.argv[1:]:
     acc = rho[-1] / bulk_rho
     print('%f %f %f %s' % (l_rot, vf, acc, os.path.splitext(os.path.basename(fname))[0]))
 
+#    import matplotlib.pyplot as pp
 #    pp.bar(R[:-1], rho, width=(R[1]-R[0]))
 #    pp.xlim([0.0, 1.0])
 #    pp.show()
