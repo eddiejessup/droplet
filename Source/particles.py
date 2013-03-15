@@ -43,7 +43,16 @@ class Particles(object):
 
         if 'collide_args' in kwargs:
             self.collide_flag = True
-            self.collide_R = kwargs['collide_args']['R']
+            if 'R' in kwargs['collide_args']:
+                self.collide_R = kwargs['collide_args']['R']
+            elif 'vf' in kwargs['collide_args']:
+                vf = kwargs['collide_args']['vf']
+                self.collide_R = np.sqrt((vf * obstructs.get_A_free()) / (self.n * np.pi))
+            else:
+                raise Exception('Require either collision radius or volume fraction')
+            if self.collide_R == 0.0:
+                print('Turning off collisions because radius is zero')
+                self.collide_flag = False
             self.R_comm = max(self.R_comm, self.collide_R)
         else:
             self.collide_flag = False
@@ -122,7 +131,13 @@ class Particles(object):
 
             if 'rot_diff_args' in motile_args:
                 self.rot_diff_flag = True
-                self.D_rot_0 = motile_args['rot_diff_args']['D_rot_0']
+                if 'D_rot_0' in motile_args['rot_diff_args']:
+                    self.D_rot_0 = motile_args['rot_diff_args']['D_rot_0']
+                elif 'l_rot_0' in motile_args['rot_diff_args']:
+                    l_rot_0 = motile_args['rot_diff_args']['l_rot_0']
+                    self.D_rot_0 = self.v_0 / l_rot_0
+                else:
+                    raise Exception('Require either rotational diffusion coefficient or length')
                 if self.D_rot_0 < 0.0:
                     raise Exception('Require rotational diffusion constant >= 0')
                 if 'chemotaxis_flag' in motile_args['rot_diff_args']:
