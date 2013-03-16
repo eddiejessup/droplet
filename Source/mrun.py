@@ -127,7 +127,7 @@ def main():
                     elif system.dim == 3:
                         if system.particles_flag:
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
-                    fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t))
+                    fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t), dpi=300)
 
                     ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
                     ax_hist.set_xlim([0.0, 1.0])

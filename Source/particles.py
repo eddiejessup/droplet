@@ -243,7 +243,7 @@ class Particles(object):
         self.wrapping_number[i_wrap] += np.sign(self.r[i_wrap])
         self.r[i_wrap] -= np.sign(self.r[i_wrap]) * self.env.L
 
-        obstructs.obstruct(self, r_old)
+#        obstructs.obstruct(self, r_old)
 
     def vicsek(self):
         inters, intersi = cl_intro.get_inters(self.r, self.env.L, self.vicsek_R)
@@ -307,8 +307,14 @@ class Particles(object):
         self.v = utils.rot_diff(self.v, D_rot, self.env.dt)
 
     def collide(self):
-        inters, intersi = cl_intro.get_inters(self.r, self.env.L, self.collide_R)
-        particle_numerics.collide_inters(self.v, self.r, self.env.L, inters, intersi)
+        r_sep = self.r[:, np.newaxis] - self.r[np.newaxis, :]
+        R_sep_sq = utils.vector_mag_sq(r_sep)
+        print(R_sep_sq[R_sep_sq > 0.0].min() - self.collide_R ** 2)
+        particle_numerics.collide(self.v, r_sep, self.collide_R)
+#        inters, intersi = cl_intro.get_inters(self.r, self.env.L, self.collide_R)
+#        particle_numerics.collide_inters(self.v, r_sep, inters, intersi)
+
+#        particle_numerics.collide_inters(self.v, self.r, self.env.L, inters, intersi)
 
     def get_r_unwrapped(self):
         return self.r + self.env.L * self.wrapping_number
