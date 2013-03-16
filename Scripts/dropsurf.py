@@ -3,7 +3,7 @@
 import sys
 import numpy as np
 from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as pp
 import matplotlib.mlab as mlb
 
 data = mlb.csv2rec(sys.argv[1], delimiter=' ')
@@ -14,28 +14,29 @@ x=x[finites]
 y=y[finites]
 z=z[finites]
 
-gap = 10
+buff = 0.01
+npoints = 100
 
 dx = x.max() - x.min()
 dy = y.max() - y.min()
-xmin = x.min()-dx/gap
-xmax = x.max()+dx/gap
-ymin = y.min()-dy/gap
-ymax = y.max()+dy/gap
+xmin = x.min() - buff * dx
+xmax = x.max() + buff * dx
+ymin = y.min() - buff * dy
+ymax = y.max() + buff * dy
 
-xi = np.linspace(xmin, xmax, 100)
-yi = np.linspace(ymin, ymax, 100)
+xi = np.linspace(xmin, xmax, npoints)
+yi = np.linspace(ymin, ymax, npoints)
 
 # grid the data.
 zi = griddata((x, y), z, (xi[None,:], yi[:,None]), method='cubic')
 
 # contour the gridded data, plotting dots at the randomly spaced data points.
-CS = plt.contour(xi, yi, zi, 15, linewidths=0.5, colors='k')
-CS = plt.contourf(xi, yi, zi, 15, cmap=plt.cm.jet)
-plt.colorbar()
+CS = pp.contour(xi, yi, zi, 15, linewidths=0.5, colors='k')
+CS = pp.contourf(xi, yi, zi, 15, cmap=pp.cm.jet)
+pp.colorbar()
 
 # plot data points.
-plt.scatter(x, y, marker='o', c='b', s=5)
-plt.xlim(xmin, xmax)
-plt.ylim(ymin, ymax)
-plt.show()
+pp.scatter(x, y, marker='o', c='b', s=5)
+pp.xlim(xmin, xmax)
+pp.ylim(ymin, ymax)
+pp.show()
