@@ -315,6 +315,12 @@ class Particles(object):
 #        particle_numerics.collide_elastic(self.v, r_sep, self.collide_R)
 #        particle_numerics.collide_reflect_inters(self.v, r_sep, inters, intersi)
 
+#        c = np.any(np.logical_and(R_sep_sq > 0.0, R_sep_sq < (2.0 * self.collide_R) ** 2), axis=0)
+#        print(c[0])
+#        c2 = intersi > 0
+#        print(c.shape)
+#        print(np.sum(c), np.sum(c2))
+
         # Tumble
         collide = intersi > 0
         self.r[collide] = r_old[collide]
