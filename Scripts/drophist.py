@@ -6,25 +6,34 @@ import glob
 import yaml
 import numpy as np
 import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as pp
 import utils
 
-n_bins = 30
+n_bins = 15
 
 def r_plot(r, R, dirname):
+#    pp.close()
     fig = pp.figure()
-    ax = fig.add_subplot(111)
+    if r.shape[-1] == 2:
+        ax = fig.add_subplot(111)
+        R = max(R, 1e-3)
+        ax.add_collection(mpl.collections.PatchCollection([mpl.patches.Circle(r, radius=R, lw=0.0) for r in rs]))
+    elif r.shape[-1] == 3:
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(r[:, 0], r[:, 1], r[:, 2])
+#        ax.set_zticks([])
+        ax.set_zlim([-1.1, 1.1])
     ax.set_aspect('equal')
-    R = max(R, 1e-3)
-    ax.add_collection(mpl.collections.PatchCollection([mpl.patches.Circle(r, radius=R, lw=0.0) for r in rs]))
     ax.set_xlim([-1.1, 1.1])
     ax.set_ylim([-1.1, 1.1])
     fig.savefig('%s/r.png' % dirname, dpi=200)
+#    pp.show()
 
-def drop_plot(R, rho, R_drop, dirname):
+def drop_plot(R, rho, R_drop, dirname, rho_err=None):
     fig = pp.figure()
     ax = fig.add_subplot(111)
-    ax.bar(R[:-1], rho, width=(R[1]-R[0]))
+    ax.bar(R[:-1], rho, width=(R[1]-R[0]), yerr=rho_err)
     ax.set_xlim([0.0, R_drop])
     fig.savefig('%s/b.png' % dirname)
 
@@ -77,16 +86,25 @@ for dirname in sys.argv[1:]:
         else:
             r_c = R_drop * np.sqrt(vf / n)
 
+    print(utils.vector_mag(rs).min())
     f, R = np.histogram(utils.vector_mag(rs), bins=n_bins, range=[0.0, R_drop])
-    rho = f / (np.pi * (R[1:] ** 2 - R[:-1] ** 2))
+    print(R)
+    V = utils.sphere_volume(R, rs.shape[-1])
+    print(V)
+    dV = V[1:] - V[:-1]
+    print(dV)
+    rho = f / dV
+    print(f)
 
-    bulk_rho = n / (np.pi * R_drop ** 2)
+    rho_err = (1.0 / np.sqrt(f)) / dV
+
+    bulk_rho = n / utils.sphere_volume(R_drop, rs.shape[-1])
     acc = rho[-1] / bulk_rho
-    acc_err = (np.std(rho[:-1]) / bulk_rho) * acc
+#    acc_err = (np.std(rho[:-1]) / bulk_rho) * acc
+    acc_err = rho_err[-1] / bulk_rho
 
-#    print('%g %g %g %s %s' % (l_rot, vf, acc, os.path.splitext(os.path.basename(fname))[0], dirname))
     print('%g %g %g %g %s %s' % (l_rot, vf, acc, acc_err, os.path.splitext(os.path.basename(fname))[0], dirname))
 
     if plot_flag:
+        drop_plot(R, rho, R_drop, dirname, rho_err)
         r_plot(rs, r_c, dirname)
-        drop_plot(R, rho, R_drop, dirname)
