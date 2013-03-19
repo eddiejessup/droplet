@@ -76,7 +76,7 @@ def main():
             if system.attractant_flag:
                 c_plot = ax_box.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
         elif system.dim == 3:
-            ax_box = fig.add_subplot(111, projection='3d')
+            ax_box = fig_box.add_subplot(111, projection='3d')
             if system.particles_flag:
                 parts_plot = ax_box.scatter([], [], [])
             ax_box.set_zticks([])
