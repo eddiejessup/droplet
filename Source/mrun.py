@@ -26,6 +26,8 @@ parser.add_argument('-p', '--plot', default=False, action='store_true',
     help='plot system directly, default is false')
 parser.add_argument('-r', '--positions', default=False, action='store_true',
     help='output particle positions, default is false')
+parser.add_argument('-l', '--latest', default=False, action='store_true',
+    help='only keep output of latest system configuration, default is false')
 parser.add_argument('-s', '--silent', default=False, action='store_true',
     help='don''t print to stdout')
 parser.add_argument('--profile', default=False, action='store_true',
@@ -100,7 +102,10 @@ def main():
                 print('\tt:%010g i:%08i...' % (system.t, system.i), end='')
 
             if args.dir is not None:
-                if args.positions: np.save('%s/r/%010f' % (args.dir, system.t), system.p.r)
+                out_fname = 'latest' if args.latest else '%010f' % system.t
+
+                if args.positions:
+                    np.save('%s/r/%s' % (args.dir, out_fname), system.p.r)
 
                 n, r = np.histogram(utils.vector_mag(system.p.r), bins=15)
                 rho = n / (r[1:] ** 2 - r[:-1] ** 2)
@@ -127,11 +132,11 @@ def main():
                     elif system.dim == 3:
                         if system.particles_flag:
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
-                    fig_box.savefig('%s/plot/%010f.png' % (args.dir, system.t), dpi=300)
+                    fig_box.savefig('%s/plot/%s.png' % (args.dir, out_fname), dpi=300)
 
                     ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
                     ax_hist.set_xlim([0.0, 1.0])
-                    fig_hist.savefig('%s/hist/%010f.png' % (args.dir, system.t))
+                    fig_hist.savefig('%s/hist/%s.png' % (args.dir, out_fname))
                     ax_hist.cla()
             if not args.silent: print('done!')
         system.iterate()
