@@ -6,6 +6,7 @@ import glob
 import yaml
 import numpy as np
 import matplotlib as mpl
+mpl.use('Agg')
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as pp
 import utils
@@ -33,12 +34,12 @@ def r_plot(r, R, dirname):
 def drop_plot(R, rho, R_drop, dirname, rho_err=None):
     fig = pp.figure()
     ax = fig.add_subplot(111)
-    ax.bar(R[:-1], rho, width=(R[1]-R[0]), yerr=rho_err)
+    ax.bar(R[:-1], rho, width=(R[1]-R[0]), yerr=rho_err, color='red')
     ax.set_xlim([0.0, R_drop])
     fig.savefig('%s/b.png' % dirname)
 
 if '-h' in sys.argv:
-    print('l_rot vf acc acc_err t dir')
+    print('l_rot\tvf\tacc\tacc_err\tdiffs\tdir')
     sys.argv.remove('-h')
 
 if '-p' in sys.argv:
@@ -57,8 +58,9 @@ for dirname in sys.argv[1:]:
     rs = np.load(fname)
 
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
-    n = int(yaml_args['particle_args']['n'])
     R_drop = float(yaml_args['obstruction_args']['droplet_args']['R'])
+    n = int(yaml_args['particle_args']['n'])
+    v = int(yaml_args['particle_args']['motile_args']['v_0'])
     try:
         rot_diff_args = yaml_args['particle_args']['motile_args']['rot_diff_args']
     except KeyError:
@@ -86,24 +88,32 @@ for dirname in sys.argv[1:]:
         else:
             r_c = R_drop * np.sqrt(vf / n)
 
-    print(utils.vector_mag(rs).min())
+#    print(utils.vector_mag(rs).min())
     f, R = np.histogram(utils.vector_mag(rs), bins=n_bins, range=[0.0, R_drop])
-    print(R)
+#    print(R)
     V = utils.sphere_volume(R, rs.shape[-1])
-    print(V)
+#    print(V)
     dV = V[1:] - V[:-1]
-    print(dV)
+#    print(dV)
     rho = f / dV
-    print(f)
+#    print(f)
 
-    rho_err = (1.0 / np.sqrt(f)) / dV
+    rho_err_raw = np.zeros_like(rho)
+    rho_err_raw[f != 0.0, :] = (1.0 / np.sqrt(f[f != 0.0])) / dV[f != 0.0]
+    rho_err = np.zeros([2, len(rho_err_raw)])
+    rho_err[1, :] = rho_err_raw
+    rho_err[0, :] = np.minimum(rho_err_raw, rho)
 
     bulk_rho = n / utils.sphere_volume(R_drop, rs.shape[-1])
     acc = rho[-1] / bulk_rho
 #    acc_err = (np.std(rho[:-1]) / bulk_rho) * acc
-    acc_err = rho_err[-1] / bulk_rho
+    acc_err = np.mean(rho_err[:, -1]) / bulk_rho
 
-    print('%g %g %g %g %s %s' % (l_rot, vf, acc, acc_err, os.path.splitext(os.path.basename(fname))[0], dirname))
+    t_diff = (2 * R_drop ** 2 * rs.shape[-1]) / (l_rot * v)
+    t_diff /= 1.0 - vf
+    t = float(os.path.splitext(os.path.basename(fname))[0])
+
+    print('%g\t%g\t%g\t%.2g\t%.2g\t%s' % (l_rot, vf, acc, acc_err, t/t_diff, dirname))
 
     if plot_flag:
         drop_plot(R, rho, R_drop, dirname, rho_err)
