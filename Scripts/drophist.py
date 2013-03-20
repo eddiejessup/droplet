@@ -111,7 +111,7 @@ for dirname in sys.argv[1:]:
 
     t_diff = (2 * R_drop ** 2 * rs.shape[-1]) / (l_rot * v)
     t_diff /= 1.0 - vf
-    t = float(os.path.splitext(os.path.basename(fname))[0])
+    t = float(open('%s/log.csv' % dirname, 'r').readlines()[-1].split(' ')[0])
 
     print('%g\t%g\t%g\t%.2g\t%.2g\t%s' % (l_rot, vf, acc, acc_err, t/t_diff, dirname))
 
