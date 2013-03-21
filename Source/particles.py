@@ -33,14 +33,14 @@ class Particles(object):
 
         self.R_comm = 0.0
 
+        self.diff_flag = False
         if 'diff_args' in kwargs:
             self.diff_flag = True
             self.D = kwargs['diff_args']['D']
             if self.D < 0.0:
                 raise Exception('Require diffusion constant >= 0.0')
-        else:
-            self.diff_flag = False
 
+        self.collide_flag = False
         if 'collide_args' in kwargs:
             self.collide_flag = True
             if 'R' in kwargs['collide_args']:
@@ -54,9 +54,8 @@ class Particles(object):
                 print('Turning off collisions because radius is zero')
                 self.collide_flag = False
             self.R_comm = max(self.R_comm, self.collide_R)
-        else:
-            self.collide_flag = False
 
+        self.motile_flag = False
         if 'motile_args' in kwargs:
             self.motile_flag = True
             motile_args = kwargs['motile_args']
@@ -67,68 +66,39 @@ class Particles(object):
 
             self.v = utils.sphere_pick(self.env.dim, self.n) * self.v_0
 
+            self.vicsek_flag = False
             if 'vicsek_args' in motile_args:
                 self.vicsek_flag = True
                 self.vicsek_R = motile_args['vicsek_args']['R']
                 if self.vicsek_R < 0.0:
                     raise Exception('Require Vicsek radius >= 0')
                 self.R_comm = max(self.R_comm, self.vicsek_R)
-            else:
-                self.vicsek_flag = False
 
+            self.quorum_flag = False
             if 'quorum_args' in motile_args:
                 self.quorum_flag = True
                 self.quorum_R = motile_args['quorum_args']['R']
                 if self.quorum_R < 0.0:
                     raise Exception('Require Quorum sensing radius >= 0')
+                self.quorum_v_flag = False
                 if 'v_args' in motile_args['quorum_args']:
                     self.quorum_v_flag = True
                     self.quorum_v_sense = motile_args['quorum_args']['v_args']['sensitivity']
-                else:
-                    self.quorum_v_flag = False
-            else:
-                self.quorum_flag = False
 
-            if 'chemotaxis_args' in motile_args:
-                self.chemo_flag = True
-                self.chemo_onesided_flag = motile_args['chemotaxis_args']['onesided_flag']
-                if 'force_args' in motile_args['chemotaxis_args']:
-                    self.chemo_force_sense = motile_args['chemotaxis_args']['force_args']['sensitivity']
-                    self.chemo_force_flag = True
-                else:
-                    self.chemo_force_flag = False
-                    if 'grad_args' in motile_args['chemotaxis_args']:
-                        self.fitness_alg = self.fitness_alg_grad
-                        self.chemo_sense = motile_args['chemotaxis_args']['grad_args']['sensitivity']
-                    elif 'mem_args' in motile_args['chemotaxis_args']:
-                        self.fitness_alg = self.fitness_alg_mem
-                        self.chemo_sense = motile_args['chemotaxis_args']['mem_args']['sensitivity']
-                        self.t_mem = motile_args['chemotaxis_args']['mem_args']['t_mem']
-                        if self.t_mem < 0.0:
-                            raise Exception('Require particle memory >= 0')
-                        if (self.v_0 / self.p_0) / self.env.c.dx < 5:
-                            raise Exception('Chemotactic memory requires >= 5 lattice points per run')
-                        self.calculate_mem_kernel()
-                        self.c_mem = np.zeros([self.n, len(self.K_dt)], dtype=np.float)
-            else:
-                self.chemo_flag = False
-
+            self.tumble_flag = False
             if 'tumble_args' in motile_args:
                 self.tumble_flag = True
                 self.p_0 = motile_args['tumble_args']['p_0']
+                self.tumble_chemo_flag = False
+                if 'chemotaxis_flag' in motile_args['tumble_args']:
+                    self.tumble_chemo_flag = motile_args['tumble_args']['chemotaxis_flag']
+
                 if self.p_0 < 0.0:
                     raise Exception('Require base tumble rate >= 0')
                 if self.p_0 * self.env.dt > 0.1:
                     raise Exception('Time-step too large for p_0')
-                if 'chemotaxis_flag' in motile_args['tumble_args']:
-                    self.tumble_chemo_flag = motile_args['tumble_args']['chemotaxis_flag']
-                else:
-                    self.tumble_chemo_flag = False
-                if self.tumble_chemo_flag and self.fitness_alg == self.fitness_alg_mem and (self.v_0 / self.p_0) / self.env.c.dx < 5:
-                    raise Exception('Chemotactic memory requires >= 5 lattice points per run')
-            else:
-                self.tumble_flag = False
 
+            self.rot_diff_flag = False
             if 'rot_diff_args' in motile_args:
                 self.rot_diff_flag = True
                 if 'D_rot_0' in motile_args['rot_diff_args']:
@@ -138,26 +108,46 @@ class Particles(object):
                     self.D_rot_0 = self.v_0 / l_rot_0
                 else:
                     raise Exception('Require either rotational diffusion coefficient or length')
-                if self.D_rot_0 < 0.0:
-                    raise Exception('Require rotational diffusion constant >= 0')
+                self.rot_diff_chemo_flag = False
                 if 'chemotaxis_flag' in motile_args['rot_diff_args']:
                     self.rot_diff_chemo_flag = motile_args['rot_diff_args']['chemotaxis_flag']
-                else:
-                    self.rot_diff_chemo_flag = False
-                if self.rot_diff_chemo_flag and self.fitness_alg == self.fitness_alg_mem and (self.v_0 / self.D_rot_0) / self.env.c.dx < 5:
-                    raise Exception('Chemotactic memory requires >= 5 lattice points per rot diff time')
-            else:
-                self.rot_diff_flag = False
 
-        else:
-            self.motile_flag = False
+                if self.D_rot_0 < 0.0:
+                    raise Exception('Require rotational diffusion constant >= 0')
+                if self.D_rot_0 * self.env.dt > 0.1:
+                    raise Exception('Time-step too large for D_rot_0')
+
+            self.chemo_flag = False
+            if 'chemotaxis_args' in motile_args:
+                self.chemo_flag = True
+                self.chemo_onesided_flag = motile_args['chemotaxis_args']['onesided_flag']
+                self.chemo_force_flag = False
+                if 'force_args' in motile_args['chemotaxis_args']:
+                    self.chemo_force_sense = motile_args['chemotaxis_args']['force_args']['sensitivity']
+                    self.chemo_force_flag = True
+                elif 'grad_args' in motile_args['chemotaxis_args']:
+                    self.fitness_alg = self.fitness_alg_grad
+                    self.chemo_sense = motile_args['chemotaxis_args']['grad_args']['sensitivity']
+                elif 'mem_args' in motile_args['chemotaxis_args']:
+                    self.fitness_alg = self.fitness_alg_mem
+                    self.chemo_sense = motile_args['chemotaxis_args']['mem_args']['sensitivity']
+                    self.t_mem = motile_args['chemotaxis_args']['mem_args']['t_mem']
+
+                    if self.tumble_flag and self.tumble_chemo_flag: D_rot_0_eff = self.p_0
+                    elif self.rot_diff_flag and self.rot_diff_chemo_flag: D_rot_0_eff = self.D_rot_0
+                    if self.t_mem < 0.0:
+                        raise Exception('Require particle memory >= 0')
+#                    if (self.v_0 / D_rot_0_eff) / self.env.c.dx < 5:
+#                        raise Exception('Chemotactic memory requires >= 5 lattice points per rot diff time')
+                    self.calculate_mem_kernel(D_rot_0_eff)
+                    self.c_mem = np.zeros([self.n, len(self.K_dt)], dtype=np.float)
 
         self.potential_flag = False
         if self.motile_flag:
             if self.tumble_flag:
                 self.l_0 = self.v_0 / self.p_0
             elif self.rot_diff_flag:
-                self.l_0 = self.D_rot_0 * self.v_0
+                self.l_0 = self.v_0 / self.D_rot_0
             else:
                 self.l_0 = np.inf
         if self.potential_flag:
@@ -171,9 +161,9 @@ class Particles(object):
                 self.r_max = self.r_U * (self.v_0 / self.F_0)
             else:
                 raise Exception
-        else:
-            self.r_U = obstructs.obstructs[0].R
-            self.r_max = self.r_U
+#        else:
+#            self.r_U = obstructs.obstructs[0].R
+#            self.r_max = self.r_U
 
         if self.R_comm > obstructs.d:
             raise Exception('Cannot have inter-obstruction particle communication')
@@ -195,7 +185,7 @@ class Particles(object):
         self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
         self.r_0 = self.r.copy()
 
-    def calculate_mem_kernel(self):
+    def calculate_mem_kernel(self, D_rot_0):
         ''' Calculate memory kernel and multiply it by dt to make integration
         simpler and quicker.
         Model parameter, A=0.5 makes K's area zero, which makes rate
@@ -204,8 +194,8 @@ class Particles(object):
         # Normalisation constant, determined analytically, hands off!
         N = 1.0 / np.sqrt(0.8125 * A ** 2 - 0.75 * A + 0.5)
         t_s = np.arange(0.0, self.t_mem, self.env.dt, dtype=np.float)
-        g_s = self.p_0 * t_s
-        K = N * self.p_0 * np.exp(-g_s) * (1.0 - A * (g_s + (g_s ** 2) / 2.0))
+        g_s = D_rot_0 * t_s
+        K = N * D_rot_0 * np.exp(-g_s) * (1.0 - A * (g_s + (g_s ** 2) / 2.0))
         # Modify curve shape to make pseudo-integral exactly zero by scaling
         # negative bit of the curve. Introduces a gradient kink at K=0.
         K[K < 0.0] *= np.abs(K[K >= 0.0].sum() / K[K < 0.0].sum())
@@ -288,8 +278,12 @@ class Particles(object):
 #        if c is None: return np.zeros_like(self.v)
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-        if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
-            raise Exception('Unrealistic fitness')
+        print('Fitness mag max: %g mean: %g t: %g' % (np.max(np.abs(fitness)), np.mean(np.abs(fitness)), self.env.t))
+#        if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
+#            if self.env.t < 2.0 * self.t_mem:
+#                print('Warning: maximum fitness magnitude is %g (during quench)' % np.max(np.abs(fitness)))
+#            else:
+#                raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
         return fitness
 
     def tumble(self, c):
