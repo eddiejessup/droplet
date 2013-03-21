@@ -275,15 +275,11 @@ class Particles(object):
         return np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
 
     def fitness(self, c):
-#        if c is None: return np.zeros_like(self.v)
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-        print('Fitness mag max: %g mean: %g t: %g' % (np.max(np.abs(fitness)), np.mean(np.abs(fitness)), self.env.t))
-#        if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
-#            if self.env.t < 2.0 * self.t_mem:
-#                print('Warning: maximum fitness magnitude is %g (during quench)' % np.max(np.abs(fitness)))
-#            else:
-#                raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+        if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
+            if self.fitness_alg != self.fitness_alg_mem or self.env.t > self.t_mem:
+                raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
         return fitness
 
     def tumble(self, c):
