@@ -46,8 +46,6 @@ class System(object):
                 self.c = walled_fields.Secretion(self, attractant_args['dx'], self.obstructs, a_0=attractant_args['c_0'], **attractant_args['pde_args'])
             else:
                 self.c = walled_fields.Scalar(self, attractant_args['dx'], self.obstructs, a_0=attractant_args['c_0'])
-                rs = np.transpose(self.c.i_to_r(np.indices(self.c.a.shape)), (1, 2, 0))
-                self.c.a[:, :] = (rs[:, :, 0] / self.L) + 0.5
         else:
             self.attractant_flag = False
 
