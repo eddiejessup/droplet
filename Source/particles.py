@@ -185,6 +185,10 @@ class Particles(object):
         self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
         self.r_0 = self.r.copy()
 
+    def randomise_v(self, mask=None):
+        if mask is None: mask = np.ones_like(self.v, dtype=np.bool)
+        self.v[mask] = utils.sphere_pick(self.env.dim, mask.sum()) * utils.vector_mag(self.v[mask])[:, np.newaxis]
+
     def calculate_mem_kernel(self, D_rot_0):
         ''' Calculate memory kernel and multiply it by dt to make integration
         simpler and quicker.
@@ -286,8 +290,7 @@ class Particles(object):
         p = self.p_0
         if self.tumble_chemo_flag:
             p *= 1.0 - self.fitness(c)
-        tumble = np.random.uniform(size=self.n) < p * self.env.dt
-        self.v[tumble] = utils.sphere_pick(self.env.dim, tumble.sum()) * utils.vector_mag(self.v[tumble])[:, np.newaxis]
+        self.randomise_v(np.random.uniform(size=self.n) < p * self.env.dt)
 
     def rot_diff(self, c):
         D_rot = self.D_rot_0
@@ -312,9 +315,9 @@ class Particles(object):
 #        print(np.sum(c), np.sum(c2))
 
         # Tumble
-        collide = intersi > 0
-        self.r[collide] = r_old[collide]
-        self.v[collide] = utils.sphere_pick(self.env.dim, collide.sum()) * utils.vector_mag(self.v[collide])[:, np.newaxis]
+        collided = intersi > 0
+        self.r[collide] = r_old[collided]
+        self.randomise_v(collided)
 
     def get_r_unwrapped(self):
         return self.r + self.env.L * self.wrapping_number
