@@ -44,7 +44,6 @@ def main():
     if args.dir is not None:
         if not args.silent: print('Initialising output...')
         utils.makedirs_safe(args.dir)
-#        shutil.copy(args.f, '%s/params.yaml' % args.dir)
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
         log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
@@ -83,10 +82,6 @@ def main():
         ax_box.set_yticks([])
         ax_box.set_xlim(lims)
         ax_box.set_ylim(lims)
-
-        utils.makedirs_soft('%s/hist' % args.dir)
-        fig_hist = pp.figure()
-        ax_hist = fig_hist.gca()
         if not args.silent: print('done!\n')
 
     if not args.silent: print('Iterating system...')
