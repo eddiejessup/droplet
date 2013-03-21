@@ -1,6 +1,5 @@
 import numpy as np
 import utils
-import cl
 import fields
 import maze
 
@@ -165,6 +164,7 @@ class Droplet(Obstruction):
         super().__init__(env)
         self.R = R
         self.R_sq = R ** 2
+        self.d = self.env.L - 2.0 * self.R
 
         if self.R >= self.env.L_half:
             raise Exception('Require droplet diameter < system size')
@@ -238,7 +238,7 @@ class Walls(Obstruction, fields.Field):
 
 class Closed(Walls):
     def __init__(self, env, dx, d, closedness=None):
-        Walls.__init__(self, env, dx)
+        super().__init__(env, dx)
         self.d_i = int(d / dx) + 1
         self.d = self.d_i * self.dx
         if closedness is None:

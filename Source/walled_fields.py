@@ -4,7 +4,7 @@ import walled_field_numerics
 
 class Scalar(fields.Scalar):
     def __init__(self, env, dx, obstructs, a_0=0.0):
-        super().__init__(self, env, dx, a_0=a_0)
+        super().__init__(env, dx, a_0=a_0)
         # Make field zero-valued when obstructed
         self.of = obstructs.to_field(self.dx)
         self.a *= np.logical_not(self.of)
@@ -34,7 +34,7 @@ class Food(Diffusing):
             raise Exception('Require food sink rate >= 0')
 
     def iterate(self, density):
-        Diffusing.iterate(self)
+        super().iterate()
         self.a -= self.sink_rate * density * self.env.dt
         self.a = np.maximum(self.a, 0.0)
 
