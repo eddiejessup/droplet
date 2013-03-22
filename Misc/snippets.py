@@ -1,0 +1,1 @@
+drophist.py -h `find -type d | grep "/r" | sed s_/r__`
