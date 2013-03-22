@@ -44,14 +44,10 @@ def main():
     if args.dir is not None:
         if not args.silent: print('Initialising output...')
         utils.makedirs_safe(args.dir)
-#        shutil.copy(args.f, '%s/params.yaml' % args.dir)
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
         log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
 #        log_header.append('dstd')
-#        log_header.append('e')
-#        log_header.append('r_max')
-#        log_header.append('rho_max')
         log = csv.DictWriter(f_log, log_header, delimiter=' ', extrasaction='ignore')
         log.writeheader()
         log_data = {}
@@ -69,8 +65,6 @@ def main():
         fig_box = pp.figure()
         if system.dim == 2:
             ax_box = fig_box.add_subplot(111)
-#            cli = np.logical_not(system.obstructs.obstructs[0].cli > 0).T
-#            ax_box.imshow(np.ma.array(cli, mask=cli), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Greens_r')
             o = np.logical_not(system.obstructs.to_field(system.L / 1000.0).T)
             ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
             if system.particles_flag:
@@ -88,10 +82,6 @@ def main():
         ax_box.set_yticks([])
         ax_box.set_xlim(lims)
         ax_box.set_ylim(lims)
-
-        utils.makedirs_soft('%s/hist' % args.dir)
-        fig_hist = pp.figure()
-        ax_hist = fig_hist.gca()
         if not args.silent: print('done!\n')
 
     if not args.silent: print('Iterating system...')
@@ -106,13 +96,6 @@ def main():
 
                 if args.positions:
                     np.save('%s/r/%s' % (args.dir, out_fname), system.p.r)
-
-                n, r = np.histogram(utils.vector_mag(system.p.r), bins=15)
-                rho = n / (r[1:] ** 2 - r[:-1] ** 2)
-                r /= system.p.r_max
-                rho /= rho.mean()
-                log_data['r_max'] = r[rho.argmax()]
-                log_data['rho_max'] = rho.max()
 
                 log_data['t'] = system.t
                 log_data['D'], log_data['D_err'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
@@ -134,10 +117,6 @@ def main():
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
                     fig_box.savefig('%s/plot/%s.png' % (args.dir, out_fname), dpi=300)
 
-                    ax_hist.bar(r[:-1], rho, width=(r[1]-r[0]))
-                    ax_hist.set_xlim([0.0, 1.0])
-                    fig_hist.savefig('%s/hist/%s.png' % (args.dir, out_fname))
-                    ax_hist.cla()
             if not args.silent: print('done!')
         system.iterate()
     if not args.silent: print('Simulation done!\n')

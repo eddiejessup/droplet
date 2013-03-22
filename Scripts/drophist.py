@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
+import argparse
 import os
-import sys
 import glob
 import yaml
 import numpy as np
@@ -38,18 +38,21 @@ def drop_plot(R, rho, R_drop, dirname, rho_err=None):
     ax.set_xlim([0.0, R_drop])
     fig.savefig('%s/b.png' % dirname)
 
-if '-h' in sys.argv:
+parser = argparse.ArgumentParser(description='Analyse droplet distributions')
+parser.add_argument('dirs', nargs='*',
+    help='Directories')
+parser.add_argument('-t', '--header', default=False, action='store_true',
+    help='whether to output header, default is false')
+parser.add_argument('-p', '--plot', default=False, action='store_true',
+    help='whether to plot distribution, default is false')
+
+args = parser.parse_args()
+
+
+if args.header:
     print('l_rot\tvf\tacc\tacc_err\tdiffs\tdir')
-    sys.argv.remove('-h')
 
-if '-p' in sys.argv:
-    plot_flag = True
-    sys.argv.remove('-p')
-else:
-    plot_flag = False
-
-dirnames = glob.glob('%s/' % sys.argv[1:])
-for dirname in sys.argv[1:]:
+for dirname in args.dirs:
     if not os.path.isdir(dirname): continue
 
     r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
@@ -88,15 +91,10 @@ for dirname in sys.argv[1:]:
         else:
             r_c = R_drop * np.sqrt(vf / n)
 
-#    print(utils.vector_mag(rs).min())
     f, R = np.histogram(utils.vector_mag(rs), bins=n_bins, range=[0.0, R_drop])
-#    print(R)
     V = utils.sphere_volume(R, rs.shape[-1])
-#    print(V)
     dV = V[1:] - V[:-1]
-#    print(dV)
     rho = f / dV
-#    print(f)
 
     rho_err_raw = np.zeros_like(rho)
     rho_err_raw[f != 0.0, :] = (1.0 / np.sqrt(f[f != 0.0])) / dV[f != 0.0]
@@ -106,7 +104,6 @@ for dirname in sys.argv[1:]:
 
     bulk_rho = n / utils.sphere_volume(R_drop, rs.shape[-1])
     acc = rho[-1] / bulk_rho
-#    acc_err = (np.std(rho[:-1]) / bulk_rho) * acc
     acc_err = np.mean(rho_err[:, -1]) / bulk_rho
 
     t_diff = (2 * R_drop ** 2 * rs.shape[-1]) / (l_rot * v)
@@ -115,6 +112,6 @@ for dirname in sys.argv[1:]:
 
     print('%g\t%g\t%g\t%.2g\t%.2g\t%s' % (l_rot, vf, acc, acc_err, t/t_diff, dirname))
 
-    if plot_flag:
+    if args.plot:
         drop_plot(R, rho, R_drop, dirname, rho_err)
         r_plot(rs, r_c, dirname)

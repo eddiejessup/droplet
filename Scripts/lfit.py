@@ -1,16 +1,30 @@
 #! /usr/bin/python3
+import argparse
 import sys
 import numpy as np
 import matplotlib.mlab as mlb
 
-d = mlb.csv2rec(sys.argv[1], delimiter=' ')
+
+parser = argparse.ArgumentParser(description='Fit to some datapoints')
+parser.add_argument('f',
+    help='Datapoints file')
+parser.add_argument('field',
+    help='Name of field to use as y')
+parser.add_argument('-t', '--header', default=False, action='store_true',
+    help='whether to output header, default is false')
+parser.add_argument('-p', '--plot', default=False, action='store_true',
+    help='whether to plot distribution, default is false')
+parser.add_argument('-o', '--order', type=float, default=1,
+    help='order of polynomial to fit, default is 1, i.e. linear fit')
+args = parser.parse_args()
+
+d = mlb.csv2rec(args.f, delimiter=' ')
 x = d['x']
-field = sys.argv[2]
-y = d[field]
-y_err = d['%s_err' % field]
+y = d[args.field]
+y_err = d['%s_err' % args.field]
 
-p = np.poly1d(np.polyfit(x, y, 1, w=1.0/y_err**2))
+p = np.poly1d(np.polyfit(x, y, args.order, w=1.0/y_err**2))
 
-print('x %s %s_err %s_fit' % (field, field, field))
+print('x %s %s_err %s_fit' % (args.field, args.field, args.field))
 for x, y, y_err in zip(x, y, y_err):
     print(x, y, y_err, p(x))
