@@ -1,15 +1,18 @@
+from __future__ import print_function
 import numpy as np
 import utils
 import fields
 import maze
+import obstruction_numerics
 
 def factory(key, env, kwargs):
-    if key == 'closed_args': return Closed(env, **kwargs)
-    elif key == 'trap_args': return Traps(env, **kwargs)
-    elif key == 'maze_args': return Maze(env, **kwargs)
-    elif key == 'porous_args': return Porous(env, **kwargs)
-    elif key == 'droplet_args': return Droplet(env, **kwargs)
-    else: raise Exception('Unknown obstruction string')
+    keys = {'closed_args': Closed,
+            'trap_args': Traps,
+            'maze_args': Maze,
+            'porous_args': Porous,
+            'droplet_args': Droplet
+            }
+    return keys[key](env, **kwargs)
 
 class ObstructionContainer(object):
     def __init__(self, env):
@@ -72,7 +75,7 @@ class Porous(Obstruction):
     BUFFER_SIZE = 0.005
 
     def __init__(self, env, R, porosity, delta):
-        super().__init__(env)
+        super(Porous, self).__init__(env)
         rs = utils.sphere_pack(R / self.env.L, self.env.dim, 1.0 - porosity)
         self.r_c = np.array(rs) * self.env.L
         self.R_c = np.ones([self.r_c.shape[0]]) * R
@@ -121,38 +124,43 @@ class Porous(Obstruction):
             if utils.sphere_intersect(r, 0.0, self.r_c[m], self.R_c[m]): return True
         return False
 
-    def obstruct(self, particles, *args, **kwargs):
-        super().obstruct(particles, *args, **kwargs)
-        inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
-        cl_subs = self.cl[tuple(inds.T)]
-        cli_subs = self.cli[tuple(inds.T)]
-        v_mag = utils.vector_mag(particles.v)
-        for n in np.where(cli_subs > 0)[0]:
-            for m in cl_subs[n, :cli_subs[n]]:
-                r_rel = particles.r[n] - self.r_c[m]
-                r_rel_mag_sq = r_rel.dot(r_rel)
-                if r_rel_mag_sq < self.R_c_sq[m]:
-                    u_rel = r_rel / np.sqrt(r_rel_mag_sq)
+#    def obstruct(self, particles, *args, **kwargs):
+#        super().obstruct(particles, *args, **kwargs)
+#        inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
+#        cl_subs = self.cl[tuple(inds.T)]
+#        cli_subs = self.cli[tuple(inds.T)]
+#        v_mag = utils.vector_mag(particles.v)
+#        for n in np.where(cli_subs > 0)[0]:
+#            for m in cl_subs[n, :cli_subs[n]]:
+#                r_rel = particles.r[n] - self.r_c[m]
+#                r_rel_mag_sq = r_rel.dot(r_rel)
+#                if r_rel_mag_sq < self.R_c_sq[m]:
+#                    u_rel = r_rel / np.sqrt(r_rel_mag_sq)
 
-                    # Non-sticky
-                    particles.r[n] = self.r_c[m] + (1.0 + Porous.BUFFER_SIZE) * self.R_c[m] * u_rel
-                    if particles.motile_flag:
-                        # Specular
-#                        particles.v[n] = particles.v[n] - 2.0 * np.sum(particles.v[n] * u_rel) * u_rel
-                        # Aligning
-                        v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
-                        particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
-
-                    # Sticky (aligning)
+#                    # Non-sticky
+#                    particles.r[n] = self.r_c[m] + (1.0 + Porous.BUFFER_SIZE) * self.R_c[m] * u_rel
 #                    if particles.motile_flag:
-#                        R_c_mod = (1.0 - Porous.BUFFER_SIZE) * np.sqrt(self.R_c_sq[m] - (v_mag[n] * self.env.dt) ** 2)
-#                        particles.r[n] = self.r_c[m] + u_rel * R_c_mod
-#                        v_dot_u = np.sum(particles.v[n] * u_rel)
-#                        if np.arccos(v_dot_u / v_mag[n]) > self.threshold:
-#                            v_new = particles.v[n] - v_dot_u * u_rel
-#                            particles.v[n] = v_new * v_mag[n] / np.sqrt(np.sum(np.square(v_new)))
-#                    else:
-#                        particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
+#                        # Specular
+##                        particles.v[n] = particles.v[n] - 2.0 * np.sum(particles.v[n] * u_rel) * u_rel
+#                        # Aligning
+#                        v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
+#                        particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
+
+#                    # Sticky (aligning)
+##                    if particles.motile_flag:
+##                        R_c_mod = (1.0 - Porous.BUFFER_SIZE) * np.sqrt(self.R_c_sq[m] - (v_mag[n] * self.env.dt) ** 2)
+##                        particles.r[n] = self.r_c[m] + u_rel * R_c_mod
+##                        v_dot_u = np.sum(particles.v[n] * u_rel)
+##                        if np.arccos(v_dot_u / v_mag[n]) > self.threshold:
+##                            v_new = particles.v[n] - v_dot_u * u_rel
+##                            particles.v[n] = v_new * v_mag[n] / np.sqrt(np.sum(np.square(v_new)))
+##                    else:
+##                        particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
+
+    def obstruct(self, particles, *args, **kwargs):
+        super(Porous, self).obstruct(particles, *args, **kwargs)
+        inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
+        obstruction_numerics.obstruct(self.cl[tuple(inds.T)], self.cli[tuple(inds.T)], particles.r, particles.v, self.r_c, self.R_c)
 
     def get_A_obstructed(self):
         return (1.0 - self.porosity) * self.env.get_A()
@@ -161,7 +169,7 @@ class Droplet(Obstruction):
     BUFFER_SIZE = 0.995
 
     def __init__(self, env, R):
-        super().__init__(env)
+        super(Droplet, self).__init__(env)
         self.R = R
         self.R_sq = R ** 2
         self.d = self.env.L - 2.0 * self.R
@@ -183,7 +191,7 @@ class Droplet(Obstruction):
         return np.logical_not(utils.sphere_intersect(r, 0.0, 0.0, self.R))
 
     def obstruct(self, particles, *args, **kwargs):
-        super().obstruct(particles, *args, **kwargs)
+        super(Droplet, self).obstruct(particles, *args, **kwargs)
         for n in np.where(self.is_obstructed(particles.r))[0]:
             u_rel = -particles.r[n] / utils.vector_mag(particles.r[n])
             particles.r[n] = -Droplet.BUFFER_SIZE * u_rel * self.R
@@ -216,7 +224,7 @@ class Walls(Obstruction, fields.Field):
             raise NotImplementedError
 
     def obstruct(self, particles, r_old, *args, **kwargs):
-        super().obstruct(particles, r_old, *args, **kwargs)
+        super(Walls, self).obstruct(particles, r_old, *args, **kwargs)
         inds_old = self.r_to_i(r_old)
         inds_new = self.r_to_i(particles.r)
         dx_half = Walls.BUFFER_SIZE * (self.dx / 2.0)
@@ -238,7 +246,7 @@ class Walls(Obstruction, fields.Field):
 
 class Closed(Walls):
     def __init__(self, env, dx, d, closedness=None):
-        super().__init__(env, dx)
+        super(Closed, self).__init__(env, dx)
         self.d_i = int(d / dx) + 1
         self.d = self.d_i * self.dx
         if closedness is None:
@@ -257,7 +265,7 @@ class Closed(Walls):
 
 class Traps(Walls):
     def __init__(self, env, dx, n, d, w, s):
-        super().__init__(env, dx)
+        super(Traps, self).__init__(env, dx)
         self.n = n
         self.d_i = int(d / self.dx) + 1
         self.w_i = int(w / self.dx) + 1
@@ -319,7 +327,7 @@ class Traps(Walls):
 
 class Maze(Walls):
     def __init__(self, env, dx, d, seed=None):
-        super().__init__(env, dx)
+        super(Maze, self).__init__(env, dx)
         if self.env.L / self.dx % 1 != 0:
             raise Exception('Require L / dx to be an integer')
         if self.env.L / self.d % 1 != 0:
