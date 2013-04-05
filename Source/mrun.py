@@ -1,12 +1,12 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
+from __future__ import print_function
 import argparse
 import cProfile
 import pstats
 import csv
 import yaml
 import matplotlib as mpl
-mpl.use('Agg')
 import matplotlib.pyplot as pp
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -127,6 +127,6 @@ if args.profile:
     args.dir = None
     cProfile.run('main()', 'prof')
     p = pstats.Stats('prof')
-    p.strip_dirs().sort_stats('cum').print_callers(0.5)
+    p.strip_dirs().sort_stats('time').print_stats()
 else:
     main()
