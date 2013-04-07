@@ -196,9 +196,14 @@ class Droplet(Obstruction):
             u_rel = -particles.r[n] / utils.vector_mag(particles.r[n])
             particles.r[n] = -Droplet.BUFFER_SIZE * u_rel * self.R
             if particles.motile_flag:
+#                # Aligning
+#                v_dot_u = np.sum(particles.v[n] * u_rel)
+#                v_new = particles.v[n] - v_dot_u * u_rel
+#                particles.v[n] = v_new * np.sqrt(np.sum(np.square(particles.v[n])) / np.sum(np.square(v_new)))
+
+                # Reflecting
                 v_dot_u = np.sum(particles.v[n] * u_rel)
-                v_new = particles.v[n] - v_dot_u * u_rel
-                particles.v[n] = v_new * np.sqrt(np.sum(np.square(particles.v[n])) / np.sum(np.square(v_new)))
+                v_new = particles.v[n] - 2.0 - v_dot_u * u_rel
 
     def get_A_obstructed(self):
         return self.env.get_A() - utils.sphere_volume(self.R, self.env.dim)
