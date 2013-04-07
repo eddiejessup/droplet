@@ -1,4 +1,5 @@
-#! /usr/bin/python3
+#! /usr/bin/python
+
 import argparse
 import sys
 import numpy as np
