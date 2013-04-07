@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#! /usr/bin/python
 
 import argparse
 import os
@@ -13,7 +13,22 @@ import utils
 
 n_bins = 15
 
-def r_plot(r, R, dirname):
+def r_plot(rs, R, dirname):
+    f, R = np.histogram(utils.vector_mag(rs), bins=n_bins, range=[0.0, R])
+    V = utils.sphere_volume(R, rs.shape[-1])
+    dV = V[1:] - V[:-1]
+    rho = f / dV
+
+    rho_err_raw = np.zeros_like(rho)
+    rho_err_raw[f != 0.0, :] = (1.0 / np.sqrt(f[f != 0.0])) / dV[f != 0.0]
+    rho_err = np.zeros([2, len(rho_err_raw)])
+    rho_err[1, :] = rho_err_raw
+    rho_err[0, :] = np.minimum(rho_err_raw, rho)
+
+    bulk_rho = n / utils.sphere_volume(R, rs.shape[-1])
+    acc = rho[-1] / bulk_rho
+    acc_err = np.mean(rho_err[:, -1]) / bulk_rho
+
 #    pp.close()
     fig = pp.figure()
     if r.shape[-1] == 2:
@@ -48,9 +63,10 @@ parser.add_argument('-p', '--plot', default=False, action='store_true',
 
 args = parser.parse_args()
 
+if args.dirs == []: args.dirs = [f for f in os.listdir(os.curdir) if os.path.isdir(f)]
 
 if args.header:
-    print('l_rot\tvf\tacc\tacc_err\tdiffs\tdir')
+    print('D_rot\tvf\tacc\tdiffs\tdir')
 
 for dirname in args.dirs:
     if not os.path.isdir(dirname): continue
@@ -61,56 +77,56 @@ for dirname in args.dirs:
     rs = np.load(fname)
 
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
-    R_drop = float(yaml_args['obstruction_args']['droplet_args']['R'])
-    n = int(yaml_args['particle_args']['n'])
-    v = int(yaml_args['particle_args']['motile_args']['v_0'])
+    R_drop = yaml_args['obstruction_args']['droplet_args']['R']
+    n = yaml_args['particle_args']['n']
+    v = yaml_args['particle_args']['motile_args']['v_0']
+
+    D_rot_eff = 0.0
     try:
         rot_diff_args = yaml_args['particle_args']['motile_args']['rot_diff_args']
     except KeyError:
-        l_rot = np.inf
+        pass
     else:
         try:
-            l_rot = float(rot_diff_args['l_rot_0'])
+            D_rot_eff += rot_diff_args['D_rot_0']
         except KeyError:
-            D_rot = float(yaml_args['particle_args']['motile_args']['rot_diff_args']['D_rot_0'])
-            v = float(yaml_args['particle_args']['motile_args']['v_0'])
             try:
-                l_rot = v / D_rot
+                D_rot_eff += v / rot_diff_args['l_rot_0']
             except ZeroDivisionError:
-                l_rot = np.inf
+                D_rot_eff += np.inf
+    try:
+        tumble_args = yaml_args['particle_args']['motile_args']['tumble_args']
+    except KeyError:
+        pass
+    else:
+        D_rot_eff += tumble_args['p_0']
+
     try:
         collide_args = yaml_args['particle_args']['collide_args']
     except KeyError:
         vf = 0.0
     else:
         try:
-            vf = float(collide_args['vf'])
+            vf = collide_args['vf']
         except KeyError:
-            r_c = float(yaml_args['particle_args']['collide_args']['R'])
+            r_c = yaml_args['particle_args']['collide_args']['R']
             vf = n * (r_c / R_drop) ** 2
         else:
             r_c = R_drop * np.sqrt(vf / n)
 
-    f, R = np.histogram(utils.vector_mag(rs), bins=n_bins, range=[0.0, R_drop])
-    V = utils.sphere_volume(R, rs.shape[-1])
-    dV = V[1:] - V[:-1]
-    rho = f / dV
+    acc = np.mean(utils.vector_mag(rs)) / (R_drop * (float(rs.shape[-1]) / (float(rs.shape[-1]) + 1.0))) - 1.0
 
-    rho_err_raw = np.zeros_like(rho)
-    rho_err_raw[f != 0.0, :] = (1.0 / np.sqrt(f[f != 0.0])) / dV[f != 0.0]
-    rho_err = np.zeros([2, len(rho_err_raw)])
-    rho_err[1, :] = rho_err_raw
-    rho_err[0, :] = np.minimum(rho_err_raw, rho)
-
-    bulk_rho = n / utils.sphere_volume(R_drop, rs.shape[-1])
-    acc = rho[-1] / bulk_rho
-    acc_err = np.mean(rho_err[:, -1]) / bulk_rho
-
-    t_diff = (2 * R_drop ** 2 * rs.shape[-1]) / (l_rot * v)
+    try:
+        t_diff = (2 * R_drop ** 2 * rs.shape[-1]) / (v ** 2 / D_rot_eff)
+    except ZeroDivisionError:
+        t_diff = np.inf
     t_diff /= 1.0 - vf
     t = float(open('%s/log.csv' % dirname, 'r').readlines()[-1].split(' ')[0])
 
-    print('%g\t%g\t%g\t%.2g\t%.2g\t%s' % (l_rot, vf, acc, acc_err, t/t_diff, dirname))
+#    if args.verbose:
+#        print('%.3g\t%.2g\t%.2g\t%.2g\t%s' % (D_rot_eff, vf, acc, t/t_diff, dirname))
+#    else:
+    print('%g\t%g\t%g\t%g\t%s' % (D_rot_eff, vf, acc, t/t_diff, dirname))
 
     if args.plot:
         drop_plot(R, rho, R_drop, dirname, rho_err)
