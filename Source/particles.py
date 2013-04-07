@@ -76,6 +76,8 @@ class Particles(object):
                 motile_args = kwargs['motile_args']
                 self.v_0 = motile_args['v_0']
 
+                D_rot_0_eff = 0.0
+
                 self.vicsek_flag = False
                 if 'vicsek_args' in motile_args:
                     self.vicsek_flag = True
@@ -95,6 +97,7 @@ class Particles(object):
                 if 'tumble_args' in motile_args:
                     self.tumble_flag = True
                     self.p_0 = motile_args['tumble_args']['p_0']
+                    D_rot_0_eff += self.p_0
                     self.tumble_chemo_flag = False
                     if 'chemotaxis_flag' in motile_args['tumble_args']:
                         self.tumble_chemo_flag = motile_args['tumble_args']['chemotaxis_flag']
@@ -109,6 +112,7 @@ class Particles(object):
                     else:
                         l_rot_0 = motile_args['rot_diff_args']['l_rot_0']
                         self.D_rot_0 = self.v_0 / l_rot_0
+                    D_rot_0_eff += self.D_rot_0
                     self.rot_diff_chemo_flag = False
                     if 'chemotaxis_flag' in motile_args['rot_diff_args']:
                         self.rot_diff_chemo_flag = motile_args['rot_diff_args']['chemotaxis_flag']
@@ -131,8 +135,6 @@ class Particles(object):
                         self.chemo_sense = motile_args['chemotaxis_args']['mem_args']['sensitivity']
                         n_mem = motile_args['chemotaxis_args']['mem_args']['n_mem']
 
-                        if self.tumble_flag and self.tumble_chemo_flag: D_rot_0_eff = self.p_0
-                        elif self.rot_diff_flag and self.rot_diff_chemo_flag: D_rot_0_eff = self.D_rot_0
                         if (self.v_0 / D_rot_0_eff) / self.env.c.dx < 5:
                             raise Exception('Chemotactic memory requires >= 5 lattice points per rot diff time')
                         t_mem = n_mem / D_rot_0_eff
@@ -140,19 +142,12 @@ class Particles(object):
                         self.c_mem = np.zeros([self.n, len(self.K_dt)], dtype=np.float)
 
         def init_potential():
-            self.potential_flag = True
+            self.potential_flag = False
             if self.potential_flag:
                 r_0 = 1.0
                 U_0 = self.v_0
                 k = 100.0 / r_0
                 self.F = potentials.logistic_F(r_0, U_0, k)
-
-#                if self.F == forces.step:
-#                    self.r_max = r_0 + np.arctanh(np.sqrt(1.0 - self.v_0 / U_0)) / k
-#                elif self.F == self.F_ho:
-#                    self.r_max = r_0 * (self.v_0 / U_0)
-#                else:
-#                    raise Exception
 
         self.env = env
 
@@ -192,14 +187,12 @@ class Particles(object):
 
         def tumble():
             p = self.p_0
-            if self.tumble_chemo_flag:
-                p *= 1.0 - self.fitness(c)
+            if self.tumble_chemo_flag: p *= 1.0 - self.fitness(c)
             self.randomise_v(np.random.uniform(size=self.n) < p * self.env.dt)
 
         def rot_diff():
             D_rot = self.D_rot_0
-            if self.rot_diff_chemo_flag:
-                D_rot *= 1.0 - self.fitness(c)
+            if self.rot_diff_chemo_flag: D_rot *= 1.0 - self.fitness(c)
             self.v = utils.rot_diff(self.v, D_rot, self.env.dt)
 
         def collide():
@@ -258,7 +251,7 @@ class Particles(object):
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
         if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
-            if self.fitness_alg != self.fitness_alg_mem or self.env.t / self.D_rot_0 > 10:
+            if self.fitness_alg != self.fitness_alg_mem or self.env.t / self.t_mem > 10:
                 raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
         return fitness
 
