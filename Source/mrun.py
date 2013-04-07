@@ -101,7 +101,7 @@ def main():
                 log_data['D'], log_data['D_err'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
 #                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
                 v_drift, v_drift_err = utils.calc_v_drift(system.p.get_r_unwrapped(), system.p.r_0, system.t)
-                log_data['v_drift'], log_data['v_drift_err'] = v_drift[0] / system.p.v_0, v_drift_err[0] / system.p.v_0
+                log_data['v_drift'], log_data['v_drift_err'] = v_drift[0], v_drift_err[0]
                 log.writerow(log_data)
                 f_log.flush()
 
