@@ -62,7 +62,7 @@ args = parser.parse_args()
 if args.dirs == []: args.dirs = [f for f in os.listdir(os.curdir) if os.path.isdir(f)]
 
 if args.header:
-    print('D_rot\tvf\tacc\tacc_err\tdiffs\tdir')
+    print('D vf acc acc_err diffs dir')
 
 for dirname in args.dirs:
     if not os.path.isdir(dirname): continue
@@ -144,7 +144,7 @@ for dirname in args.dirs:
     except ZeroDivisionError:
         n_diff = np.inf
 
-    print('%g\t%g\t%g\t%g\t%g\t%s' % (D_eff, vf, acc, acc_err, n_diff, dirname))
+    print('%g %g %g %g %g %s' % (D_eff, vf, acc, acc_err, n_diff, dirname))
 
     if args.plot:
         drop_plot(rs, R_drop, dirname)
