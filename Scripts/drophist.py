@@ -13,6 +13,20 @@ import utils
 
 n_bins = 15
 
+def vf_to_r_wrong(vf, R, n, dim):
+    def sphere_radius_wrong(V, dim):
+        return np.sqrt(V / np.pi)
+    V = (vf * utils.sphere_volume(R, dim)) / n
+    return sphere_radius_wrong(V, dim)
+#    return np.sqrt(vf * utils.sphere_volume(R, dim) / (n * np.pi))
+
+def vf_to_r(vf, R, n, dim):
+    V = (vf * utils.sphere_volume(R, dim)) / n
+    return utils.sphere_radius(V, dim)
+
+def r_to_vf(r, R, n, dim):
+    return (n * utils.sphere_volume(r, dim)) / utils.sphere_volume(R, dim)
+
 def r_plot(rs, R, dirname):
 #    pp.close()
     fig = pp.figure()
@@ -56,6 +70,8 @@ parser.add_argument('-t', '--header', default=False, action='store_true',
     help='whether to output header, default is false')
 parser.add_argument('-p', '--plot', default=False, action='store_true',
     help='whether to plot distribution, default is false')
+parser.add_argument('--hack', default=False, action='store_true',
+    help='whether data was generated with incorrect vf func')
 
 args = parser.parse_args()
 
@@ -125,15 +141,25 @@ for dirname in args.dirs:
             vf = collide_args['vf']
         except KeyError:
             r_c = yaml_args['particle_args']['collide_args']['R']
-            vf = n * (r_c / R_drop) ** 2
+            vf = r_to_vf(r_c, R_drop, n, dim)
         else:
-            r_c = R_drop * np.sqrt(vf / n)
+            if args.hack:
+                r_c = vf_to_r_wrong(vf, R_drop, n, dim)
+                vf = r_to_vf(r_c, R_drop, n, dim)
+            else:
+                r_c = vf_to_r(vf, R_drop, n, dim)
+
+    rs_diff = utils.vector_mag(rs[:, np.newaxis, :] - rs[np.newaxis, :, :])
+    sep_min = np.min(rs_diff[rs_diff > 0.0])
+    if sep_min < 1.95 * r_c:
+        raise Exception('Collision algorithm not working %f %f' % (sep_min, 2.0*r_c))
 
     r_mags = utils.vector_mag(rs)
     acc = np.mean(r_mags / R_drop) - (rs.shape[-1] / (rs.shape[-1] + 1.0))
-    acc_err = np.std(r_mags) / (len(r_mags - 1))
+    acc_err = np.std(r_mags) / np.sqrt(len(r_mags) - 1)
 
     try:
+        # diffusion time is 'x ** 2 / (2 * D)' in 1D
         t_diff = (2 * R_drop ** 2 * rs.shape[-1]) / D_eff
     except ZeroDivisionError:
         t_diff = np.inf

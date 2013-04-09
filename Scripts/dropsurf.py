@@ -7,7 +7,7 @@ import matplotlib.pyplot as pp
 import matplotlib.mlab as mlb
 
 data = mlb.csv2rec(sys.argv[1], delimiter=' ')
-x, y, z = np.log(data['l_rot']), data['vf'], data['acc']
+x, y, z = np.log(data['D']), data['vf'], data['r']
 
 finites = np.isfinite(x)
 x=x[finites]
