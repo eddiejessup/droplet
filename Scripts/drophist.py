@@ -6,12 +6,13 @@ import glob
 import yaml
 import numpy as np
 import matplotlib as mpl
-mpl.use('Agg')
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as pp
 import utils
 
-n_bins = 15
+mpl.rc('font', family='serif', serif='STIXGeneral')
+
+n_bins = 20
 
 def vf_to_r_wrong(vf, R, n, dim):
     def sphere_radius_wrong(V, dim):
@@ -28,7 +29,6 @@ def r_to_vf(r, R, n, dim):
     return (n * utils.sphere_volume(r, dim)) / utils.sphere_volume(R, dim)
 
 def r_plot(rs, R, dirname):
-#    pp.close()
     fig = pp.figure()
     if rs.shape[-1] == 2:
         ax = fig.add_subplot(111)
@@ -37,13 +37,15 @@ def r_plot(rs, R, dirname):
     elif rs.shape[-1] == 3:
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(rs[:, 0], rs[:, 1], rs[:, 2])
-#        ax.set_zticks([])
-        ax.set_zlim([-1.1, 1.1])
+        ax.set_zticks([])
+        ax.set_zlim([-1.1*R, 1.1*R])
+
     ax.set_aspect('equal')
-    ax.set_xlim([-1.1, 1.1])
-    ax.set_ylim([-1.1, 1.1])
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_xlim([-1.1*R, 1.1*R])
+    ax.set_ylim([-1.1*R, 1.1*R])
     fig.savefig('%s/r.png' % dirname, dpi=200)
-#    pp.show()
 
 def drop_plot(rs, R, dirname):
     f, Rs = np.histogram(utils.vector_mag(rs), bins=n_bins, range=[0.0, R])
@@ -57,11 +59,15 @@ def drop_plot(rs, R, dirname):
     rho_err[1, :] = rho_err_raw
     rho_err[0, :] = np.minimum(rho_err_raw, rho)
 
+    rho_0 = rs.shape[0] / utils.sphere_volume(R, rs.shape[-1])
+
     fig = pp.figure()
     ax = fig.add_subplot(111)
-    ax.bar(Rs[:-1], rho, width=(Rs[1] - Rs[0]), yerr=rho_err, color='red')
-    ax.set_xlim([0.0, R])
-    fig.savefig('%s/b.png' % dirname)
+    ax.bar(Rs[:-1]/R, rho/rho_0, width=(Rs[1] - Rs[0])/R, yerr=rho_err/rho_0, color='red')
+    ax.set_xlim([0.0, 1.1])
+    ax.set_xlabel(r'$(r - r_0) / \mathrm{R}$', fontsize=20)
+    ax.set_ylabel(r'$\rho / \rho_0$', fontsize=20)
+    fig.savefig('%s/b.png' % dirname, bbox_inches='tight')
 
 parser = argparse.ArgumentParser(description='Analyse droplet distributions')
 parser.add_argument('dirs', nargs='*',
@@ -78,13 +84,17 @@ args = parser.parse_args()
 if args.dirs == []: args.dirs = [f for f in os.listdir(os.curdir) if os.path.isdir(f)]
 
 if args.header:
-    print('D vf acc acc_err diffs dir')
+    print('R vf acc acc_err diffs dir')
 
 for dirname in args.dirs:
     if not os.path.isdir(dirname): continue
 
     r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
-    fname = r_fnames[-1]
+    try:
+        fname = r_fnames[-1]
+    except IndexError:
+        print('System not initialized for %s' % dirname)
+        continue
 
     rs = np.load(fname)
 
@@ -151,12 +161,12 @@ for dirname in args.dirs:
 
     rs_diff = utils.vector_mag(rs[:, np.newaxis, :] - rs[np.newaxis, :, :])
     sep_min = np.min(rs_diff[rs_diff > 0.0])
-    if sep_min < 1.95 * r_c:
+    if sep_min < 1.9 * r_c:
         raise Exception('Collision algorithm not working %f %f' % (sep_min, 2.0*r_c))
 
     r_mags = utils.vector_mag(rs)
     acc = np.mean(r_mags / R_drop) - (rs.shape[-1] / (rs.shape[-1] + 1.0))
-    acc_err = np.std(r_mags) / np.sqrt(len(r_mags) - 1)
+    acc_err = np.std(r_mags / R_drop) / np.sqrt(len(r_mags) - 1)
 
     try:
         # diffusion time is 'x ** 2 / (2 * D)' in 1D
@@ -170,8 +180,9 @@ for dirname in args.dirs:
     except ZeroDivisionError:
         n_diff = np.inf
 
-    print('%g %g %g %g %g %s' % (D_eff, vf, acc, acc_err, n_diff, dirname))
+    if n_diff > 0.2:
+        print('%g %g %g %g %g %s' % (R_drop, vf, acc, acc_err, n_diff, dirname))
 
     if args.plot:
-        drop_plot(rs, R_drop, dirname)
-        r_plot(rs, r_c, dirname)
+        drop_plot(rs, R_drop+r_c, dirname)
+#        r_plot(rs, r_c, dirname)
