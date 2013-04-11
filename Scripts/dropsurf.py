@@ -3,40 +3,45 @@
 import sys
 import numpy as np
 from scipy.interpolate import griddata
+import matplotlib as mpl
 import matplotlib.pyplot as pp
 import matplotlib.mlab as mlb
+import matplotlib.ticker as tick
+
+mpl.rc('font', family='serif', serif='STIXGeneral')
 
 data = mlb.csv2rec(sys.argv[1], delimiter=' ')
-x, y, z = np.log(data['D']), data['vf'], data['r']
+x, y, z = data['vf'], data['r'], data['acc']
 
-finites = np.isfinite(x)
-x=x[finites]
-y=y[finites]
-z=z[finites]
-
-buff = 0.01
 npoints = 100
 
-dx = x.max() - x.min()
-dy = y.max() - y.min()
-xmin = x.min() - buff * dx
-xmax = x.max() + buff * dx
-ymin = y.min() - buff * dy
-ymax = y.max() + buff * dy
-
-xi = np.linspace(xmin, xmax, npoints)
-yi = np.linspace(ymin, ymax, npoints)
+z = np.maximum(z, 0.01)
 
 # grid the data.
-zi = griddata((x, y), z, (xi[None,:], yi[:,None]), method='cubic')
+xl, yl = np.log(x), np.log(y)
+xli = np.linspace(xl.min(), xl.max(), npoints)
+yli = np.linspace(yl.min(), yl.max(), npoints)
+zi = griddata((xl, yl), z, (xli[None,:], yli[:,None]), method='cubic')
+xi, yi = np.exp(xli), np.exp(yli)
 
 # contour the gridded data, plotting dots at the randomly spaced data points.
-CS = pp.contour(xi, yi, zi, 15, linewidths=0.5, colors='k')
-CS = pp.contourf(xi, yi, zi, 15, cmap=pp.cm.jet)
-pp.colorbar()
+fig = pp.figure()
+ax = fig.gca()
+ax.contour(xi, yi, zi, 5, linewidths=0.5, colors='k')
+contf = ax.contourf(xi, yi, zi, 5, cmap=pp.cm.gray)
+cb = fig.colorbar(contf)
+cb.set_label(r'$(r - r_0) / \mathrm{R}$', fontsize=20)
 
 # plot data points.
-pp.scatter(x, y, marker='o', c='b', s=5)
-pp.xlim(xmin, xmax)
-pp.ylim(ymin, ymax)
+dat = ax.scatter(x, y, marker='o', c='k', s=5)
+
+prox = pp.Rectangle((0,0), 1, 1, fc=contf.collections[0].get_facecolor()[0])
+
+ax.legend((dat, prox), ('Datapoints', 'Interpolation'))
+ax.set_xscale('log')
+ax.set_yscale('log', basey=2)
+ax.set_xlim(x.min(), x.max())
+ax.set_ylim(y.min(), y.max())
+ax.set_xlabel(r'$\mathrm{V_p} / \mathrm{V_d}$', fontsize=20)
+ax.set_ylabel(r'$R$', fontsize=20)
 pp.show()
