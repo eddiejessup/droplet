@@ -98,7 +98,8 @@ def main():
                     np.save('%s/r/%s' % (args.dir, out_fname), system.p.r)
 
                 log_data['t'] = system.t
-                log_data['D'], log_data['D_err'] = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
+                D, D_err = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
+                log_data['D'], log_data['D_err'] = np.mean(D), np.sqrt(np.sum(np.square(D_err)))
 #                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
                 v_drift, v_drift_err = utils.calc_v_drift(system.p.get_r_unwrapped(), system.p.r_0, system.t)
                 log_data['v_drift'], log_data['v_drift_err'] = v_drift[0], v_drift_err[0]
