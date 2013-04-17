@@ -12,177 +12,109 @@ import utils
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 
-n_bins = 20
-
-def vf_to_r_wrong(vf, R, n, dim):
-    def sphere_radius_wrong(V, dim):
-        return np.sqrt(V / np.pi)
-    V = (vf * utils.sphere_volume(R, dim)) / n
-    return sphere_radius_wrong(V, dim)
-#    return np.sqrt(vf * utils.sphere_volume(R, dim) / (n * np.pi))
-
-def vf_to_r(vf, R, n, dim):
-    V = (vf * utils.sphere_volume(R, dim)) / n
-    return utils.sphere_radius(V, dim)
-
-def r_to_vf(r, R, n, dim):
-    return (n * utils.sphere_volume(r, dim)) / utils.sphere_volume(R, dim)
-
-def r_plot(rs, R, dirname):
-    fig = pp.figure()
-    if rs.shape[-1] == 2:
-        ax = fig.add_subplot(111)
-        R = max(R, 1e-3)
-        ax.add_collection(mpl.collections.PatchCollection([mpl.patches.Circle(r, radius=R, lw=0.0) for r in rs]))
-    elif rs.shape[-1] == 3:
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(rs[:, 0], rs[:, 1], rs[:, 2])
-        ax.set_zticks([])
-        ax.set_zlim([-1.1*R, 1.1*R])
-
-    ax.set_aspect('equal')
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xlim([-1.1*R, 1.1*R])
-    ax.set_ylim([-1.1*R, 1.1*R])
-    fig.savefig('%s/r.png' % dirname, dpi=200)
-
-def drop_plot(rs, R, dirname):
-    f, Rs = np.histogram(utils.vector_mag(rs), bins=n_bins, range=[0.0, R])
-    V = utils.sphere_volume(Rs, rs.shape[-1])
-    dV = V[1:] - V[:-1]
+def histo(rs, dim, R_drop, norm=False, bins=100):
+    f, R_edges = np.histogram(rs, bins=bins, range=[0.0, 1.2 * R_drop])
+    V_edges = utils.sphere_volume(R_edges, dim)
+    dV = V_edges[1:] - V_edges[:-1]
     rho = f / dV
+    rho_err = np.where(f > 0, np.sqrt(f) / dV, 0.0)
+    R = 0.5 * (R_edges[:-1] + R_edges[1:])
 
-    rho_err_raw = np.zeros_like(rho)
-    rho_err_raw[f != 0.0, :] = (1.0 / np.sqrt(f[f != 0.0])) / dV[f != 0.0]
-    rho_err = np.zeros([2, len(rho_err_raw)])
-    rho_err[1, :] = rho_err_raw
-    rho_err[0, :] = np.minimum(rho_err_raw, rho)
+    if norm:
+        dR = R_edges[1] - R_edges[0]
+        rho_area = rho.sum() * dR
+        rho /= rho_area
+        rho_err /= rho_area
+    else:
+        rho_0 = len(rs) / utils.sphere_volume(R_drop, dim)
+        rho /= rho_0
+        rho_err /= rho_0
+    return R, rho, rho_err
 
-    rho_0 = rs.shape[0] / utils.sphere_volume(R, rs.shape[-1])
-
+def collate(dirs, bins=100, norm=False, mean=False):
     fig = pp.figure()
-    ax = fig.add_subplot(111)
-    ax.bar(Rs[:-1]/R, rho/rho_0, width=(Rs[1] - Rs[0])/R, yerr=rho_err/rho_0, color='red')
-    ax.set_xlim([0.0, 1.1])
-    ax.set_xlabel(r'$(r - r_0) / \mathrm{R}$', fontsize=20)
-    ax.set_ylabel(r'$\rho / \rho_0$', fontsize=20)
-    fig.savefig('%s/b.png' % dirname, bbox_inches='tight')
+    ax = fig.gca()
 
-parser = argparse.ArgumentParser(description='Analyse droplet distributions')
-parser.add_argument('dirs', nargs='*',
-    help='Directories')
-parser.add_argument('-t', '--header', default=False, action='store_true',
-    help='whether to output header, default is false')
-parser.add_argument('-p', '--plot', default=False, action='store_true',
-    help='whether to plot distribution, default is false')
-parser.add_argument('--hack', default=False, action='store_true',
-    help='whether data was generated with incorrect vf func')
+    sets, set_params = [], []
+    for dir in dirs:
+        rs, dim, R_drop, vf = parse_dir(dir)
+        R, rho, rho_err = histo(rs, dim, R_drop, norm, bins)
+        sets.append((R, rho, rho_err))
+        set_params.append((R_drop, vf))
+    sets = np.array(sets)
+    set_params = np.array(set_params)
 
-args = parser.parse_args()
+    if mean:
+        set_mean = np.zeros_like(sets[0])
+        set_mean[:2] = sets[:, :2].mean(axis=0)
+        set_mean[2] = np.sqrt(np.sum(np.square(sets[:, 2]), axis=0)) / len(sets)
+        sets = set_mean[np.newaxis, ...]
 
-if args.dirs == []: args.dirs = [f for f in os.listdir(os.curdir) if os.path.isdir(f)]
+        params_mean = set_params.mean(axis=0)
+        set_params = params_mean[np.newaxis, ...]
 
-if args.header:
-    print('R vf acc acc_err diffs dir')
+    for set, param in zip(sets, set_params):
+        R, rho, rho_err = set
+        R_drop, vf = param
+        ax.errorbar(R / R_drop, rho, yerr=rho_err, label='%g, %g' % (R_drop, 100.0 * vf), marker=None, lw=3)
 
-for dirname in args.dirs:
-    if not os.path.isdir(dirname): continue
+    leg = ax.legend(loc='upper left', fontsize=16)
+    leg.set_title(r'Droplet radius ($\mu\mathrm{m}$), Volume fraction (%)', prop={'size': 18})
+    ax.set_ylim([0.0, None])
+    ax.set_xlabel(r'$r / \mathrm{R}$', fontsize=20)
+    if norm: ax.set_ylabel(r'$\frac{\rho(r)}{\, \sum{\rho(r)}}$', fontsize=24)
+    else: ax.set_ylabel(r'$\rho(r) \, / \, \rho_0$', fontsize=20)
+    pp.show()
 
+def parse_dir(dirname):
     r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
     try:
         fname = r_fnames[-1]
     except IndexError:
-        print('System not initialized for %s' % dirname)
-        continue
+        raise Exception('System not initialized for %s' % dirname)
 
     rs = np.load(fname)
+    n = len(rs)
 
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
     dim = yaml_args['dim']
     R_drop = yaml_args['obstruction_args']['droplet_args']['R']
-    particle_args = yaml_args['particle_args']
-    n = particle_args['n']
-
-    D_eff = 0.0
-    try:
-        diff_args = yaml_args['particle_args']['diff_args']
-    except KeyError:
-        pass
-    else:
-        D_eff += diff_args['D']
-    try:
-        motile_args = particle_args['motile_args']
-    except KeyError:
-        pass
-    else:
-        v = motile_args['v_0']
-        D_rot_eff = 0.0
-        try:
-            rot_diff_args = motile_args['rot_diff_args']
-        except KeyError:
-            pass
-        else:
-            try:
-                D_rot_eff += rot_diff_args['D_rot_0']
-            except KeyError:
-                try:
-                    D_rot_eff += v / rot_diff_args['l_rot_0']
-                except ZeroDivisionError:
-                    D_rot_eff += np.inf
-        try:
-            tumble_args = motile_args['tumble_args']
-        except KeyError:
-            pass
-        else:
-            D_rot_eff += tumble_args['p_0']
-        try:
-            D_eff += v ** 2 / D_rot_eff
-        except ZeroDivisionError:
-            D_eff += np.inf
-    D_eff /= dim
 
     try:
         collide_args = yaml_args['particle_args']['collide_args']
     except KeyError:
-        vf = 0.0
+        r_c = 0.0
     else:
         try:
             vf = collide_args['vf']
         except KeyError:
             r_c = yaml_args['particle_args']['collide_args']['R']
-            vf = r_to_vf(r_c, R_drop, n, dim)
         else:
-            if args.hack:
-                r_c = vf_to_r_wrong(vf, R_drop, n, dim)
-                vf = r_to_vf(r_c, R_drop, n, dim)
-            else:
-                r_c = vf_to_r(vf, R_drop, n, dim)
+            V = (vf * utils.sphere_volume(R_drop, dim)) / n
+            r_c = utils.sphere_radius(V, dim)
+    vf = (n * utils.sphere_volume(r_c, dim)) / utils.sphere_volume(R_drop, dim)
 
-    rs_diff = utils.vector_mag(rs[:, np.newaxis, :] - rs[np.newaxis, :, :])
-    sep_min = np.min(rs_diff[rs_diff > 0.0])
-    if sep_min < 1.9 * r_c:
-        raise Exception('Collision algorithm not working %f %f' % (sep_min, 2.0*r_c))
+    if rs.ndim == 2:
+        rs_diff = utils.vector_mag(rs[:, np.newaxis, :] - rs[np.newaxis, :, :])
+        sep_min = np.min(rs_diff[rs_diff > 0.0])
+        if sep_min < 1.9 * r_c:
+            raise Exception('Collision algorithm not working %f %f' % (sep_min, 2.0*r_c))
+        rs = utils.vector_mag(rs)
+    return rs, dim, R_drop, vf
 
-    r_mags = utils.vector_mag(rs)
-    acc = np.mean(r_mags / R_drop) - (rs.shape[-1] / (rs.shape[-1] + 1.0))
-    acc_err = np.std(r_mags / R_drop) / np.sqrt(len(r_mags) - 1)
+parser = argparse.ArgumentParser(description='Analyse droplet distributions')
+parser.add_argument('dirs', nargs='*',
+    help='Directories')
+parser.add_argument('-b', '--bins', type=int, default=30,
+    help='Number of bins to use')
+parser.add_argument('-n', '--norm', default=False, action='store_true',
+    help='Whether to normalise plots to have the same area')
+parser.add_argument('-m', '--mean', default=False, action='store_true',
+    help='Whether to take the mean of all data sets')
 
-    try:
-        # diffusion time is 'x ** 2 / (2 * D)' in 1D
-        t_diff = (2 * R_drop ** 2 * rs.shape[-1]) / D_eff
-    except ZeroDivisionError:
-        t_diff = np.inf
-    t_diff /= 1.0 - vf
-    t = float(open('%s/log.csv' % dirname, 'r').readlines()[-1].split(' ')[0])
-    try:
-        n_diff = t / t_diff
-    except ZeroDivisionError:
-        n_diff = np.inf
+args = parser.parse_args()
 
-    if n_diff > 0.2:
-        print('%g %g %g %g %g %s' % (R_drop, vf, acc, acc_err, n_diff, dirname))
+if args.dirs == []: args.dirs = os.listdir(os.curdir)
+args.dirs = [f for f in args.dirs if os.path.isdir(f)]
 
-    if args.plot:
-        drop_plot(rs, R_drop+r_c, dirname)
-#        r_plot(rs, r_c, dirname)
+collate(args.dirs, args.bins, args.norm, args.mean)
