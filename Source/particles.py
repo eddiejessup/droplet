@@ -6,19 +6,6 @@ from cell_list import intro as cl_intro
 import particle_numerics
 import potentials
 
-def check_v(func):
-    def wrapper(self, *args):
-        func(self, *args)
-        assert np.allclose(utils.vector_mag(self.v), self.v_0)
-    return wrapper
-
-def check_D_rot(func):
-    def wrapper(self):
-        v_old = self.v.copy()
-        func(self)
-        assert np.allclose(utils.calc_D_rot(v_old, self.v, self.env.dt), self.D_rot)
-    return wrapper
-
 def get_mem_kernel(t_mem, dt, D_rot_0):
     ''' Calculate memory kernel.
     Model parameter, A=0.5 makes K's area zero, which makes rate
@@ -37,19 +24,6 @@ def get_mem_kernel(t_mem, dt, D_rot_0):
 
 class Particles(object):
     def __init__(self, env, obstructs, n=None, density=None, **kwargs):
-        def initialise_r():
-            self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
-    #        self.r = utils.disk_pick(self.n) * self.r_max
-            for i in range(self.n):
-                while True:
-                    self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
-                    if obstructs.is_obstructed(self.r[i]): continue
-                    if self.collide_flag and i > 0:
-                        if np.min(utils.vector_mag_sq(self.r[i] - self.r[:i])) < (2.0 * self.collide_R) ** 2: continue
-                    break
-            # Count number of times wrapped around and initial positions for displacement calculations
-            self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
-            self.r_0 = self.r.copy()
 
         def parse_args():
             self.diff_flag = False
@@ -141,6 +115,20 @@ class Particles(object):
                         t_mem = n_mem / D_rot_0_eff
                         self.K_dt = calculate_mem_kernel(t_mem, self.env.dt, D_rot_0_eff)
                         self.c_mem = np.zeros([self.n, len(self.K_dt)], dtype=np.float)
+
+        def initialise_r():
+            self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
+    #        self.r = utils.disk_pick(self.n) * self.r_max
+            for i in range(self.n):
+                while True:
+                    self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
+                    if obstructs.is_obstructed(self.r[i]): continue
+                    if self.collide_flag and i > 0:
+                        if np.min(utils.vector_mag_sq(self.r[i] - self.r[:i])) < (2.0 * self.collide_R) ** 2: continue
+                    break
+            # Count number of times wrapped around and initial positions for displacement calculations
+            self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
+            self.r_0 = self.r.copy()
 
         def init_potential():
             self.potential_flag = False
