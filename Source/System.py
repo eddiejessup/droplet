@@ -44,9 +44,9 @@ class System(object):
             self.attractant_flag = True
             attractant_args = kwargs['attractant_args']
             if 'pde_args' in attractant_args:
-                self.c = walled_fields.Secretion(self, attractant_args['dx'], self.obstructs, a_0=attractant_args['c_0'], **attractant_args['pde_args'])
+                self.c = walled_fields.Secretion(self, attractant_args['dx'], self.obstructs, c_0=attractant_args['c_0'], **attractant_args['pde_args'])
             else:
-                self.c = walled_fields.Scalar(self, attractant_args['dx'], self.obstructs, a_0=attractant_args['c_0'])
+                self.c = walled_fields.Scalar(self, attractant_args['dx'], self.obstructs, c_0=attractant_args['c_0'])
         else:
             self.attractant_flag = False
 

@@ -65,7 +65,9 @@ def main():
         fig_box = pp.figure()
         if system.dim == 2:
             ax_box = fig_box.add_subplot(111)
-            o = np.logical_not(system.obstructs.to_field(system.L / 1000.0).T)
+#            dx = system.L / 1000.0
+            dx = system.obstructs.obstructs[0].dx
+            o = np.logical_not(system.obstructs.to_field(dx).T)
             ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
             if system.particles_flag:
                 parts_plot = ax_box.scatter([], [], s=1.0, c='k')
@@ -122,7 +124,7 @@ def main():
         system.iterate()
     if not args.silent: print('Simulation done!\n')
 
-if not args.silent: print('\n' + 5*'*' + ' Bannock simulation ' + 5*'*' + '\n')
+
 if args.profile:
     args.silent = True
     args.dir = None
@@ -130,4 +132,5 @@ if args.profile:
     p = pstats.Stats('prof')
     p.strip_dirs().sort_stats('time').print_stats()
 else:
+    if not args.silent: print('\n' + 5*'*' + ' Bannock simulation ' + 5*'*' + '\n')
     main()

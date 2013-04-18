@@ -5,7 +5,8 @@ import walled_field_numerics
 
 class Scalar(fields.Scalar):
     def __init__(self, env, dx, obstructs, a_0=0.0):
-        super(Scalar, self).__init__(env, dx, a_0=a_0)
+#        super(Scalar, self).__init__(env, dx, a_0=a_0)
+        fields.Scalar.__init__(self, env, dx, a_0=a_0)
         # Make field zero-valued when obstructed
         self.of = obstructs.to_field(self.dx)
         self.a *= np.logical_not(self.of)
@@ -27,8 +28,8 @@ class Diffusing(Scalar, fields.Diffusing):
         Scalar.__init__(self, env, dx, obstructs, a_0=a_0)
 
 class Food(Diffusing):
-    def __init__(self, env, dx, obstructs, D, sink_rate, a_0=0.0):
-        super(Food, self).__init__(env, dx, obstructs, D, a_0=a_0)
+    def __init__(self, env, dx, obstructs, D, sink_rate, f_0=0.0):
+        super(Food, self).__init__(env, dx, obstructs, D, a_0=f_0)
         self.sink_rate = sink_rate
 
         if self.sink_rate < 0.0:
@@ -40,8 +41,8 @@ class Food(Diffusing):
         self.a = np.maximum(self.a, 0.0)
 
 class Secretion(Diffusing):
-    def __init__(self, env, dx, obstructs, D, sink_rate, source_rate, a_0=0.0):
-        super(Secretion, self).__init__(env, dx, obstructs, D, a_0=a_0)
+    def __init__(self, env, dx, obstructs, D, sink_rate, source_rate, c_0=0.0):
+        super(Secretion, self).__init__(env, dx, obstructs, D, a_0=c_0)
         self.source_rate = source_rate
         self.sink_rate = sink_rate
 
