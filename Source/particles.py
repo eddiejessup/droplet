@@ -23,9 +23,11 @@ def get_mem_kernel(t_mem, dt, D_rot_0):
     return K
 
 class Particles(object):
-    def __init__(self, env, obstructs, n=None, density=None, **kwargs):
+    def __init__(self, env, obstructs=None, n=None, density=None, **kwargs):
 
         def parse_args():
+            self.R_comm = 0.0
+
             self.diff_flag = False
             if 'diff_args' in kwargs:
                 self.diff_flag = True
@@ -100,8 +102,8 @@ class Particles(object):
                     self.chemo_onesided_flag = motile_args['chemotaxis_args']['onesided_flag']
                     self.chemo_force_flag = False
                     if 'force_args' in motile_args['chemotaxis_args']:
-                        self.chemo_force_sense = motile_args['chemotaxis_args']['force_args']['sensitivity']
                         self.chemo_force_flag = True
+                        self.chemo_force_sense = motile_args['chemotaxis_args']['force_args']['sensitivity']
                     elif 'grad_args' in motile_args['chemotaxis_args']:
                         self.fitness_alg = self.fitness_alg_grad
                         self.chemo_sense = motile_args['chemotaxis_args']['grad_args']['sensitivity']
@@ -115,6 +117,9 @@ class Particles(object):
                         t_mem = n_mem / D_rot_0_eff
                         self.K_dt = calculate_mem_kernel(t_mem, self.env.dt, D_rot_0_eff)
                         self.c_mem = np.zeros([self.n, len(self.K_dt)], dtype=np.float)
+
+            if self.R_comm > obstructs.d:
+                raise Exception('Cannot have inter-obstruction particle communication')
 
         def initialise_r():
             self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
@@ -130,7 +135,10 @@ class Particles(object):
             self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
             self.r_0 = self.r.copy()
 
-        def init_potential():
+        def initialise_v():
+            self.v = utils.sphere_pick(self.env.dim, self.n) * self.v_0
+
+        def initialise_potential():
             self.potential_flag = False
             if self.potential_flag:
                 r_0 = 1.0
@@ -139,19 +147,14 @@ class Particles(object):
                 self.F = potentials.logistic_F(r_0, U_0, k)
 
         self.env = env
-
         if n is not None: self.n = n
         else: self.n = int(round(obstructs.get_A_free() * density))
-
-        self.R_comm = 0.0
         parse_args()
-        if self.motile_flag: self.v = utils.sphere_pick(self.env.dim, self.n) * self.v_0
-        init_potential()
+        if self.motile_flag: initialise_v()
+        initialise_potential()
         initialise_r()
-        if self.R_comm > obstructs.d:
-            raise Exception('Cannot have inter-obstruction particle communication')
 
-    def iterate(self, obstructs, c=None):
+    def iterate(self, obstructs=None, c=None):
         def vicsek():
             inters, intersi = cl_intro.get_inters(self.r, self.env.L, self.vicsek_R)
             self.v = particle_numerics.vicsek_inters(self.v, inters, intersi)
@@ -163,10 +166,10 @@ class Particles(object):
 
         def chemo_force():
             v_mags = utils.vector_mag(self.v)
-    #        grad_c_i = c.get_grad_i(self.r)
-            grad_c_i = np.empty_like(self.r)
-            grad_c_i[:, 0] = 1.0
-            grad_c_i[:, 1] = 0.0
+            grad_c_i = c.get_grad_i(self.r)
+#            grad_c_i = np.empty_like(self.r)
+#            grad_c_i[:, 0] = 1.0
+#            grad_c_i[:, 1] = 0.0
             if self.chemo_onesided_flag:
                 i_forced = np.where(np.sum(self.v * grad_c_i, -1) > 0.0)[0]
             else:
@@ -212,7 +215,7 @@ class Particles(object):
         self.wrapping_number[i_wrap] += np.sign(self.r[i_wrap])
         self.r[i_wrap] -= np.sign(self.r[i_wrap]) * self.env.L
 
-        obstructs.obstruct(self, r_old)
+        if obstructs is not None: obstructs.obstruct(self, r_old)
 
         if self.collide_flag: collide()
 
@@ -223,25 +226,26 @@ class Particles(object):
     def fitness_alg_grad(self, c):
         ''' Calculate unit(v) dot grad(c).
         'i' suffix indicates it's an array of vectors, not a field. '''
-#        grad_c_i = c.get_grad_i(self.r)
-        grad_c_i = np.empty_like(self.v)
-        grad_c_i[:, 0] = 1.0
-        grad_c_i[:, 1] = 0.0
+        grad_c_i = c.get_grad_i(self.r)
+#        grad_c_i = np.empty_like(self.v)
+#        grad_c_i[:, 0] = 1.0
+#        grad_c_i[:, 1] = 0.0
         return np.sum(utils.vector_unit_nullnull(self.v) * grad_c_i, 1)
 
     def fitness_alg_mem(self, c):
         ''' Approximate unit(v) dot grad(c) via temporal integral. '''
         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
-#        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.r))
-        self.c_mem[:, 0] = self.get_r_unwrapped()[:, 0] + self.env.L_half
+        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.r))
+#        self.c_mem[:, 0] = self.get_r_unwrapped()[:, 0] + self.env.L_half
         return np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
 
     def fitness(self, c):
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-        if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
-            if self.fitness_alg != self.fitness_alg_mem or self.env.t / self.t_mem > 10:
-                raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+#        print(fitness.max(), fitness.min(), fitness.mean())
+#        if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
+#            if self.fitness_alg != self.fitness_alg_mem or self.env.t / self.t_mem > 10:
+#                raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
         return fitness
 
     def get_r_unwrapped(self):

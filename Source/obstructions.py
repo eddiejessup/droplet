@@ -14,43 +14,6 @@ def factory(key, env, kwargs):
             }
     return keys[key](env, **kwargs)
 
-class ObstructionContainer(object):
-    def __init__(self, env):
-        self.env = env
-        self.obstructs = []
-        self.d = self.env.L_half
-
-    def add(self, *args):
-        for o in args:
-            assert o.env is self.env
-            self.obstructs.append(o)
-            self.d = min(self.d, o.d)
-
-    def to_field(self, dx):
-        M = int(self.env.L / dx)
-        obstruct_field = np.zeros(self.env.dim * [M], dtype=np.uint8)
-        for obstruct in self.obstructs:
-            new_obstruct_field = obstruct.to_field(dx)
-            if np.logical_and(obstruct_field, new_obstruct_field).any():
-                raise Exception('Obstructions intersect')
-            obstruct_field += new_obstruct_field
-        return obstruct_field
-
-    def is_obstructed(self, r):
-        for obstruct in self.obstructs:
-            if obstruct.is_obstructed(r): return True
-        return False
-
-    def obstruct(self, particles, *args, **kwargs):
-        for obstruct in self.obstructs:
-            obstruct.obstruct(particles, *args, **kwargs)
-
-    def get_A_obstructed(self):
-        return sum((o.get_A_obstructed() for o in self.obstructs))
-
-    def get_A_free(self):
-        return self.env.get_A() - self.get_A_obstructed()
-
 class Obstruction(object):
     def __init__(self, env):
         self.env = env

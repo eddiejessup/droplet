@@ -7,6 +7,7 @@ import yaml
 import utils
 
 dim = 3
+# equiv to 0.551 radius in 3d
 V_particle = 0.7
 r_c = float(utils.sphere_radius(V_particle, dim))
 

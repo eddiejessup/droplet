@@ -25,11 +25,16 @@ class System(object):
         self.t = 0.0
         self.i = 0
 
-        self.obstructs = obstructions.ObstructionContainer(self)
+        self.obstructs_flag = False
         if 'obstruction_args' in kwargs:
+            self.obstructs_flag = True
             for key in kwargs['obstruction_args']:
-                self.obstructs.add(obstructions.factory(key, self, kwargs['obstruction_args'][key]))
+                self.obstructs = obstructions.factory(key, self, kwargs['obstruction_args'][key])
+                break
+        else:
+            self.obstructs = obstructions.Obstruction(self)
 
+        self.food_flag = False
         if 'food_args' in kwargs:
             self.food_flag = True
             food_args = kwargs['food_args']
@@ -37,9 +42,8 @@ class System(object):
                 self.f = walled_fields.Food(self, food_args['dx'], self.obstructs, a_0=food_args['f_0'], **food_args['pde_args'])
             else:
                 self.f = walled_fields.Scalar(self, food_args['dx'], self.obstructs, a_0=food_args['f_0'])
-        else:
-            self.food_flag = False
 
+        self.attractant_flag = False
         if 'attractant_args' in kwargs:
             self.attractant_flag = True
             attractant_args = kwargs['attractant_args']
@@ -47,21 +51,20 @@ class System(object):
                 self.c = walled_fields.Secretion(self, attractant_args['dx'], self.obstructs, c_0=attractant_args['c_0'], **attractant_args['pde_args'])
             else:
                 self.c = walled_fields.Scalar(self, attractant_args['dx'], self.obstructs, c_0=attractant_args['c_0'])
-        else:
-            self.attractant_flag = False
 
+        self.particles_flag = False
         if 'particle_args' in kwargs:
             self.particles_flag = True
             self.p = particles.Particles(self, self.obstructs, **kwargs['particle_args'])
-        else:
-            self.particles_flag = False
 
     def iterate(self):
         if self.particles_flag:
             args = {}
             if self.attractant_flag:
                 args['c'] = self.c
-            self.p.iterate(self.obstructs, **args)
+            if self.obstructs_flag:
+                args['obstructs'] = self.obstructs
+            self.p.iterate(**args)
         if self.food_flag:
             args = {}
             if self.f.__class__.__name__ == 'Food':

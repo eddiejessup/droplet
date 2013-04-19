@@ -65,8 +65,10 @@ def main():
         fig_box = pp.figure()
         if system.dim == 2:
             ax_box = fig_box.add_subplot(111)
-#            dx = system.L / 1000.0
-            dx = system.obstructs.obstructs[0].dx
+            try:
+                dx = system.obstructs.dx
+            except AttributeError:
+                dx = system.L / 1000.0
             o = np.logical_not(system.obstructs.to_field(dx).T)
             ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
             if system.particles_flag:
@@ -118,7 +120,7 @@ def main():
                     elif system.dim == 3:
                         if system.particles_flag:
                             parts_plot._offsets3d = (system.p.r[:, 0], system.p.r[:, 1], system.p.r[:, 2])
-                    fig_box.savefig('%s/plot/%s.png' % (args.dir, out_fname), dpi=300)
+                    fig_box.savefig('%s/plot/%s.png' % (args.dir, out_fname))
 
             if not args.silent: print('done!')
         system.iterate()
@@ -130,7 +132,7 @@ if args.profile:
     args.dir = None
     cProfile.run('main()', 'prof')
     p = pstats.Stats('prof')
-    p.strip_dirs().sort_stats('time').print_stats()
+    p.strip_dirs().sort_stats('cum').print_stats()
 else:
     if not args.silent: print('\n' + 5*'*' + ' Bannock simulation ' + 5*'*' + '\n')
     main()
