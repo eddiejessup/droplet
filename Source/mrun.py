@@ -46,7 +46,7 @@ def main():
         utils.makedirs_safe(args.dir)
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
-        log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
+        log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err', 'v_net']
 #        log_header.append('dstd')
         log = csv.DictWriter(f_log, log_header, delimiter=' ', extrasaction='ignore')
         log.writeheader()
@@ -102,11 +102,11 @@ def main():
                     np.save('%s/r/%s' % (args.dir, out_fname), system.p.r)
 
                 log_data['t'] = system.t
-                D, D_err = utils.calc_D(system.p.get_r_unwrapped(), system.p.r_0, system.t)
-                log_data['D'], log_data['D_err'] = np.mean(D), np.sqrt(np.sum(np.square(D_err)))
+                log_data['D'], log_data['D_err'] = utils.calc_D_scalar(system.p.get_r_unwrapped(), system.p.r_0, system.t)
 #                log_data['dstd'] = system.p.get_dstd(system.obstructs, dstd_dx)
                 v_drift, v_drift_err = utils.calc_v_drift(system.p.get_r_unwrapped(), system.p.r_0, system.t)
                 log_data['v_drift'], log_data['v_drift_err'] = v_drift[0], v_drift_err[0]
+                log_data['v_net'] = utils.vector_mag(np.mean(system.p.v, axis=0)) / system.p.v_0
                 log.writerow(log_data)
                 f_log.flush()
 
