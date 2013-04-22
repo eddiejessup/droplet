@@ -25,8 +25,12 @@ def parse_dir(dirname, samples=1):
 
     r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
 
-    if len(r_fnames) < samples:
-        raise Exception('Requested %i samples but only have %i available for %s' % (samples, len(r_fnames), dirname))
+    # minus 1 is because we don't want to use the initial positions
+    available = len(r_fnames) - 1
+    # zero means use all available samples
+    if samples == 0: samples = available
+    if available < samples:
+        raise Exception('Requested %i samples but only have %i available for %s' % (samples, available, dirname))
 
     rs = []
     for i in range(samples):
@@ -48,21 +52,16 @@ def histo(rs, dim, R_drop, norm=False, bins=100):
 
     fs = []
     for r in rs:
-        f_cur, R_edges = np.histogram(r, bins=bins, range=[0.0, 1.2 * R_drop])
+        f_cur, R_edges = np.histogram(r, bins=bins, range=[0.0, 1.1 * R_drop])
         fs.append(f_cur)
     fs = np.array(fs)
     f = np.mean(fs, axis=0)
-    if fs.shape[0] > 1:
-        f_err = np.std(fs, axis=0) / np.sqrt(fs.shape[0])
-    else:
-        fs_err = np.sqrt(fs)
-        f_err = np.sqrt(np.sum(np.square(fs_err), axis=0))
+    f_err = np.std(fs, axis=0) / np.sqrt(fs.shape[0])
 
     V_edges = utils.sphere_volume(R_edges, dim)
     dV = V_edges[1:] - V_edges[:-1]
     rho = f / dV
     rho_err = f_err / dV
-#    rho_err = np.where(f > 0, np.sqrt(f) / dV, 0.0)
     R = 0.5 * (R_edges[:-1] + R_edges[1:])
 
     if norm:
@@ -71,7 +70,7 @@ def histo(rs, dim, R_drop, norm=False, bins=100):
         rho /= rho_area
         rho_err /= rho_area
     else:
-        rho_0 = len(rho) / utils.sphere_volume(R_drop, dim)
+        rho_0 = rs.shape[1] / utils.sphere_volume(R_drop, dim)
         rho /= rho_0
         rho_err /= rho_0
     return R, rho, rho_err
@@ -89,19 +88,24 @@ def collate(dirs, bins=100, norm=False, samples=1):
         rs, dim, R_drop, vf = parse_dir(dir, samples)
         R, rho, rho_err = histo(rs, dim, R_drop, norm, bins)
         sets.append((R, rho, rho_err))
-        params.append((R_drop, vf))
+        params.append((R_drop, vf, rs.shape[1]))
     return np.array(sets), np.array(params)
 
-def set_plot(sets, params, norm):
+def set_plot(sets, params, norm, errorbars=True):
     fig = pp.figure()
     ax = fig.gca()
     for set, param in zip(sets, params):
         R, rho, rho_err = set
-        R_drop, vf = param
-        ax.errorbar(R / R_drop, rho, yerr=rho_err, label='%g, %g' % (R_drop, 100.0 * vf), marker=None, lw=3, ecolor='black')
+        R_drop, vf, n = param
+        label = '%g, %.1g (n=%i)' % (R_drop, 100.0 * vf, n)
+        if errorbars:
+            ax.errorbar(R / R_drop, rho, yerr=rho_err, label=label, marker=None, lw=3, ecolor='black')
+        else:
+            ax.plot(R / R_drop, rho, label=label, lw=3)
 
     leg = ax.legend(loc='upper left', fontsize=16)
     leg.set_title(r'Droplet radius ($\mu\mathrm{m}$), Volume fraction (%)', prop={'size': 18})
+    ax.set_xlim([0.0, (R / R_drop).max()])
     ax.set_ylim([0.0, None])
     ax.set_xlabel(r'$r / \mathrm{R}$', fontsize=20)
     if norm: ax.set_ylabel(r'$\frac{\rho(r)}{\, \sum{\rho(r)}}$', fontsize=24)
@@ -118,11 +122,13 @@ parser.add_argument('-n', '--norm', default=False, action='store_true',
 parser.add_argument('-m', '--mean', default=False, action='store_true',
     help='Whether to take the mean of all data sets')
 parser.add_argument('-s', '--samples', type=int, default=1,
-    help='Number of samples to use to generate distribution')
+    help='Number of samples to use to generate distribution, 0 for maximum')
+parser.add_argument('--noerr', default=False, action='store_true',
+    help='Whether to hide errorbars')
 
 args = parser.parse_args()
 if args.dirs == []: args.dirs = os.listdir(os.curdir)
 args.dirs = [f for f in args.dirs if os.path.isdir(f)]
 sets, params = collate(args.dirs, args.bins, args.norm, args.samples)
 if args.mean: sets, params = mean_set(sets, params)
-set_plot(sets, params, args.norm)
+set_plot(sets, params, args.norm, not args.noerr)
