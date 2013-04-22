@@ -36,12 +36,7 @@ class Particles(object):
             self.collide_flag = False
             if 'collide_args' in kwargs:
                 self.collide_flag = True
-                if 'R' in kwargs['collide_args']:
-                    self.collide_R = kwargs['collide_args']['R']
-                else:
-                    vf = kwargs['collide_args']['vf']
-                    V = (vf * obstructs.get_A_free()) / self.n
-                    self.collide_R = utils.sphere_radius(V, self.env.dim)
+                self.collide_R = kwargs['collide_args']['R']
                 if self.collide_R == 0.0:
                     print('Turning off collisions because radius is zero')
                     self.collide_flag = False
