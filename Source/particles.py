@@ -79,11 +79,7 @@ class Particles(object):
                 self.rot_diff_flag = False
                 if 'rot_diff_args' in motile_args:
                     self.rot_diff_flag = True
-                    if 'D_rot_0' in motile_args['rot_diff_args']:
-                        self.D_rot_0 = motile_args['rot_diff_args']['D_rot_0']
-                    else:
-                        l_rot_0 = motile_args['rot_diff_args']['l_rot_0']
-                        self.D_rot_0 = self.v_0 / l_rot_0
+                    self.D_rot_0 = motile_args['rot_diff_args']['D_rot_0']
                     D_rot_0_eff += self.D_rot_0
                     self.rot_diff_chemo_flag = False
                     if 'chemotaxis_flag' in motile_args['rot_diff_args']:
