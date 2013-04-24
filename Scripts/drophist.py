@@ -22,11 +22,13 @@ def parse_dir(dirname, samples=1):
         r_c = 0.0
     else:
         r_c = yaml_args['particle_args']['collide_args']['R']
-
+    R_drop += r_c/2.0
     r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
 
-    # minus 1 is because we don't want to use the initial positions
-    available = len(r_fnames) - 1
+    # minus 1 is because we don't want to use the initial positions if we have multiple measurements
+    if len(r_fnames) > 1: available = len(r_fnames) - 1
+    # if we only have one measurement we can't do otherwise
+    else: available = len(r_fnames)
     # zero means use all available samples
     if samples == 0: samples = available
     if available < samples:
@@ -49,7 +51,6 @@ def parse_dir(dirname, samples=1):
     return rs, dim, R_drop, vf
 
 def histo(rs, dim, R_drop, norm=False, bins=100):
-
     fs = []
     for r in rs:
         f_cur, R_edges = np.histogram(r, bins=bins, range=[0.0, 1.1 * R_drop])
@@ -78,33 +79,46 @@ def histo(rs, dim, R_drop, norm=False, bins=100):
 def mean_set(sets, set_params):
     set_mean = np.zeros_like(sets[0])
     set_mean[:2] = sets[:, :2].mean(axis=0)
-    set_mean[2] = np.sqrt(np.sum(np.square(sets[:, 2]), axis=0)) / len(sets)
+    set_mean[2] = np.std(sets[:, 1], axis=0) / np.sqrt(len(sets))
     params_mean = set_params.mean(axis=0)
     return set_mean[np.newaxis, ...], params_mean[np.newaxis, ...]
 
 def collate(dirs, bins=100, norm=False, samples=1):
     sets, params = [], []
-    for dir in dirs:
-        rs, dim, R_drop, vf = parse_dir(dir, samples)
+    for dirname in dirs:
+        rs, dim, R_drop, vf = parse_dir(dirname, samples)
         R, rho, rho_err = histo(rs, dim, R_drop, norm, bins)
         sets.append((R, rho, rho_err))
-        params.append((R_drop, vf, rs.shape[1]))
+        params.append((R_drop, vf, rs.shape[1], dirname))
     return np.array(sets), np.array(params)
 
 def set_plot(sets, params, norm, errorbars=True):
     fig = pp.figure()
     ax = fig.gca()
+    inds_sort = np.lexsort(params.T)
+    sets = sets[inds_sort]
+    params = params[inds_sort]
+
+    dupes = False
+    for i in range(len(params)):
+        for i1 in range(i + 1, len(params)):
+            if np.all(params[i, :-1] == params[i1, :-1]):
+                dupes = True
+                break
+
     for set, param in zip(sets, params):
         R, rho, rho_err = set
-        R_drop, vf, n = param
-        label = '%g, %.1g (n=%i)' % (R_drop, 100.0 * vf, n)
+        R_drop, vf, n, dirname = param
+        R_drop, vf, n = float(R_drop), float(vf), int(n)
+        label = r'%g$\mu\mathrm{m}$, %.2g%% n=%g' % (R_drop, 100.0 * vf, n)
+        if dupes: label += r' dir: %s' % dirname
         if errorbars:
-            ax.errorbar(R / R_drop, rho, yerr=rho_err, label=label, marker=None, lw=3, ecolor='black')
+            ax.errorbar(R / R_drop, rho, yerr=rho_err, label=label, marker=None, lw=3)
         else:
             ax.plot(R / R_drop, rho, label=label, lw=3)
 
     leg = ax.legend(loc='upper left', fontsize=16)
-    leg.set_title(r'Droplet radius ($\mu\mathrm{m}$), Volume fraction (%)', prop={'size': 18})
+    leg.set_title(r'Droplet radius, Volume fraction', prop={'size': 18})
     ax.set_xlim([0.0, (R / R_drop).max()])
     ax.set_ylim([0.0, None])
     ax.set_xlabel(r'$r / \mathrm{R}$', fontsize=20)
