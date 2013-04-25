@@ -28,7 +28,8 @@ def parse_dir(dirname, samples=1):
     # minus 1 is because we don't want to use the initial positions if we have multiple measurements
     if len(r_fnames) > 1: available = len(r_fnames) - 1
     # if we only have one measurement we can't do otherwise
-    else: available = len(r_fnames)
+    elif len(r_fnames) == 1: available = len(r_fnames)
+    else: raise NotImplementedError('System not initialised for %s' % dirname)
     # zero means use all available samples
     if samples == 0: samples = available
     if available < samples:
@@ -57,6 +58,10 @@ def histo(rs, dim, R_drop, norm=False, bins=100):
         fs.append(f_cur)
     fs = np.array(fs)
     f = np.mean(fs, axis=0)
+
+    import scipy.ndimage.filters as filters
+    f = filters.gaussian_filter1d(f, sigma=0.5*float(len(f))/R_drop, mode='constant', cval=0.0)
+
     f_err = np.std(fs, axis=0) / np.sqrt(fs.shape[0])
 
     V_edges = utils.sphere_volume(R_edges, dim)
@@ -74,6 +79,7 @@ def histo(rs, dim, R_drop, norm=False, bins=100):
         rho_0 = rs.shape[1] / utils.sphere_volume(R_drop, dim)
         rho /= rho_0
         rho_err /= rho_0
+
     return R, rho, rho_err
 
 def mean_set(sets, set_params):
@@ -86,7 +92,10 @@ def mean_set(sets, set_params):
 def collate(dirs, bins=100, norm=False, samples=1):
     sets, params = [], []
     for dirname in dirs:
-        rs, dim, R_drop, vf = parse_dir(dirname, samples)
+        try:
+            rs, dim, R_drop, vf = parse_dir(dirname, samples)
+        except NotImplementedError:
+            continue
         R, rho, rho_err = histo(rs, dim, R_drop, norm, bins)
         sets.append((R, rho, rho_err))
         params.append((R_drop, vf, rs.shape[1], dirname))
@@ -120,7 +129,8 @@ def set_plot(sets, params, norm, errorbars=True):
     leg = ax.legend(loc='upper left', fontsize=16)
     leg.set_title(r'Droplet radius, Volume fraction', prop={'size': 18})
     ax.set_xlim([0.0, (R / R_drop).max()])
-    ax.set_ylim([0.0, None])
+
+    ax.set_ylim([0.0, 1.5*sets[:, 1, 2:].max()])
     ax.set_xlabel(r'$r / \mathrm{R}$', fontsize=20)
     if norm: ax.set_ylabel(r'$\frac{\rho(r)}{\, \sum{\rho(r)}}$', fontsize=24)
     else: ax.set_ylabel(r'$\rho(r) \, / \, \rho_0$', fontsize=20)
