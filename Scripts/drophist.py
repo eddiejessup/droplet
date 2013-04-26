@@ -22,7 +22,6 @@ def parse_dir(dirname, samples=1):
         r_c = 0.0
     else:
         r_c = yaml_args['particle_args']['collide_args']['R']
-    R_drop += r_c/2.0
     r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
 
     # minus 1 is because we don't want to use the initial positions if we have multiple measurements
