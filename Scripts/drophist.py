@@ -45,7 +45,7 @@ def parse_dir(dirname, samples=1):
 
         rs.append(r)
     rs = np.array(rs)
-    vf = (rs.shape[1] * utils.sphere_volume(r_c, dim)) / utils.sphere_volume(R_drop, dim)
+    vf = (rs.shape[1] * utils.sphere_volume(r_c, dim)) / drop_volume(R_drop, dim)
     return rs, dim, R_drop, vf
 
 def histo(rs, dim, R_drop, norm=False, bins=100):
@@ -57,11 +57,11 @@ def histo(rs, dim, R_drop, norm=False, bins=100):
     f = np.mean(fs, axis=0)
 
     import scipy.ndimage.filters as filters
-    f = filters.gaussian_filter1d(f, sigma=0.5*float(len(f))/R_drop, mode='constant', cval=0.0)
+    # f = filters.gaussian_filter1d(f, sigma=0.5*float(len(f))/R_drop, mode='constant', cval=0.0)
 
     f_err = np.std(fs, axis=0) / np.sqrt(fs.shape[0])
 
-    V_edges = utils.sphere_volume(R_edges, dim)
+    V_edges = drop_volume(R_edges, dim)
     dV = V_edges[1:] - V_edges[:-1]
     rho = f / dV
     rho_err = f_err / dV
@@ -73,7 +73,7 @@ def histo(rs, dim, R_drop, norm=False, bins=100):
         rho /= rho_area
         rho_err /= rho_area
     else:
-        rho_0 = rs.shape[1] / utils.sphere_volume(R_drop, dim)
+        rho_0 = rs.shape[1] / drop_volume(R_drop, dim)
         rho /= rho_0
         rho_err /= rho_0
 
@@ -86,19 +86,20 @@ def mean_set(sets, set_params):
     params_mean = set_params.mean(axis=0)
     return set_mean[np.newaxis, ...], params_mean[np.newaxis, ...]
 
-def collate(dirs, bins=100, norm=False, samples=1):
-    sets, params = [], []
-    for dirname in dirs:
+def collate(dirs_raw, bins=100, norm=False, samples=1):
+    sets, params, dirs = [], [], []
+    for dirname in dirs_raw:
         try:
             rs, dim, R_drop, vf = parse_dir(dirname, samples)
         except NotImplementedError:
             continue
         R, rho, rho_err = histo(rs, dim, R_drop, norm, bins)
         sets.append((R, rho, rho_err))
-        params.append((R_drop, vf, rs.shape[1], dirname))
-    return np.array(sets), np.array(params)
+        params.append((R_drop, vf, rs.shape[1]))
+        dirs.append(dirname)
+    return np.array(sets), np.array(params), dirs
 
-def set_plot(sets, params, norm, errorbars=True):
+def set_plot(sets, params, dirs, norm, errorbars=True):
     fig = pp.figure()
     ax = fig.gca()
     inds_sort = np.lexsort(params.T)
@@ -112,10 +113,9 @@ def set_plot(sets, params, norm, errorbars=True):
                 dupes = True
                 break
 
-    for set, param in zip(sets, params):
+    for set, param, dirname in zip(sets, params, dirs):
         R, rho, rho_err = set
-        R_drop, vf, n, dirname = param
-        R_drop, vf, n = float(R_drop), float(vf), int(n)
+        R_drop, vf, n = param
         label = r'%g$\mu\mathrm{m}$, %.2g%% n=%g' % (R_drop, 100.0 * vf, n)
         if dupes: label += r' dir: %s' % dirname
         if errorbars:
@@ -144,12 +144,22 @@ parser.add_argument('-m', '--mean', default=False, action='store_true',
     help='Whether to take the mean of all data sets')
 parser.add_argument('-s', '--samples', type=int, default=1,
     help='Number of samples to use to generate distribution, 0 for maximum')
+parser.add_argument('--half', default=False, action='store_true',
+    help='Whether data is for half a droplet')
 parser.add_argument('--noerr', default=False, action='store_true',
     help='Whether to hide errorbars')
 
 args = parser.parse_args()
+
+if args.half:
+    def drop_volume(*args, **kwargs):
+        return utils.sphere_volume(*args, **kwargs) / 2.0
+else:
+    drop_volume = utils.sphere_volume
+
 if args.dirs == []: args.dirs = os.listdir(os.curdir)
 args.dirs = [f for f in args.dirs if os.path.isdir(f)]
-sets, params = collate(args.dirs, args.bins, args.norm, args.samples)
+
+sets, params, dirs = collate(args.dirs, args.bins, args.norm, args.samples)
 if args.mean: sets, params = mean_set(sets, params)
-set_plot(sets, params, args.norm, not args.noerr)
+set_plot(sets, params, dirs, args.norm, not args.noerr)
