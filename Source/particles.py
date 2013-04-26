@@ -120,7 +120,7 @@ class Particles(object):
             for i in range(self.n):
                 while True:
                     self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
-                    if obstructs.is_obstructed(self.r[i]): continue
+                    if obstructs.is_obstructed(self.r[i], self.R): continue
                     if self.collide_flag and i > 0:
                         if np.min(utils.vector_mag_sq(self.r[i] - self.r[:i])) < (2.0 * self.R) ** 2: continue
                     break
