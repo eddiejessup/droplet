@@ -45,7 +45,7 @@ def parse_dir(dirname, samples=1):
 
         rs.append(r)
     rs = np.array(rs)
-    vf = (rs.shape[1] * utils.sphere_volume(r_c, dim)) / drop_volume(R_drop, dim)
+    vf = (rs.shape[1] * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
     return rs, dim, R_drop, vf
 
 def histo(rs, dim, R_drop, norm=False, bins=100):
@@ -146,6 +146,8 @@ parser.add_argument('-s', '--samples', type=int, default=1,
     help='Number of samples to use to generate distribution, 0 for maximum')
 parser.add_argument('--half', default=False, action='store_true',
     help='Whether data is for half a droplet')
+parser.add_argument('--vfprag', default=False, action='store_true',
+    help='Whether to use constant physical particle volume rather than calculated value')
 parser.add_argument('--noerr', default=False, action='store_true',
     help='Whether to hide errorbars')
 
@@ -156,6 +158,12 @@ if args.half:
         return utils.sphere_volume(*args, **kwargs) / 2.0
 else:
     drop_volume = utils.sphere_volume
+
+if args.vfprag:
+    def particle_volume(*args, **kwargs):
+        return 0.7
+else:
+    particle_volume = utils.sphere_volume
 
 if args.dirs == []: args.dirs = os.listdir(os.curdir)
 args.dirs = [f for f in args.dirs if os.path.isdir(f)]
