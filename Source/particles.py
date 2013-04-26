@@ -36,11 +36,13 @@ class Particles(object):
             self.collide_flag = False
             if 'collide_args' in kwargs:
                 self.collide_flag = True
-                self.collide_R = kwargs['collide_args']['R']
-                if self.collide_R == 0.0:
+                self.R = kwargs['collide_args']['R']
+                if self.R == 0.0:
                     print('Turning off collisions because radius is zero')
                     self.collide_flag = False
-                self.R_comm = max(self.R_comm, self.collide_R)
+                self.R_comm = max(self.R_comm, self.R)
+            else:
+                self.R = 0.0
 
             self.motile_flag = False
             if 'motile_args' in kwargs:
@@ -120,7 +122,7 @@ class Particles(object):
                     self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
                     if obstructs.is_obstructed(self.r[i]): continue
                     if self.collide_flag and i > 0:
-                        if np.min(utils.vector_mag_sq(self.r[i] - self.r[:i])) < (2.0 * self.collide_R) ** 2: continue
+                        if np.min(utils.vector_mag_sq(self.r[i] - self.r[:i])) < (2.0 * self.R) ** 2: continue
                     break
             # Count number of times wrapped around and initial positions for displacement calculations
             self.wrapping_number = np.zeros([self.n, self.env.dim], dtype=np.int)
@@ -179,7 +181,7 @@ class Particles(object):
             self.v = utils.rot_diff(self.v, D_rot, self.env.dt)
 
         def collide():
-            inters, intersi = cl_intro.get_inters(self.r, self.env.L, 2.0 * self.collide_R)
+            inters, intersi = cl_intro.get_inters(self.r, self.env.L, 2.0 * self.R)
             collided = intersi > 0
             self.r[collided] = r_old[collided]
             self.randomise_v(collided)

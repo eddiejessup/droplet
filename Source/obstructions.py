@@ -150,12 +150,12 @@ class Droplet(Obstruction):
         field[...] = np.logical_not(utils.vector_mag_sq(rs) < self.R_sq)
         return field
 
-    def is_obstructed(self, r):
-        return np.logical_not(utils.sphere_intersect(r, 0.0, 0.0, self.R))
+    def is_obstructed(self, r, R=0.0):
+        return np.logical_not(utils.sphere_intersect(r, R, 0.0, self.R))
 
     def obstruct(self, particles, r_old, *args, **kwargs):
         super(Droplet, self).obstruct(particles, *args, **kwargs)
-        for n in np.where(self.is_obstructed(particles.r))[0]:
+        for n in np.where(self.is_obstructed(particles.r, particles.R))[0]:
             u_rel = -particles.r[n] / utils.vector_mag(particles.r[n])
             particles.r[n] = r_old[n]
 #            particles.r[n] = -Droplet.BUFFER_SIZE * u_rel * self.R
