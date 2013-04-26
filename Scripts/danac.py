@@ -23,14 +23,20 @@ args = parser.parse_args()
 
 ef = pn.io.parsers.ExcelFile(args.fname)
 sh = ef.sheet_names[args.sheet]
-df = ef.parse(sh, header=0)
+df = ef.parse(sh)
 
 for c in df:
     try:
         R_drop = float(c)
     except ValueError:
-        print('Ignoring column: %s' % c)
-        continue
+        print('Cannot parse column: %s, trying harder...' % c)
+        try:
+            R_drop = float(c[:-2])
+        except ValueError:
+            print('Still cannot parse column %s, skipping...' % c[:-2])
+            continue
+        else:
+            print('Sucess with %s' % c[:-2])
 
     rs = []
     for entry in df[c].valid():
