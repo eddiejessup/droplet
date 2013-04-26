@@ -84,7 +84,7 @@ class Porous(Obstruction):
     def is_obstructed(self, r, R=0.0):
         ind = utils.r_to_i(r, self.env.L, self.env.L / self.cl.shape[0])
         for m in self.cl[tuple(ind)][:self.cli[tuple(ind)]]:
-            if utils.sphere_intersect(r, R, self.r_c[m], self.R_c[m]): return True
+            if utils.sphere_intersect(r, -R, self.r_c[m], self.R_c[m]): return True
         return False
 
 #    def obstruct(self, particles, *args, **kwargs):
@@ -151,7 +151,7 @@ class Droplet(Obstruction):
         return field
 
     def is_obstructed(self, r, R=0.0):
-        return np.logical_not(utils.sphere_intersect(r, R, 0.0, self.R))
+        return np.logical_not(utils.sphere_intersect(r, -R, 0.0, self.R))
 
     def obstruct(self, particles, r_old, *args, **kwargs):
         super(Droplet, self).obstruct(particles, *args, **kwargs)

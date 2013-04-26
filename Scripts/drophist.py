@@ -17,11 +17,9 @@ def parse_dir(dirname, samples=1):
     dim = yaml_args['dim']
     R_drop = yaml_args['obstruction_args']['droplet_args']['R']
     try:
-        collide_args = yaml_args['particle_args']['collide_args']
+        r_c = yaml_args['particle_args']['collide_args']['R']
     except KeyError:
         r_c = 0.0
-    else:
-        r_c = yaml_args['particle_args']['collide_args']['R']
     r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
 
     # minus 1 is because we don't want to use the initial positions if we have multiple measurements
