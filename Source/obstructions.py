@@ -81,10 +81,10 @@ class Porous(Obstruction):
             field += r_rels_mag_sq < self.R_c_sq[m]
         return field
 
-    def is_obstructed(self, r):
+    def is_obstructed(self, r, R=0.0):
         ind = utils.r_to_i(r, self.env.L, self.env.L / self.cl.shape[0])
         for m in self.cl[tuple(ind)][:self.cli[tuple(ind)]]:
-            if utils.sphere_intersect(r, 0.0, self.r_c[m], self.R_c[m]): return True
+            if utils.sphere_intersect(r, R, self.r_c[m], self.R_c[m]): return True
         return False
 
 #    def obstruct(self, particles, *args, **kwargs):
