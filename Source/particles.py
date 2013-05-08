@@ -183,8 +183,12 @@ class Particles(object):
         def collide():
             inters, intersi = cl_intro.get_inters(self.r, self.env.L, 2.0 * self.R)
             collided = intersi > 0
+
+            # self.randomise_v(collided)
             self.r[collided] = r_old[collided]
-            self.randomise_v(collided)
+
+            # r_sep = self.r[np.newaxis, :, :] - self.r[:, np.newaxis, :]
+            # particle_numerics.collide_inters(self.v, r_sep, inters, intersi, 3)
 
         r_old = self.r.copy()
         v = np.zeros_like(self.r)

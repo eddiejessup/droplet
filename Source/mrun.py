@@ -70,7 +70,7 @@ def main():
             except AttributeError:
                 dx = system.L / 1000.0
             o = np.logical_not(system.obstructs.to_field(dx).T)
-            ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='none', cmap='Reds_r')
+            ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds_r')
             if system.particles_flag:
                 parts_plot = ax_box.scatter([], [], s=1.0, c='k')
             if system.attractant_flag:
