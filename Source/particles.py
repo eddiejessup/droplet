@@ -181,16 +181,20 @@ class Particles(object):
             self.v = utils.rot_diff(self.v, D_rot, self.env.dt)
 
         def collide():
-            inters, intersi = cl_intro.get_inters(self.r, self.env.L, 2.0 * self.R)
-            collided = intersi > 0
+            while True:
+                inters, intersi = cl_intro.get_inters(self.r, self.env.L, 2.0 * self.R)
+                collided = intersi > 0
+                if not np.any(collided): break
 
-            # self.randomise_v(collided)
-            self.r[collided] = r_old[collided]
+                r_sep = self.r[np.newaxis, :, :] - self.r[:, np.newaxis, :]
+                particle_numerics.collide_inters(self.v, r_sep, inters, intersi, 2)
+                
+                # self.randomise_v(collided)
 
-            # r_sep = self.r[np.newaxis, :, :] - self.r[:, np.newaxis, :]
-            # particle_numerics.collide_inters(self.v, r_sep, inters, intersi, 3)
+                self.r[collided] = r_old[collided].copy()
 
         r_old = self.r.copy()
+
         v = np.zeros_like(self.r)
         if self.motile_flag:
             # Randomise stationary particles
