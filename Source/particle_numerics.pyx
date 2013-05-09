@@ -7,6 +7,7 @@ def collide_inters(np.ndarray[np.float_t, ndim=2] v,
         np.ndarray[int, ndim=2] inters,
         np.ndarray[int, ndim=1] intersi,
         int alg):
+    ''' alg: 0=align; 1=elastic; 2=reflect; 3=reverse'''
     cdef unsigned int i_1, i_i_2, i_2
     cdef np.ndarray[np.float_t, ndim=2] R_sep_sq = utils.vector_mag_sq(r_sep)
     cdef np.ndarray[np.float_t, ndim=2] v_old = v.copy()
@@ -16,7 +17,7 @@ def collide_inters(np.ndarray[np.float_t, ndim=2] v,
     for i_1 in range(v.shape[0]):
         for i_i_2 in range(intersi[i_1]):
             if alg < 3:
-                i_2 = inters[i_1, i_i_2] - 1
+                i_2 = inters[i_1, i_i_2]
                 v_1_dot_r_sep = np.dot(v[i_1], r_sep[i_1, i_2])
                 if v_1_dot_r_sep > 0.0:
                     v_1_par = (v_1_dot_r_sep * r_sep[i_1, i_2]) / R_sep_sq[i_1, i_2]
@@ -48,5 +49,5 @@ def vicsek_inters(np.ndarray[np.float_t, ndim=2] v,
     for i_1 in range(v.shape[0]):
         for i_i_2 in range(intersi[i_1]):
             for i_dim in range(v.shape[1]):
-                v_vic[i_1, i_dim] += v[inters[i_1, i_i_2] - 1, i_dim]
+                v_vic[i_1, i_dim] += v[inters[i_1, i_i_2], i_dim]
     return utils.vector_unit_nullrand(v_vic) * utils.vector_mag(v)[:, np.newaxis]
