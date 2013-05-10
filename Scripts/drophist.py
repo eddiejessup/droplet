@@ -13,6 +13,24 @@ import utils
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 
+def r_plot(r, R, dirname):
+#    pp.close()
+    fig = pp.figure()
+    if r.shape[-1] == 2:
+        ax = fig.add_subplot(111)
+        R = max(R, 1e-3)
+        ax.add_collection(mpl.collections.PatchCollection([mpl.patches.Circle(r, radius=R, lw=0.0) for r in rs]))
+    elif r.shape[-1] == 3:
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(r[:, 0], r[:, 1], r[:, 2])
+        ax.set_zticks([])
+        # ax.set_zlim([-1.1, 1.1])
+    ax.set_aspect('equal')
+    # ax.set_xlim([-1.1, 1.1])
+    # ax.set_ylim([-1.1, 1.1])
+    # fig.savefig('%s/r.png' % dirname, dpi=200)
+    pp.show()
+
 def parse_dir(dirname, samples=1):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
     dim = yaml_args['dim']
@@ -40,18 +58,18 @@ def parse_dir(dirname, samples=1):
         if r.ndim == 2:
             # r_diff = utils.vector_mag(r[:, np.newaxis, :] - r[np.newaxis, :, :])
             # sep_min = np.min(r_diff[r_diff > 0.0])
-            # if sep_min < 1.9 * r_c:
+            # if sep_min < 2 * r_c:
             #     raise Exception('Inter-particle collision algorithm not working %f %f' % (sep_min, 2.0 * r_c))
             r = utils.vector_mag(r)
 
-        # if np.any(r > R_drop - r_c):
-        #     raise Exception('Particle-wall collision algorithm not working %f, %f' % (r.max(), R_drop - r_c))
+        if np.any(r > R_drop - r_c):
+            raise Exception('Particle-wall collision algorithm not working %f, %f' % (r.max(), R_drop - r_c))
 
         rs.append(r)
     rs = np.array(rs)
     return rs, dim, R_drop, r_c
 
-def collate(dirs_raw, bins=100, norm=False, samples=1):
+def collate(dirs_raw, bins=100, samples=1, smooth=0.0):
     sets, params, dirs = [], [], []
     for dirname in dirs_raw:
         try:
@@ -67,7 +85,7 @@ def collate(dirs_raw, bins=100, norm=False, samples=1):
         n = np.mean(ns, axis=0)
         n_err = np.std(ns, axis=0) / np.sqrt(ns.shape[0])
         import scipy.ndimage.filters as filters
-        n = filters.gaussian_filter1d(n, sigma=0.3*float(len(n))/R_drop, mode='constant', cval=0.0)
+        n = filters.gaussian_filter1d(n, sigma=smooth*float(len(n))/R_drop, mode='constant', cval=0.0)
 
         V_edges = drop_volume(R_edges, dim)
         dV = V_edges[1:] - V_edges[:-1]
@@ -78,18 +96,56 @@ def collate(dirs_raw, bins=100, norm=False, samples=1):
         dirs.append(dirname)
     return np.array(sets), np.array(params), dirs
 
-def set_plot(sets, params, dirs, norm, errorbars=True):
+def array_uniform(a):
+    for entry in a:
+        for entry2 in a:
+            if entry != entry2: return False
+    return True
+
+def array_unique(a):
+    for entry in a:
+        for entry2 in a:
+            if entry is not entry2 and entry == entry2: return False
+    return True
+
+def label_extend(s, e):
+    if len(s):
+        return s + ', ' + e
+    else:
+        return e
+
+def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
     inds_sort = np.lexsort(params.T)
     sets = sets[inds_sort]
     params = params[inds_sort]
-    dupes = False
+
+    n_uni, dim_uni, R_drop_uni, r_c_uni = [array_uniform(p) for p in params.T]
+
+    leg_title = r''
+    ax_title = r''
+    if n_uni: ax_title = label_extend(ax_title, 'Number=%i' % params[0, 0])
+    else: leg_title = label_extend(leg_title, r'Number')
+    if R_drop_uni: ax_title = label_extend(ax_title, 'R=%.2g$\mu\mathrm{m}$' % params[0, 2])
+    else: leg_title = label_extend(leg_title, r', R ($\mu\mathrm{m}$)')
+    if n_uni and r_c_uni and dim_uni and R_drop_uni:
+        vf_uni = True
+        n, dim, R_drop, r_c = params[0]
+        vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
+        af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
+        ax_title = label_extend(ax_title, r'Volume fraction=%.4g%%, Area fraction=%.4g%%' % (100.0 * vf, 100.0 * af))
+    else: 
+        vf_uni = False
+        leg_title = label_extend(leg_title, 'Volume fraction (%), Area fraction (%)')
+
+    dupes = []
     for i in range(len(params)):
         for i1 in range(i + 1, len(params)):
-            if np.all(params[i, :-1] == params[i1, :-1]):
-                dupes = True
-                break
+            if np.array_equal(params[i], params[i1]): 
+                dupes.append(params[i])
 
-    rho_peaks, rho_peaks_max, rho_bulks = [], [], []
+    ax.set_ylim([0.0, 1e-6])
+    ax.set_xlim([0.0, 1e-6])
+
     for set, param, dirname in zip(sets, params, dirs):
         R, dV, ns, ns_err = set
         n, dim, R_drop, r_c = param
@@ -98,32 +154,60 @@ def set_plot(sets, params, dirs, norm, errorbars=True):
         rho = ns / dV
         rho_err = ns_err / dV
 
-        vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
-        af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
-        label = r'%g$\mu\mathrm{m}$, %i, %.4g%%, %.4g%%' % (R_drop, n, 100.0 * vf, 100.0 * af)
-        if dupes: label += r' dir: %s' % dirname
-        if errorbars:
-            p = ax.errorbar(R / R_drop, rho / rho_0, yerr=rho_err / rho_0, label=label, marker=None, lw=3).lines[0]
+        label = ''
+        if not R_drop_uni: label = label_extend(label, r'%.2g' % R_drop)
+        if not n_uni: label = label_extend(label, r'%i' % n)
+        if not vf_uni:
+            vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
+            af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
+            label = label_extend(label, r'%.4g, %.4g' % (100.0 * vf, 100.0 * af))
+        
+        for param1 in dupes:
+            if np.array_equal(param, param1):
+                label = label_extend(label, r' dir: %s' % dirname)
+                break
+
+        if norm_R: R_plot = R / R_drop
+        else:  R_plot = R
+
+        if norm_rho:
+            rho_plot = rho / rho_0
+            rho_plot_err = rho_err / rho_0
         else:
-            p = ax.plot(R / R_drop, rho / rho_0, label=label, lw=3)[0]
+            rho_plot = rho
+            rho_plot_err = rho_err
 
-        rho_peak_max = rho[R / R_drop > 0.5].max() / rho_0
+        if errorbars:
+            p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3).lines[0]
+        else:
+            p = ax.plot(R_plot, rho_plot, label=label, lw=3)[0]
 
-        i_peak = np.intersect1d(np.where(R / R_drop > 0.5)[0], np.where(((rho / rho_0) - 1.0) / rho_peak_max > 0.05)[0]).min()
-        rho_peaks.append((ns[i_peak:].sum() / dV[i_peak:].sum()) / rho_0)
-        rho_peaks_max.append(rho[i_peak:].max() / rho_0)
-        rho_bulk = (ns[:i_peak].sum() / dV[:i_peak].sum()) / rho_0
-        rho_bulks.append(rho_bulk)
-        print(100*vf, rho_peaks[-1], rho_bulks[-1])
-        ax.axvline(R[i_peak] / R_drop, c=p.get_color())
+        rho_peak_max = rho[R / R_drop > 0.5].max()
 
-    leg = ax.legend(loc='upper left', fontsize=16)
-    leg.set_title(r'Droplet radius, Particle number, Volume fraction, Area fraction', prop={'size': 18})
-    # ax.set_xlim([0.0, (R / R_drop).max()])
-    # ax.set_ylim([0.0, 1.5*max(rho_peaks_max)])
-    ax.set_xlabel(r'$r / \mathrm{R}$', fontsize=20)
-    if norm: ax.set_ylabel(r'$\frac{\rho(r)}{\, \sum{\rho(r)}}$', fontsize=24)
-    else: ax.set_ylabel(r'$\rho(r) \, / \, \rho_0$', fontsize=20)
+        i_peak = np.intersect1d(np.where(R / R_drop > 0.5)[0], np.where((rho - rho_0) / (rho_peak_max - rho_0) > 0.5)[0]).min()
+        rho_peak = ns[i_peak:].sum() / dV[i_peak:].sum()
+        rho_bulk = ns[:i_peak].sum() / dV[:i_peak].sum()
+        r_mean = np.sum(R * ns) / n
+
+        if norm_rho: 
+            rho_peak /= rho_0
+            rho_peak_max /= rho_0
+            rho_bulk /= rho_0
+
+        print(vf, rho_peak, rho_bulk, r_mean)
+
+        ax.axvline(R_plot[i_peak], c=p.get_color())
+
+        ax.set_ylim([0.0, max(ax.get_ylim()[1], 1.1 * rho_plot[R / R_drop > 0.5].max())])
+        ax.set_xlim([0.0, max(ax.get_xlim()[1], 1.1 * R_plot.max())])
+
+    leg = ax.legend(loc='upper left', fontsize=14)
+    leg.set_title(leg_title, prop={'size': 16})
+    ax.set_title(ax_title, fontsize=22)
+    xlabel = r'$r / \mathrm{R}$' if norm_R else r'$r$'
+    ylabel = r'$\rho(r) / \rho_0$' if norm_rho else r'$\rho(r)$'
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel(ylabel, fontsize=24)
 
 def mean_set(sets, set_params):
     set_mean = np.zeros_like(sets[0])
@@ -132,29 +216,33 @@ def mean_set(sets, set_params):
     params_mean = set_params.mean(axis=0)
     return set_mean[np.newaxis, ...], params_mean[np.newaxis, ...]
 
-def display(dirs, bins, norm, samples, noerr):
+def display(dirs, bins, normr, normd, samples, smooth, err):
     dirs = [f for f in dirs if os.path.isdir(f)]
-    sets, params, dirs = collate(dirs, bins, norm, samples)
+    sets, params, dirs = collate(dirs, bins, samples, smooth)
     if args.mean: sets, params = mean_set(sets, params)
-    set_plot(sets, params, dirs, norm, not noerr)
+    set_plot(sets, params, dirs, normr, normd, err)
 
 parser = argparse.ArgumentParser(description='Analyse droplet distributions')
 parser.add_argument('dirs', nargs='*',
     help='Directories')
 parser.add_argument('-b', '--bins', type=int, default=30,
     help='Number of bins to use')
-parser.add_argument('-n', '--norm', default=False, action='store_true',
-    help='Whether to normalise plots to have the same area')
+parser.add_argument('-s', '--samples', type=int, default=0,
+    help='Number of samples to use to generate distribution, 0 for maximum')
+parser.add_argument('-g', '--gauss', type=float, default=0.0,
+    help='Length scale of gaussian blur to apply to data')
+parser.add_argument('-nr', '--normr', default=True, action='store_false',
+    help='Whether to normalise radius by the droplet radius')
+parser.add_argument('-nd', '--normd', default=True, action='store_false',
+    help='Whether to normalise density by the average density')
 parser.add_argument('-m', '--mean', default=False, action='store_true',
     help='Whether to take the mean of all data sets')
-parser.add_argument('-s', '--samples', type=int, default=1,
-    help='Number of samples to use to generate distribution, 0 for maximum')
 parser.add_argument('--half', default=False, action='store_true',
     help='Whether data is for half a droplet')
 parser.add_argument('--vfprag', default=False, action='store_true',
     help='Whether to use constant physical particle volume rather than calculated value')
-parser.add_argument('--noerr', default=False, action='store_true',
-    help='Whether to hide errorbars')
+parser.add_argument('--err', default=True, action='store_false',
+    help='Whether to plot errorbars')
 parser.add_argument('--big', default=False, action='store_true',
     help='Whether data is stored big-wise')
 
@@ -189,9 +277,9 @@ if args.big:
         bigdirpath = os.curdir + '/' + bigdirname
         dirs = os.listdir(bigdirpath)
         dirs = [bigdirpath + '/' + f for f in dirs]
-        display(dirs, args.bins, args.norm, args.samples, args.noerr)
+        display(dirs, args.bins, args.normr, args.normd, args.samples, args.gauss, args.err)
 else:
     if args.dirs == []: args.dirs = os.listdir(os.curdir)
-    display(args.dirs, args.bins, args.norm, args.samples, args.noerr)
+    display(args.dirs, args.bins, args.normr, args.normd, args.samples, args.gauss, args.err)
 
 pp.show()
