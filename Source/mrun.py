@@ -4,6 +4,9 @@ from __future__ import print_function
 import argparse
 import cProfile
 import pstats
+import datetime
+import os
+import subprocess
 import csv
 import yaml
 import matplotlib as mpl
@@ -44,6 +47,11 @@ def main():
     if args.dir is not None:
         if not args.silent: print('Initialising output...')
         utils.makedirs_safe(args.dir)
+
+        os.chdir(os.path.dirname(__file__))
+        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
+
+        yaml_args['about_args'] = {'git_hash': git_hash, 'started': str(datetime.datetime.now())}
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
         log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err', 'v_net']
@@ -72,7 +80,7 @@ def main():
             o = np.logical_not(system.obstructs.to_field(dx).T)
             ax_box.imshow(np.ma.array(o, mask=o), extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Reds_r')
             if system.particles_flag:
-                parts_plot = ax_box.scatter([], [], s=1.0, c='k')
+                parts_plot = ax_box.quiver([], [], [], [], color='k')
             if system.attractant_flag:
                 c_plot = ax_box.imshow([[0]], extent=2*[-system.L_half, system.L_half], origin='lower', interpolation='nearest', cmap='Greens')
         elif system.dim == 3:
@@ -114,6 +122,7 @@ def main():
                     if system.dim == 2:
                         if system.particles_flag:
                             parts_plot.set_offsets(system.p.r)
+                            parts_plot.set_UVC(system.p.v[:, 0], system.p.v[:, 1])
                         if system.attractant_flag:
                             c_plot.set_data(np.ma.array(system.c.a.T, mask=system.c.of.T))
                             c_plot.autoscale()
@@ -125,7 +134,6 @@ def main():
             if not args.silent: print('done!')
         system.iterate()
     if not args.silent: print('Simulation done!\n')
-
 
 if args.profile:
     args.silent = True

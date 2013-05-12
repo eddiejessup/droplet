@@ -186,10 +186,10 @@ class Particles(object):
                 collided = intersi > 0
                 if not np.any(collided): break
 
-                r_sep = self.r[np.newaxis, :, :] - self.r[:, np.newaxis, :]
-                particle_numerics.collide_inters(self.v, r_sep, inters, intersi, 2)
+                # r_sep = self.r[np.newaxis, :, :] - self.r[:, np.newaxis, :]
+                # particle_numerics.collide_inters(self.v, r_sep, inters, intersi, 2)
                 
-                # self.randomise_v(collided)
+                self.randomise_v(collided)
 
                 self.r[collided] = r_old[collided].copy()
 
