@@ -87,38 +87,22 @@ class Porous(Obstruction):
             if utils.sphere_intersect(r, -R, self.r_c[m], self.R_c[m]): return True
         return False
 
-#    def obstruct(self, particles, *args, **kwargs):
-#        super().obstruct(particles, *args, **kwargs)
-#        inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
-#        cl_subs = self.cl[tuple(inds.T)]
-#        cli_subs = self.cli[tuple(inds.T)]
-#        v_mag = utils.vector_mag(particles.v)
-#        for n in np.where(cli_subs > 0)[0]:
-#            for m in cl_subs[n, :cli_subs[n]]:
-#                r_rel = particles.r[n] - self.r_c[m]
-#                r_rel_mag_sq = r_rel.dot(r_rel)
-#                if r_rel_mag_sq < self.R_c_sq[m]:
-#                    u_rel = r_rel / np.sqrt(r_rel_mag_sq)
-
-#                    # Non-sticky
-#                    particles.r[n] = self.r_c[m] + (1.0 + Porous.BUFFER_SIZE) * self.R_c[m] * u_rel
-#                    if particles.motile_flag:
-#                        # Specular
-##                        particles.v[n] = particles.v[n] - 2.0 * np.sum(particles.v[n] * u_rel) * u_rel
-#                        # Aligning
-#                        v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
-#                        particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
-
-#                    # Sticky (aligning)
-##                    if particles.motile_flag:
-##                        R_c_mod = (1.0 - Porous.BUFFER_SIZE) * np.sqrt(self.R_c_sq[m] - (v_mag[n] * self.env.dt) ** 2)
-##                        particles.r[n] = self.r_c[m] + u_rel * R_c_mod
-##                        v_dot_u = np.sum(particles.v[n] * u_rel)
-##                        if np.arccos(v_dot_u / v_mag[n]) > self.threshold:
-##                            v_new = particles.v[n] - v_dot_u * u_rel
-##                            particles.v[n] = v_new * v_mag[n] / np.sqrt(np.sum(np.square(v_new)))
-##                    else:
-##                        particles.r[n] = self.r_c[m] + u_rel * self.R_c[m]
+   # def obstruct(self, particles, *args, **kwargs):
+   #     super().obstruct(particles, *args, **kwargs)
+   #     inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
+   #     cl_subs = self.cl[tuple(inds.T)]
+   #     cli_subs = self.cli[tuple(inds.T)]
+   #     v_mag = utils.vector_mag(particles.v)
+   #     for n in np.where(cli_subs > 0)[0]:
+   #         for m in cl_subs[n, :cli_subs[n]]:
+   #             r_rel = particles.r[n] - self.r_c[m]
+   #             r_rel_mag_sq = r_rel.dot(r_rel)
+   #             if r_rel_mag_sq < self.R_c_sq[m]:
+   #                 u_rel = r_rel / np.sqrt(r_rel_mag_sq)
+   #                 particles.r[n] = self.r_c[m] + (1.0 + Porous.BUFFER_SIZE) * self.R_c[m] * u_rel
+   #                 if particles.motile_flag:
+   #                     v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
+   #                     particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
 
     def obstruct(self, particles, *args, **kwargs):
         super(Porous, self).obstruct(particles, *args, **kwargs)
@@ -129,7 +113,8 @@ class Porous(Obstruction):
         return (1.0 - self.porosity) * self.env.get_A()
 
 class Droplet(Obstruction):
-    BUFFER_SIZE = 0.995
+    BUFFER_SIZE = 0.005
+    OFFSET = 1.0 + BUFFER_SIZE
 
     def __init__(self, env, R):
         super(Droplet, self).__init__(env)
@@ -155,17 +140,18 @@ class Droplet(Obstruction):
 
     def obstruct(self, particles, r_old, *args, **kwargs):
         super(Droplet, self).obstruct(particles, *args, **kwargs)
+        v_mag = utils.vector_mag(particles.v)
         for n in np.where(self.is_obstructed(particles.r, particles.R))[0]:
             u_rel = -particles.r[n] / utils.vector_mag(particles.r[n])
-            particles.r[n] = r_old[n]
-#            particles.r[n] = -Droplet.BUFFER_SIZE * u_rel * self.R
-            if particles.motile_flag:
-#                # Aligning
-                v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
-                particles.v[n] = v_new * np.sqrt(np.sum(np.square(particles.v[n])) / np.sum(np.square(v_new)))
 
-                # Reflecting
-#                particles.v[n] -= 2.0 * np.sum(particles.v[n] * u_rel) * u_rel
+            if particles.motile_flag:
+                v_dot_u = np.sum(particles.v[n] * u_rel)
+                v_new = particles.v[n] - v_dot_u * u_rel
+                u_new = v_new / np.sqrt(np.sum(np.square(v_new)))
+                # particles.v[n] = v_mag[n] * u_new
+                particles.r[n] = -u_rel * (self.R - particles.R * (self.OFFSET + np.sum(u_new * u_rel)))
+            else:
+                particles.r[n] = -u_rel * (self.R - particles.R * self.OFFSET)
 
     def get_A_obstructed(self):
         return self.env.get_A() - utils.sphere_volume(self.R, self.env.dim)
