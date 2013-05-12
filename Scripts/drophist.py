@@ -186,7 +186,9 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
 
         i_peak = np.intersect1d(np.where(R / R_drop > 0.5)[0], np.where((rho - rho_0) / (rho_peak_max - rho_0) > 0.5)[0]).min()
         rho_peak = ns[i_peak:].sum() / dV[i_peak:].sum()
+        rho_peak_err = np.sqrt(np.sum(np.square(ns_err[i_peak:]))) / dV[i_peak:].sum()
         rho_bulk = ns[:i_peak].sum() / dV[:i_peak].sum()
+        rho_bulk_err = np.sqrt(np.sum(np.square(ns_err[:i_peak]))) / dV[:i_peak].sum()
         r_mean = np.sum(R * ns) / n
 
         if norm_rho: 
@@ -194,15 +196,16 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
             rho_peak_max /= rho_0
             rho_bulk /= rho_0
 
-        print(vf, rho_peak, rho_bulk, r_mean)
+        print(vf, rho_peak, rho_peak_err, rho_bulk, rho_bulk_err, r_mean)
 
         ax.axvline(R_plot[i_peak], c=p.get_color())
 
         ax.set_ylim([0.0, max(ax.get_ylim()[1], 1.1 * rho_plot[R / R_drop > 0.5].max())])
         ax.set_xlim([0.0, max(ax.get_xlim()[1], 1.1 * R_plot.max())])
 
-    leg = ax.legend(loc='upper left', fontsize=14)
-    leg.set_title(leg_title, prop={'size': 16})
+    if len(sets) > 1: 
+        leg = ax.legend(loc='upper left', fontsize=14)
+        leg.set_title(leg_title, prop={'size': 16})
     ax.set_title(ax_title, fontsize=22)
     xlabel = r'$r / \mathrm{R}$' if norm_R else r'$r$'
     ylabel = r'$\rho(r) / \rho_0$' if norm_rho else r'$\rho(r)$'
