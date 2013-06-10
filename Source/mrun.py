@@ -39,16 +39,17 @@ args = parser.parse_args()
 if args.profile and args.runtime == float('inf'):
     raise Exception('Cannot profile a simulation run without a specified run-time')
 
+def get_git_hash():
+    os.chdir(os.path.dirname(__file__))
+    return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
+
 def main():
     yaml_args = yaml.safe_load(open(args.f, 'r'))
 
     if args.dir is not None:
         if not args.silent: print('Initialising output...')
         utils.makedirs_safe(args.dir)
-
-        os.chdir(os.path.dirname(__file__))
-        git_hash = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
-
+        git_hash = get_git_hash()
         yaml_args['about_args'] = {'git_hash': git_hash, 'started': str(datetime.datetime.now())}
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
