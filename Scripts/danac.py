@@ -1,10 +1,11 @@
 #! /usr/bin/python
 
-import pandas as pn
-import numpy as np
+from __future__ import print_function
 import argparse
+import numpy as np
 import yaml
 import utils
+import pandas as pn
 
 dim = 3
 # equiv to 0.551 radius in 3d

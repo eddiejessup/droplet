@@ -1,8 +1,10 @@
 #! /usr/bin/python
 
+from __future__ import print_function
+import numpy as np
 import matplotlib.pyplot as pp
 import matplotlib as mpl
-import numpy as np
+import matplotlib.mlb as mlb
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)

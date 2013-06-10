@@ -1,9 +1,8 @@
 #! /usr/bin/python
 
 from __future__ import print_function
-
-import sys
 import os
+import sys
 import argparse
 import numpy as np
 import matplotlib as mpl

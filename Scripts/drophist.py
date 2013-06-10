@@ -1,15 +1,16 @@
 #! /usr/bin/python
 
 from __future__ import print_function
-import argparse
 import os
-import glob
-import yaml
+import sys
+import argparse
 import numpy as np
 import matplotlib as mpl
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as pp
+import yaml
+import glob
 import utils
+from mpl_toolkits.mplot3d import Axes3D
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)
@@ -98,7 +99,6 @@ def label_extend(s, e):
         return e
 
 def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
-
     params_sort = params.copy().T
     params_sort = params_sort[[2, 3, 1, 0], :]
     inds_sort = np.lexsort(params_sort)
@@ -222,19 +222,19 @@ parser.add_argument('-s', '--samples', type=int, default=0,
 parser.add_argument('-g', '--gauss', type=float, default=0.0,
     help='Length scale of gaussian blur to apply to data')
 parser.add_argument('-nr', '--normr', default=True, action='store_false',
-    help='Whether to normalise radius by the droplet radius')
+    help='Normalise radius by the droplet radius')
 parser.add_argument('-nd', '--normd', default=True, action='store_false',
-    help='Whether to normalise density by the average density')
+    help='Normalise density by the average density')
 parser.add_argument('-m', '--mean', default=False, action='store_true',
-    help='Whether to take the mean of all data sets')
+    help='Take the mean of all data sets')
 parser.add_argument('--half', default=False, action='store_true',
-    help='Whether data is for half a droplet')
+    help='Data is for half a droplet')
 parser.add_argument('--vfprag', default=False, action='store_true',
-    help='Whether to use constant physical particle volume rather than calculated value')
+    help='Use constant physical particle volume rather than calculated value')
 parser.add_argument('--err', default=True, action='store_false',
-    help='Whether to plot errorbars')
+    help='Do not plot errorbars')
 parser.add_argument('--big', default=False, action='store_true',
-    help='Whether data is stored big-wise')
+    help='Data is stored big-wise')
 
 args = parser.parse_args()
 

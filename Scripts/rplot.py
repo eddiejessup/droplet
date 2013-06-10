@@ -3,17 +3,25 @@
 from __future__ import print_function
 import os
 import sys
+import argparse
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as pp
 
-if '-f' in sys.argv:
-	force = True
-	sys.argv.remove('-f')
-else:
-	force = False
+mpl.rc('font', family='serif', serif='STIXGeneral')
+mpl.rc('text', usetex=True)
+
+parser = argparse.ArgumentParser(description='Plot system states')
+parser.add_argument('field',
+    help='Field')
+parser.add_argument('dirs', nargs='*',
+    help='Directories')
+parser.add_argument('-f', '--force', default=False, action='store_true',
+    help='Force plotting all states')
+args = parser.parse_args()
 
 # If there are arguments, use those, otherwise expect to be fed data
-f = sys.argv[2:] if sys.argv[2:] else sys.stdin
+if not args.dirs: args.dirs = sys.stdin
 
 stat = np.load(sys.argv[1])
 o = stat['o']
@@ -31,9 +39,9 @@ ax.set_xticks([])
 ax.set_yticks([])
 rp = ax.scatter([], [], s=0.2)
 
-for fname in f:
+for fname in args.dirs:
 	img_fname = '%s.png' % fname[:-4]
-	if force or not os.path.isfile(img_fname):
+	if args.force or not os.path.isfile(img_fname):
 		dyn = np.load(fname.strip())
 		r = dyn['r']
 		rp.set_offsets(r)

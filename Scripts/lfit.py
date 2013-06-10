@@ -1,9 +1,12 @@
 #! /usr/bin/python
 
-import argparse
+from __future__ import print_function
+import os
 import sys
+import argparse
 import numpy as np
-import matplotlib.mlab as mlb
+import matplotlib as mpl
+import matplotlib.pyplot as pp
 
 parser = argparse.ArgumentParser(description='Fit to some datapoints')
 parser.add_argument('f',
@@ -16,7 +19,7 @@ parser.add_argument('-o', '--order', type=float, default=1,
     help='order of polynomial to fit, default is 1, i.e. linear fit')
 args = parser.parse_args()
 
-d = mlb.csv2rec(args.f, delimiter=' ')
+d = np.recfromcsv(args.f, delimiter=' ')
 x = d['x']
 y = d[args.field]
 y_err = d['%s_err' % args.field]

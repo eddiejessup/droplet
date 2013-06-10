@@ -1,11 +1,9 @@
 #! /usr/bin/python
 
 from __future__ import print_function
-
-import pandas as pn
 import numpy as np
-import matplotlib.mlab as mlb
 import yaml
+import pandas as pn
 import utils
 
 ef = pn.io.parsers.ExcelFile('set_3.xls')

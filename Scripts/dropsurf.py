@@ -1,16 +1,18 @@
 #! /usr/bin/python
 
+from __future__ import print_function
+import os
 import sys
+import argparse
 import numpy as np
-from scipy.interpolate import griddata
 import matplotlib as mpl
 import matplotlib.pyplot as pp
-import matplotlib.mlab as mlb
-import matplotlib.ticker as tick
+from scipy.interpolate import griddata
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
+mpl.rc('text', usetex=True)
 
-data = mlb.csv2rec(sys.argv[1], delimiter=' ')
+data = np.recfromcsv(sys.argv[1], delimiter=' ')
 x, y, z = data['vf'], data['r'], data['acc']
 
 npoints = 100
