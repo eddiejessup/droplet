@@ -133,6 +133,8 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
     ax.set_ylim([0.0, 1e-6])
     ax.set_xlim([0.0, 1e-6])
 
+    print('# vf R mean')
+
     for set, param, dirname in zip(sets, params, dirs):
         R, dV, ns, ns_err = set
         n, dim, R_drop, r_c = param
@@ -183,7 +185,7 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
             rho_peak_max /= rho_0
             rho_bulk /= rho_0
 
-        print(vf, rho_peak, rho_peak_err, rho_bulk, rho_bulk_err, r_mean)
+        print(100*vf, R_drop, r_mean/R_drop)
 
         ax.axvline(R_plot[i_peak], c=p.get_color())
 

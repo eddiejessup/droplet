@@ -4,7 +4,7 @@ from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as pp
 import matplotlib as mpl
-import matplotlib.mlb as mlb
+import matplotlib.mlab as mlb
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)

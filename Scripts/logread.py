@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser(description='Analyse log files')
 parser.add_argument('field', 
     help='Field')
 parser.add_argument('dirs', nargs='*',
-    help='Directories')
+    help='Directories containing log files')
 parser.add_argument('-t', '--header', default=False, action='store_true',
     help='whether to output header, default is false')
 parser.add_argument('-p', '--plot', default=False, action='store_true',
@@ -45,7 +45,7 @@ while True:
 
     if args.plot:
         pp.xlabel('t')
-        pp.ylabel(args.field)
+        pp.ylabel(args.field.strip())
         pp.legend()
         pp.show()
 

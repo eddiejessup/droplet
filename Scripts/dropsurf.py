@@ -13,7 +13,7 @@ mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)
 
 data = np.recfromcsv(sys.argv[1], delimiter=' ')
-x, y, z = data['vf'], data['r'], data['acc']
+x, y, z = data['vf'], data['r'], data['mean']
 
 npoints = 100
 
@@ -40,10 +40,10 @@ dat = ax.scatter(x, y, marker='o', c='k', s=5)
 prox = pp.Rectangle((0,0), 1, 1, fc=contf.collections[0].get_facecolor()[0])
 
 ax.legend((dat, prox), ('Datapoints', 'Interpolation'))
-ax.set_xscale('log')
-ax.set_yscale('log', basey=2)
-ax.set_xlim(x.min(), x.max())
-ax.set_ylim(y.min(), y.max())
+# ax.set_xscale('log')
+# ax.set_yscale('log', basey=2)
+# ax.set_xlim(x.min(), x.max())
+# ax.set_ylim(y.min(), y.max())
 ax.set_xlabel(r'$\mathrm{V_p} / \mathrm{V_d}$', fontsize=20)
 ax.set_ylabel(r'$R$', fontsize=20)
 pp.show()
