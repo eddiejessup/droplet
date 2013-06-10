@@ -62,8 +62,8 @@ def parse_dir(dirname, samples=1):
             #     raise Exception('Inter-particle collision algorithm not working %f %f' % (sep_min, 2.0 * r_c))
             r = utils.vector_mag(r)
 
-        if np.any(r > R_drop - r_c):
-            raise Exception('Particle-wall collision algorithm not working %f, %f' % (r.max(), R_drop - r_c))
+        # if np.any(r > R_drop - r_c):
+        #     raise Exception('Particle-wall collision algorithm not working %f, %f' % (r.max(), R_drop - r_c))
 
         rs.append(r)
     rs = np.array(rs)
@@ -115,18 +115,22 @@ def label_extend(s, e):
         return e
 
 def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
-    inds_sort = np.lexsort(params.T)
+
+    params_sort = params.copy().T
+    params_sort = params_sort[[2, 3, 1, 0], :]
+    inds_sort = np.lexsort(params_sort)
     sets = sets[inds_sort]
     params = params[inds_sort]
+    dirs = np.array(dirs)[inds_sort]
 
     n_uni, dim_uni, R_drop_uni, r_c_uni = [array_uniform(p) for p in params.T]
 
     leg_title = r''
     ax_title = r''
-    if n_uni: ax_title = label_extend(ax_title, 'Number=%i' % params[0, 0])
-    else: leg_title = label_extend(leg_title, r'Number')
     if R_drop_uni: ax_title = label_extend(ax_title, 'R=%.2g$\mu\mathrm{m}$' % params[0, 2])
     else: leg_title = label_extend(leg_title, r', R ($\mu\mathrm{m}$)')
+    if n_uni: ax_title = label_extend(ax_title, 'Number=%i' % params[0, 0])
+    else: leg_title = label_extend(leg_title, r'Number')
     if n_uni and r_c_uni and dim_uni and R_drop_uni:
         vf_uni = True
         n, dim, R_drop, r_c = params[0]
@@ -276,11 +280,28 @@ ax = fig.gca()
 
 if args.big:
     args.mean = True
-    for bigdirname in ['16_0.5', '11_1.3', '16_4.8', '14_11']:
+
+    dirs_big = ['16_0.5', '11_1.3', '16_4.8', '14_11', '14_8', '12_1.7']
+    sets_big = []
+    params_big = []
+
+    for bigdirname in dirs_big:
         bigdirpath = os.curdir + '/' + bigdirname
         dirs = os.listdir(bigdirpath)
         dirs = [bigdirpath + '/' + f for f in dirs]
-        display(dirs, args.bins, args.normr, args.normd, args.samples, args.gauss, args.err)
+        # display(dirs, args.bins, args.normr, args.normd, args.samples, args.gauss, args.err)
+
+        dirs = [f for f in dirs if os.path.isdir(f)]
+        sets, params, dirs = collate(dirs, args.bins, args.samples, args.gauss)
+        sets, params = mean_set(sets, params)
+        sets_big.append(sets[0])
+        params_big.append(params[0])
+
+    sets_big = np.array(sets_big)
+    params_big = np.array(params_big)
+
+    set_plot(sets_big, params_big, dirs_big, args.normr, args.normd, args.err)
+
 else:
     if args.dirs == []: args.dirs = os.listdir(os.curdir)
     display(args.dirs, args.bins, args.normr, args.normd, args.samples, args.gauss, args.err)
