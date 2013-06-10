@@ -22,7 +22,7 @@ class Obstruction(object):
     def to_field(self, dx):
         return np.zeros(self.env.dim * [self.env.L / dx], dtype=np.uint8)
 
-    def is_obstructed(self, r):
+    def is_obstructed(self, r, *args, **kwargs):
         return False
 
     def obstruct(self, *args, **kwargs):
@@ -164,7 +164,7 @@ class Walls(Obstruction, fields.Field):
         fields.Field.__init__(self, env, dx)
         self.a = np.zeros(self.env.dim * (self.M,), dtype=np.uint8)
 
-    def is_obstructed(self, r):
+    def is_obstructed(self, r, *args, **kwargs):
         return self.a[tuple(self.r_to_i(r).T)]
 
     def to_field(self, dx=None):
