@@ -12,24 +12,7 @@ import matplotlib.pyplot as pp
 import utils
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
-
-def r_plot(r, R, dirname):
-#    pp.close()
-    fig = pp.figure()
-    if r.shape[-1] == 2:
-        ax = fig.add_subplot(111)
-        R = max(R, 1e-3)
-        ax.add_collection(mpl.collections.PatchCollection([mpl.patches.Circle(r, radius=R, lw=0.0) for r in rs]))
-    elif r.shape[-1] == 3:
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(r[:, 0], r[:, 1], r[:, 2])
-        ax.set_zticks([])
-        # ax.set_zlim([-1.1, 1.1])
-    ax.set_aspect('equal')
-    # ax.set_xlim([-1.1, 1.1])
-    # ax.set_ylim([-1.1, 1.1])
-    # fig.savefig('%s/r.png' % dirname, dpi=200)
-    pp.show()
+mpl.rc('text', usetex=True)
 
 def parse_dir(dirname, samples=1):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))

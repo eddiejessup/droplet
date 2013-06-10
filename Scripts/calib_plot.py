@@ -1,16 +1,14 @@
 #! /usr/bin/python
 
 import matplotlib.pyplot as pp
-import matplotlib.mlab as mlb
 import matplotlib as mpl
 import numpy as np
-
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)
 
-df = mlb.csv2rec('f/d.csv', delimiter=' ', names=['chi', 'v', 'v_err'])
-dm = mlb.csv2rec('m/d.csv', delimiter=' ', names=['chi', 'v', 'v_err'])
+df = np.recfromcsv('f/d.csv', delimiter=' ', names=['chi', 'v', 'v_err'])
+dm = np.recfromcsv('m/d.csv', delimiter=' ', names=['chi', 'v', 'v_err'])
 
 fig = pp.figure()
 ax = fig.gca()
@@ -32,4 +30,4 @@ ax.set_ylim([5.0, 200.0])
 
 ax.set_xlabel(r'$\chi_{F/T}$', fontsize=20)
 
-fig.savefig('calib.png', bbox_inches='tight', dpi=200)
+pp.show()
