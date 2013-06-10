@@ -93,22 +93,26 @@ class Particles(object):
                 if 'chemotaxis_args' in motile_args:
                     self.chemo_flag = True
                     self.chemo_onesided_flag = motile_args['chemotaxis_args']['onesided_flag']
+                    self.chemo_sense = motile_args['chemotaxis_args']['sensitivity']
                     self.chemo_force_flag = False
                     if 'force_args' in motile_args['chemotaxis_args']:
                         self.chemo_force_flag = True
-                        self.chemo_force_sense = motile_args['chemotaxis_args']['force_args']['sensitivity']
                     elif 'grad_args' in motile_args['chemotaxis_args']:
                         self.fitness_alg = self.fitness_alg_grad
-                        self.chemo_sense = motile_args['chemotaxis_args']['grad_args']['sensitivity']
                     elif 'mem_args' in motile_args['chemotaxis_args']:
                         self.fitness_alg = self.fitness_alg_mem
-                        self.chemo_sense = motile_args['chemotaxis_args']['mem_args']['sensitivity']
                         n_mem = motile_args['chemotaxis_args']['mem_args']['n_mem']
 
-                        if (self.v_0 / D_rot_0_eff) / self.env.c.dx < 5:
-                            raise Exception('Chemotactic memory requires >= 5 lattice points per rot diff time')
-                        t_mem = n_mem / D_rot_0_eff
-                        self.K_dt = calculate_mem_kernel(t_mem, self.env.dt, D_rot_0_eff)
+                        # if (self.v_0 / D_rot_0_eff) / self.env.c.dx < 5:
+                        #     raise Exception('Chemotactic memory requires >= 5 lattice points per rot diff time')
+                        self.t_mem = n_mem / D_rot_0_eff
+                        self.K_dt = get_mem_kernel(self.t_mem, self.env.dt, D_rot_0_eff) * self.env.dt
+
+                        t_s = np.arange(0.0, self.t_mem, self.env.dt, dtype=np.float)
+                        f_max = self.chemo_sense * np.sum(self.K_dt * -t_s)
+                        print('fitness max: %f' % f_max)
+                        raw_input()
+
                         self.c_mem = np.zeros([self.n, len(self.K_dt)], dtype=np.float)
 
             if self.R_comm > obstructs.d:
@@ -116,7 +120,6 @@ class Particles(object):
 
         def initialise_r():
             self.r = np.zeros([self.n, self.env.dim], dtype=np.float)
-    #        self.r = utils.disk_pick(self.n) * self.r_max
             for i in range(self.n):
                 while True:
                     self.r[i] = np.random.uniform(-self.env.L_half, self.env.L_half, self.env.dim)
@@ -160,14 +163,16 @@ class Particles(object):
         def chemo_force():
             v_mags = utils.vector_mag(self.v)
             grad_c_i = c.get_grad_i(self.r)
-#            grad_c_i = np.empty_like(self.r)
-#            grad_c_i[:, 0] = 1.0
-#            grad_c_i[:, 1] = 0.0
+            # grad_c_i = np.empty_like(self.r)
+            # grad_c_i[:, 0] = 1.0
+            # grad_c_i[:, 1] = 0.0
             if self.chemo_onesided_flag:
                 i_forced = np.where(np.sum(self.v * grad_c_i, -1) > 0.0)[0]
             else:
                 i_forced = np.arange(self.n)
-            self.v[i_forced] += self.chemo_force_sense * grad_c_i[i_forced] * self.env.dt
+            v_new = utils.vector_unit_nullnull(self.v)
+            v_new[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.env.dt
+            self.v[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.env.dt
             self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
 
         def tumble():
@@ -231,22 +236,24 @@ class Particles(object):
 #        grad_c_i = np.empty_like(self.v)
 #        grad_c_i[:, 0] = 1.0
 #        grad_c_i[:, 1] = 0.0
-        return np.sum(utils.vector_unit_nullnull(self.v) * grad_c_i, 1)
+        return np.sum(self.v * grad_c_i, 1) / self.v_0
 
     def fitness_alg_mem(self, c):
         ''' Approximate unit(v) dot grad(c) via temporal integral. '''
         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
         self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.r))
-#        self.c_mem[:, 0] = self.get_r_unwrapped()[:, 0] + self.env.L_half
-        return np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1)
+        # self.c_mem[:, 0] = self.get_r_unwrapped()[:, 0]
+        return np.sum(self.c_mem * self.K_dt[np.newaxis, ...], 1) / self.v_0
 
     def fitness(self, c):
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-#        print(fitness.max(), fitness.min(), fitness.mean())
-#        if np.max(np.abs(fitness)) >= 1.0 or np.mean(np.abs(fitness)) > 0.5:
-#            if self.fitness_alg != self.fitness_alg_mem or self.env.t / self.t_mem > 10:
-#                raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+        if self.fitness_alg != self.fitness_alg_mem or self.env.t / self.t_mem > 10:
+            # if np.max(np.abs(fitness)) >= 1.0:
+            #     print('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+                # raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+            if np.max(np.abs(fitness)) < 0.1:
+                print('Not much happening... %g' % np.max(np.abs(fitness)))
         return fitness
 
     def get_r_unwrapped(self):
