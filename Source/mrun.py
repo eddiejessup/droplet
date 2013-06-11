@@ -53,8 +53,7 @@ def main():
         yaml_args['about_args'] = {'git_hash': git_hash, 'started': str(datetime.datetime.now())}
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         f_log = open('%s/log.csv' % (args.dir), 'w')
-        log_header = ['t', 'D', 'D_err', 'v_drift', 'v_drift_err']
-        log_header.append('dstd')
+        log_header = ['t']
         log = csv.DictWriter(f_log, log_header, delimiter=' ', extrasaction='ignore')
         log.writeheader()
         log_data = {}
@@ -69,9 +68,9 @@ def main():
         try:
             dx = system.obstructs.dx
         except AttributeError:
-            dx = system.L / 1000.0
+            dx = system.L / 200.0
         o = system.obstructs.to_field(dx)
-        np.savez('%s/static' % args.dir, o=o, L=system.L)
+        np.savez('%s/static' % args.dir, o=o, L=system.L, r_0=system.p.r_0)
         utils.makedirs_soft('%s/dyn' % args.dir)
         if not args.silent: print('done!\n')
 
@@ -85,15 +84,11 @@ def main():
             if args.dir is not None:
                 out_fname = 'latest' if args.latest else '%010f' % system.t
 
-                dyn_dat = {}
-                if args.positions: dyn_dat['r'] = system.p.r
+                dyn_dat = {'t': system.t}
+                if args.positions: dyn_dat['r'] = system.p.get_r_unwrapped()
                 np.savez_compressed('%s/dyn/%s' % (args.dir, out_fname), **dyn_dat)
 
                 log_data['t'] = system.t
-                log_data['D'], log_data['D_err'] = utils.calc_D_scalar(system.p.get_r_unwrapped(), system.p.r_0, system.t)
-                log_data['dstd'] = system.p.get_dstd(system.obstructs, 4.0)
-                v_drift, v_drift_err = utils.calc_v_drift(system.p.get_r_unwrapped(), system.p.r_0, system.t)
-                log_data['v_drift'], log_data['v_drift_err'] = v_drift[0] / system.p.v_0, v_drift_err[0] / system.p.v_0
                 log.writerow(log_data)
                 f_log.flush()
 
