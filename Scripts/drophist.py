@@ -13,7 +13,7 @@ import utils
 from mpl_toolkits.mplot3d import Axes3D
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
-mpl.rc('text', usetex=True)
+# mpl.rc('text', usetex=True)
 
 def parse_dir(dirname, samples=1):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
@@ -23,13 +23,14 @@ def parse_dir(dirname, samples=1):
         r_c = yaml_args['particle_args']['collide_args']['R']
     except KeyError:
         r_c = 0.0
-    r_fnames = sorted(glob.glob('%s/r/*.npy' % dirname))
+    r_fnames = sorted(glob.glob('%s/dyn/*.npz' % dirname) + glob.glob('%s/r/*.npy' % dirname))
 
     # minus 1 is because we don't want to use the initial positions if we have multiple measurements
     if len(r_fnames) > 1: available = len(r_fnames) - 1
     # if we only have one measurement we can't do otherwise
     elif len(r_fnames) == 1: available = len(r_fnames)
     else: raise NotImplementedError('System not initialised for %s' % dirname)
+
     # zero means use all available samples
     if samples == 0: samples = available
     if available < samples:
@@ -37,7 +38,10 @@ def parse_dir(dirname, samples=1):
 
     rs = []
     for i in range(samples):
-        r = np.load(r_fnames[-i])
+        try:
+            r = np.load(r_fnames[-i])['r']
+        except:
+            r = np.load(r_fnames[-i])
 
         if r.ndim == 2:
             # r_diff = utils.vector_mag(r[:, np.newaxis, :] - r[np.newaxis, :, :])
@@ -50,35 +54,52 @@ def parse_dir(dirname, samples=1):
         #     raise Exception('Particle-wall collision algorithm not working %f, %f' % (r.max(), R_drop - r_c))
 
         rs.append(r)
-    rs = np.array(rs)
-    return rs, dim, R_drop, r_c
+    return np.array(rs), dim, R_drop, r_c
 
-def collate(dirs_raw, bins=100, samples=1, smooth=0.0):
-    sets, params, dirs = [], [], []
+def make_hist(rs, R_drop, dim, bins=100, smooth=0.0):
+    ns = []
+    for r in rs:
+        n, R_edges = np.histogram(r, bins=bins, range=[0.0, R_drop])
+        ns.append(n)
+    ns = np.array(ns)
+    n = np.mean(ns, axis=0)
+    n_err = np.std(ns, axis=0) / np.sqrt(len(ns))
+    import scipy.ndimage.filters as filters
+    n = filters.gaussian_filter1d(n, sigma=smooth*float(len(n))/R_drop, mode='constant', cval=0.0)
+
+    V_edges = drop_volume(R_edges, dim)
+    dV = V_edges[1:] - V_edges[:-1]
+    R = 0.5 * (R_edges[:-1] + R_edges[1:])
+    return R, dV, n, n_err
+
+def collate(dirs_raw, samples, bins, smooth, mean):
+    hists, params, dirs = [], [], []
     for dirname in dirs_raw:
         try:
             rs, dim, R_drop, r_c = parse_dir(dirname, samples)
         except NotImplementedError:
             continue
-
-        ns = []
-        for r in rs:
-            n_cur, R_edges = np.histogram(r, bins=bins, range=[0.0, R_drop])
-            ns.append(n_cur)
-        ns = np.array(ns)
-        n = np.mean(ns, axis=0)
-        n_err = np.std(ns, axis=0) / np.sqrt(ns.shape[0])
-        import scipy.ndimage.filters as filters
-        n = filters.gaussian_filter1d(n, sigma=smooth*float(len(n))/R_drop, mode='constant', cval=0.0)
-
-        V_edges = drop_volume(R_edges, dim)
-        dV = V_edges[1:] - V_edges[:-1]
-        R = 0.5 * (R_edges[:-1] + R_edges[1:])
-
-        sets.append((R, dV, n, n_err))
         params.append((rs.shape[1], dim, R_drop, r_c))
         dirs.append(dirname)
-    return np.array(sets), np.array(params), dirs
+        hists.append(make_hist(rs, R_drop, dim, bins, smooth))
+
+    if not hists:
+        raise NotImplementedError('No valid data directories')
+
+    hists = np.array(hists)
+    params = np.array(params)
+    dirs = np.array(dirs)
+
+    if mean: 
+        hist_mean = np.zeros_like(hists[0])
+        hist_mean[:3] = hists[:, :3].mean(axis=0)
+        hist_mean[3] = np.std(hists[:, 2], axis=0) / np.sqrt(len(hists))
+        params_mean = params.mean(axis=0)
+        hists = hist_mean[np.newaxis, :]
+        params = params_mean[np.newaxis, :]
+        dirs = ''
+
+    return hists, params, dirs
 
 def array_uniform(a):
     for entry in a:
@@ -86,54 +107,19 @@ def array_uniform(a):
             if entry != entry2: return False
     return True
 
-def array_unique(a):
-    for entry in a:
-        for entry2 in a:
-            if entry is not entry2 and entry == entry2: return False
-    return True
-
-def label_extend(s, e):
-    if len(s):
-        return s + ', ' + e
-    else:
-        return e
-
 def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
-    params_sort = params.copy().T
-    params_sort = params_sort[[2, 3, 1, 0], :]
-    inds_sort = np.lexsort(params_sort)
-    sets = sets[inds_sort]
-    params = params[inds_sort]
-    dirs = np.array(dirs)[inds_sort]
+    # params_sort = params.copy().T
+    # params_sort = params_sort[(2, 3, 1, 0), :]
+    # inds_sort = np.lexsort(params_sort)
+
+    # sets = sets[inds_sort]
+    # params = params[inds_sort]
+    # dirs = dirs[inds_sort]
 
     n_uni, dim_uni, R_drop_uni, r_c_uni = [array_uniform(p) for p in params.T]
 
-    leg_title = r''
-    ax_title = r''
-    if R_drop_uni: ax_title = label_extend(ax_title, 'R=%.2g$\mu\mathrm{m}$' % params[0, 2])
-    else: leg_title = label_extend(leg_title, r', R ($\mu\mathrm{m}$)')
-    if n_uni: ax_title = label_extend(ax_title, 'Number=%i' % params[0, 0])
-    else: leg_title = label_extend(leg_title, r'Number')
-    if n_uni and r_c_uni and dim_uni and R_drop_uni:
-        vf_uni = True
-        n, dim, R_drop, r_c = params[0]
-        vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
-        af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
-        ax_title = label_extend(ax_title, r'Volume fraction=%.4g%%, Area fraction=%.4g%%' % (100.0 * vf, 100.0 * af))
-    else: 
-        vf_uni = False
-        leg_title = label_extend(leg_title, 'Volume fraction (%), Area fraction (%)')
-
-    dupes = []
-    for i in range(len(params)):
-        for i1 in range(i + 1, len(params)):
-            if np.array_equal(params[i], params[i1]): 
-                dupes.append(params[i])
-
     ax.set_ylim([0.0, 1e-6])
     ax.set_xlim([0.0, 1e-6])
-
-    print('# vf R mean')
 
     for set, param, dirname in zip(sets, params, dirs):
         R, dV, ns, ns_err = set
@@ -142,19 +128,6 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
         rho_0 = n / drop_volume(R_drop, dim)
         rho = ns / dV
         rho_err = ns_err / dV
-
-        label = ''
-        if not R_drop_uni: label = label_extend(label, r'%.2g' % R_drop)
-        if not n_uni: label = label_extend(label, r'%i' % n)
-        if not vf_uni:
-            vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
-            af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
-            label = label_extend(label, r'%.4g, %.4g' % (100.0 * vf, 100.0 * af))
-        
-        for param1 in dupes:
-            if np.array_equal(param, param1):
-                label = label_extend(label, r' dir: %s' % dirname)
-                break
 
         if norm_R: R_plot = R / R_drop
         else:  R_plot = R
@@ -166,11 +139,6 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
             rho_plot = rho
             rho_plot_err = rho_err
 
-        if errorbars:
-            p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3).lines[0]
-        else:
-            p = ax.plot(R_plot, rho_plot, label=label, lw=3)[0]
-
         rho_peak_max = rho[R / R_drop > 0.5].max()
 
         i_peak = np.intersect1d(np.where(R / R_drop > 0.5)[0], np.where((rho - rho_0) / (rho_peak_max - rho_0) > 0.5)[0]).min()
@@ -178,41 +146,45 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
         rho_peak_err = np.sqrt(np.sum(np.square(ns_err[i_peak:]))) / dV[i_peak:].sum()
         rho_bulk = ns[:i_peak].sum() / dV[:i_peak].sum()
         rho_bulk_err = np.sqrt(np.sum(np.square(ns_err[:i_peak]))) / dV[:i_peak].sum()
-        r_mean = np.sum(R * ns) / n
+        r_mean = np.sum(R * ns) / ns.sum()
 
-        if norm_rho: 
-            rho_peak /= rho_0
-            rho_peak_max /= rho_0
-            rho_bulk /= rho_0
+        # Plotting
+        label_fields = []
+        if not R_drop_uni: label_fields.append(r'%.2g' % R_drop)
+        if not n_uni: label_fields.append(r'%i' % n)
+        vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
+        af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
+        label_fields.extend([r'%.4g' % (100.0 * vf), r'%.4g' % (100.0 * af)])
+        label = ', '.join(label_fields)
 
-        print(100*vf, R_drop, r_mean/R_drop)
+        if errorbars:
+            p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3).lines[0]
+        else:
+            p = ax.plot(R_plot, rho_plot, label=label, lw=3)[0]
 
         ax.axvline(R_plot[i_peak], c=p.get_color())
-
         ax.set_ylim([0.0, max(ax.get_ylim()[1], 1.1 * rho_plot[R / R_drop > 0.5].max())])
         ax.set_xlim([0.0, max(ax.get_xlim()[1], 1.1 * R_plot.max())])
 
+        # print(100.0 * vf, R_drop, r_mean / R_drop)
+
+    leg_fields = []
+    ax_fields = []
+    if R_drop_uni: ax_fields.append('R=%.2g$\mu\mathrm{m}$' % params[0, 2])
+    else: leg_fields.append(r'R ($\mu\mathrm{m}$)')
+    if n_uni: ax_fields.append(r'Number=%i' % params[0, 0])
+    else: leg_fields.append(r'Number')
+    leg_fields.extend(['Volume fraction (%)', 'Area fraction (%)'])
+
     if len(sets) > 1: 
         leg = ax.legend(loc='upper left', fontsize=14)
-        leg.set_title(leg_title, prop={'size': 16})
-    ax.set_title(ax_title, fontsize=22)
+        leg.set_title(', '.join(leg_fields), prop={'size': 14})
+
+    ax.set_title(', '.join(ax_fields), fontsize=22)
     xlabel = r'$r / \mathrm{R}$' if norm_R else r'$r$'
     ylabel = r'$\rho(r) / \rho_0$' if norm_rho else r'$\rho(r)$'
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=24)
-
-def mean_set(sets, set_params):
-    set_mean = np.zeros_like(sets[0])
-    set_mean[:3] = sets[:, :3].mean(axis=0)
-    set_mean[3] = np.std(sets[:, 2], axis=0) / np.sqrt(len(sets))
-    params_mean = set_params.mean(axis=0)
-    return set_mean[np.newaxis, ...], params_mean[np.newaxis, ...]
-
-def display(dirs, bins, normr, normd, samples, smooth, err):
-    dirs = [f for f in dirs if os.path.isdir(f)]
-    sets, params, dirs = collate(dirs, bins, samples, smooth)
-    if args.mean: sets, params = mean_set(sets, params)
-    set_plot(sets, params, dirs, normr, normd, err)
 
 parser = argparse.ArgumentParser(description='Analyse droplet distributions')
 parser.add_argument('dirs', nargs='*',
@@ -221,7 +193,7 @@ parser.add_argument('-b', '--bins', type=int, default=30,
     help='Number of bins to use')
 parser.add_argument('-s', '--samples', type=int, default=0,
     help='Number of samples to use to generate distribution, 0 for maximum')
-parser.add_argument('-g', '--gauss', type=float, default=0.0,
+parser.add_argument('-g', '--smooth', type=float, default=0.0,
     help='Length scale of gaussian blur to apply to data')
 parser.add_argument('-nr', '--normr', default=True, action='store_false',
     help='Normalise radius by the droplet radius')
@@ -237,7 +209,6 @@ parser.add_argument('--err', default=True, action='store_false',
     help='Do not plot errorbars')
 parser.add_argument('--big', default=False, action='store_true',
     help='Data is stored big-wise')
-
 args = parser.parse_args()
 
 if args.half:
@@ -259,36 +230,31 @@ else:
     particle_volume = utils.sphere_volume
     particle_area = utils.sphere_area
 
-
 fig = pp.figure()
 ax = fig.gca()
 
 if args.big:
-    args.mean = True
+    hists, params, dirs = [], [], []
 
-    dirs_big = ['16_0.5', '11_1.3', '16_4.8', '14_11', '14_8', '12_1.7']
-    sets_big = []
-    params_big = []
+    if not args.dirs: args.dirs = {f.split('/')[0] for f in glob.glob('*/*/params.yaml')}
 
-    for bigdirname in dirs_big:
-        bigdirpath = os.curdir + '/' + bigdirname
-        dirs = os.listdir(bigdirpath)
-        dirs = [bigdirpath + '/' + f for f in dirs]
-        # display(dirs, args.bins, args.normr, args.normd, args.samples, args.gauss, args.err)
+    for bigdirname in args.dirs:
+        dirs_raw = {os.path.dirname(f) for f in glob.glob('%s/*/params.yaml' % bigdirname)}
+        hist, param, dirname = collate(dirs_raw, args.samples, args.bins, args.smooth, mean=True)
 
-        dirs = [f for f in dirs if os.path.isdir(f)]
-        sets, params, dirs = collate(dirs, args.bins, args.samples, args.gauss)
-        sets, params = mean_set(sets, params)
-        sets_big.append(sets[0])
-        params_big.append(params[0])
+        hists.append(hist[0])
+        params.append(param[0])
+        dirs.append(bigdirname)
 
-    sets_big = np.array(sets_big)
-    params_big = np.array(params_big)
+    hists = np.array(hists)
+    params = np.array(params)
+    dirs = np.array(dirs)
 
-    set_plot(sets_big, params_big, dirs_big, args.normr, args.normd, args.err)
+    set_plot(hists, params, dirs, args.normr, args.normd, args.err)
 
 else:
-    if args.dirs == []: args.dirs = os.listdir(os.curdir)
-    display(args.dirs, args.bins, args.normr, args.normd, args.samples, args.gauss, args.err)
+    if not args.dirs: args.dirs = {f.split('/')[0] for f in glob.glob('*/params.yaml')}
+    hists, params, dirs = collate(args.dirs, args.samples, args.bins, args.smooth, args.mean)
+    set_plot(hists, params, dirs, args.normr, args.normd, args.err)
 
 pp.show()
