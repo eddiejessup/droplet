@@ -33,18 +33,18 @@ lims = [-L_half, L_half]
 
 fig = pp.figure()
 ax = fig.gca()
-# if np.any(o):
-# 	o_plot = np.logical_not(o.T)
-# 	ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=2*lims, origin='lower', interpolation='nearest', cmap='Greens_r')
+if np.any(o):
+	o_plot = np.logical_not(o.T)
+	ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=2*lims, origin='lower', interpolation='nearest', cmap='Greens_r')
 ax.set_aspect('equal')
 ax.set_xlim(lims)
 ax.set_ylim(lims)
 ax.set_xticks([])
 ax.set_yticks([])
-rp = ax.scatter([], [], s=0.2)
+rp = ax.scatter([], [], s=1)
 
 for fname in args.dyns:
-	img_fname = '%s.png' % fname[:-4]
+	img_fname = '%s.pdf' % fname[:-4]
 	print(img_fname)
 	if args.int or args.force or not os.path.isfile(img_fname):
 		dyn = np.load(fname.strip())

@@ -6,14 +6,11 @@ import sys
 import argparse
 import numpy as np
 import matplotlib as mpl
+import ejm_rcparams
 import matplotlib.pyplot as pp
 import yaml
 import glob
 import utils
-from mpl_toolkits.mplot3d import Axes3D
-
-mpl.rc('font', family='serif', serif='STIXGeneral')
-# mpl.rc('text', usetex=True)
 
 def parse_dir(dirname, samples=1):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
@@ -44,14 +41,7 @@ def parse_dir(dirname, samples=1):
             r = np.load(r_fnames[-i])
 
         if r.ndim == 2:
-            # r_diff = utils.vector_mag(r[:, np.newaxis, :] - r[np.newaxis, :, :])
-            # sep_min = np.min(r_diff[r_diff > 0.0])
-            # if sep_min < 2 * r_c:
-            #     raise Exception('Inter-particle collision algorithm not working %f %f' % (sep_min, 2.0 * r_c))
             r = utils.vector_mag(r)
-
-        # if np.any(r > R_drop - r_c):
-        #     raise Exception('Particle-wall collision algorithm not working %f, %f' % (r.max(), R_drop - r_c))
 
         rs.append(r)
     return np.array(rs), dim, R_drop, r_c
@@ -73,14 +63,13 @@ def make_hist(rs, R_drop, dim, bins=100, smooth=0.0):
     return R, dV, n, n_err
 
 def collate(dirs_raw, samples, bins, smooth, mean):
-    hists, params, dirs = [], [], []
+    hists, params = [], []
     for dirname in dirs_raw:
         try:
             rs, dim, R_drop, r_c = parse_dir(dirname, samples)
         except NotImplementedError:
             continue
         params.append((rs.shape[1], dim, R_drop, r_c))
-        dirs.append(dirname)
         hists.append(make_hist(rs, R_drop, dim, bins, smooth))
 
     if not hists:
@@ -88,7 +77,6 @@ def collate(dirs_raw, samples, bins, smooth, mean):
 
     hists = np.array(hists)
     params = np.array(params)
-    dirs = np.array(dirs)
 
     if mean: 
         hist_mean = np.zeros_like(hists[0])
@@ -97,9 +85,8 @@ def collate(dirs_raw, samples, bins, smooth, mean):
         params_mean = params.mean(axis=0)
         hists = hist_mean[np.newaxis, :]
         params = params_mean[np.newaxis, :]
-        dirs = ''
 
-    return hists, params, dirs
+    return hists, params
 
 def array_uniform(a):
     for entry in a:
@@ -107,23 +94,21 @@ def array_uniform(a):
             if entry != entry2: return False
     return True
 
-def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
-    # params_sort = params.copy().T
-    # params_sort = params_sort[(2, 3, 1, 0), :]
-    # inds_sort = np.lexsort(params_sort)
-
-    # sets = sets[inds_sort]
-    # params = params[inds_sort]
-    # dirs = dirs[inds_sort]
+def set_plot(sets, params, norm_R=False, norm_rho=False, errorbars=True):
+    params_sort = params.copy().T
+    params_sort = params_sort[(2, 3, 1, 0), :]
+    inds_sort = np.lexsort(params_sort)
+    sets = sets[inds_sort]
+    params = params[inds_sort]
 
     n_uni, dim_uni, R_drop_uni, r_c_uni = [array_uniform(p) for p in params.T]
 
     ax.set_ylim([0.0, 1e-6])
     ax.set_xlim([0.0, 1e-6])
 
-    for set, param, dirname in zip(sets, params, dirs):
-        R, dV, ns, ns_err = set
-        n, dim, R_drop, r_c = param
+    for i in range(len(sets)):
+        R, dV, ns, ns_err = sets[i]
+        n, dim, R_drop, r_c = params[i]
 
         rho_0 = n / drop_volume(R_drop, dim)
         rho = ns / dV
@@ -149,42 +134,25 @@ def set_plot(sets, params, dirs, norm_R=False, norm_rho=False, errorbars=True):
         r_mean = np.sum(R * ns) / ns.sum()
 
         # Plotting
-        label_fields = []
-        if not R_drop_uni: label_fields.append(r'%.2g' % R_drop)
-        if not n_uni: label_fields.append(r'%i' % n)
         vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
         af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
-        label_fields.extend([r'%.4g' % (100.0 * vf), r'%.4g' % (100.0 * af)])
-        label = ', '.join(label_fields)
-
+        # label = r'R=%.2g\si{\micro\metre}, n=%i, $\theta$=%.2g%%' % (R_drop, n, vf)
+        label = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g%%' % (R_drop, vf)
+        c = mpl.cm.jet(i/float(len(sets)))
         if errorbars:
-            p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3).lines[0]
+            p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3, c=c).lines[0]
         else:
-            p = ax.plot(R_plot, rho_plot, label=label, lw=3)[0]
+            p = ax.plot(R_plot, rho_plot, label=label, lw=3, c=c)[0]
 
-        ax.axvline(R_plot[i_peak], c=p.get_color())
+        # ax.axvline(R_plot[i_peak], c=p.get_color())
         ax.set_ylim([0.0, max(ax.get_ylim()[1], 1.1 * rho_plot[R / R_drop > 0.5].max())])
         ax.set_xlim([0.0, max(ax.get_xlim()[1], 1.1 * R_plot.max())])
 
-        # print(100.0 * vf, R_drop, r_mean / R_drop)
-
-    leg_fields = []
-    ax_fields = []
-    if R_drop_uni: ax_fields.append('R=%.2g$\mu\mathrm{m}$' % params[0, 2])
-    else: leg_fields.append(r'R ($\mu\mathrm{m}$)')
-    if n_uni: ax_fields.append(r'Number=%i' % params[0, 0])
-    else: leg_fields.append(r'Number')
-    leg_fields.extend(['Volume fraction (%)', 'Area fraction (%)'])
-
-    if len(sets) > 1: 
-        leg = ax.legend(loc='upper left', fontsize=14)
-        leg.set_title(', '.join(leg_fields), prop={'size': 14})
-
-    ax.set_title(', '.join(ax_fields), fontsize=22)
+    ax.legend(loc='upper left')
     xlabel = r'$r / \mathrm{R}$' if norm_R else r'$r$'
     ylabel = r'$\rho(r) / \rho_0$' if norm_rho else r'$\rho(r)$'
-    ax.set_xlabel(xlabel, fontsize=20)
-    ax.set_ylabel(ylabel, fontsize=24)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
 
 parser = argparse.ArgumentParser(description='Analyse droplet distributions')
 parser.add_argument('dirs', nargs='*',
@@ -230,31 +198,30 @@ else:
     particle_volume = utils.sphere_volume
     particle_area = utils.sphere_area
 
-fig = pp.figure()
+fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
 ax = fig.gca()
 
 if args.big:
-    hists, params, dirs = [], [], []
+    hists, params = [], []
 
     if not args.dirs: args.dirs = {f.split('/')[0] for f in glob.glob('*/*/params.yaml')}
 
     for bigdirname in args.dirs:
         dirs_raw = {os.path.dirname(f) for f in glob.glob('%s/*/params.yaml' % bigdirname)}
-        hist, param, dirname = collate(dirs_raw, args.samples, args.bins, args.smooth, mean=True)
+        hist, param = collate(dirs_raw, args.samples, args.bins, args.smooth, mean=True)
 
         hists.append(hist[0])
         params.append(param[0])
-        dirs.append(bigdirname)
 
     hists = np.array(hists)
     params = np.array(params)
-    dirs = np.array(dirs)
 
-    set_plot(hists, params, dirs, args.normr, args.normd, args.err)
+    set_plot(hists, params, args.normr, args.normd, args.err)
 
 else:
     if not args.dirs: args.dirs = {f.split('/')[0] for f in glob.glob('*/params.yaml')}
-    hists, params, dirs = collate(args.dirs, args.samples, args.bins, args.smooth, args.mean)
-    set_plot(hists, params, dirs, args.normr, args.normd, args.err)
+    hists, params = collate(args.dirs, args.samples, args.bins, args.smooth, args.mean)
+    set_plot(hists, params, args.normr, args.normd, args.err)
 
-pp.show()
+fig.savefig('hist.pdf', bbox_inches='tight')
+# pp.show()
