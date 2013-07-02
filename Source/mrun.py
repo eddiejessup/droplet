@@ -25,13 +25,11 @@ parser.add_argument('-d', '--dir', default=None,
     help='output directory, default is no output')
 parser.add_argument('-e', '--every', type=int, default=1,
     help='how many iterations should elapse between outputs, default is 1')
-parser.add_argument('-r', '--positions', default=False, action='store_true',
-    help='output particle positions, default is false')
 parser.add_argument('-l', '--latest', default=False, action='store_true',
     help='only keep output of latest system configuration, default is false')
 parser.add_argument('-s', '--silent', default=False, action='store_true',
     help='don''t print to stdout')
-parser.add_argument('--profile', default=False, action='store_true',
+parser.add_argument('-p', '--profile', default=False, action='store_true',
     help='profile program (implies -s -d None)')
 
 args = parser.parse_args()
@@ -52,11 +50,6 @@ def main():
         git_hash = get_git_hash()
         yaml_args['about_args'] = {'git_hash': git_hash, 'started': str(datetime.datetime.now())}
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
-        f_log = open('%s/log.csv' % (args.dir), 'w')
-        log_header = ['t']
-        log = csv.DictWriter(f_log, log_header, delimiter=' ', extrasaction='ignore')
-        log.writeheader()
-        log_data = {}
         if not args.silent: print('done!\n')
 
     if not args.silent: print('Initialising system...')
@@ -68,7 +61,7 @@ def main():
         try:
             dx = system.obstructs.dx
         except AttributeError:
-            dx = system.L / 200.0
+            dx = system.L / 500.0
         o = system.obstructs.to_field(dx)
         np.savez('%s/static' % args.dir, o=o, L=system.L, r_0=system.p.r_0)
         utils.makedirs_soft('%s/dyn' % args.dir)
@@ -76,25 +69,18 @@ def main():
 
     if not args.silent: print('Iterating system...')
     while system.t < args.runtime:
-
         if not system.i % args.every:
             if not args.silent:
                 print('\tt:%010g i:%08i...' % (system.t, system.i), end='')
-
             if args.dir is not None:
                 out_fname = 'latest' if args.latest else '%010f' % system.t
-
-                dyn_dat = {'t': system.t}
-                if args.positions: dyn_dat['r'] = system.p.get_r_unwrapped()
+                dyn_dat = {'t': system.t, 
+                           'r': system.p.r,
+                           'r_un': system.p.get_r_unwrapped()}
                 np.savez_compressed('%s/dyn/%s' % (args.dir, out_fname), **dyn_dat)
-
-                log_data['t'] = system.t
-                log.writerow(log_data)
-                f_log.flush()
-
             if not args.silent: print('done!')
         system.iterate()
-    if not args.silent: print('Simulation done!\n')
+    if not args.silent: print('done!\n')
 
 if args.profile:
     args.silent = True

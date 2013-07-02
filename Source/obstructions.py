@@ -80,28 +80,42 @@ class Porous(Obstruction):
             field += r_rels_mag_sq < self.R_c_sq[m]
         return field
 
+    # def is_obstructed(self, r, R):
+    #     ind = utils.r_to_i(r, self.env.L, self.env.L / self.cl.shape[0])
+    #     for m in self.cl[tuple(ind)][:self.cli[tuple(ind)]]:
+    #         if utils.sphere_intersect(r, -R, self.r_c[m], self.R_c[m]): return True
+    #     return False
+
     def is_obstructed(self, r, R):
-        ind = utils.r_to_i(r, self.env.L, self.env.L / self.cl.shape[0])
-        for m in self.cl[tuple(ind)][:self.cli[tuple(ind)]]:
-            if utils.sphere_intersect(r, -R, self.r_c[m], self.R_c[m]): return True
-        return False
+        if r.ndim == 1: obstructed = False
+        else: obstructed = np.zeros([len(r)], dtype=np.bool)
+        for m in range(len(self.R_c)):
+            obstructed += utils.sphere_intersect(r, R, self.r_c[m], self.R_c[m])
+        return obstructed
+
+    couldbe_obstructed = is_obstructed
 
     def obstruct(self, particles, *args, **kwargs):
-       super().obstruct(particles, *args, **kwargs)
-       inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
-       cl_subs = self.cl[tuple(inds.T)]
-       cli_subs = self.cli[tuple(inds.T)]
-       v_mag = utils.vector_mag(particles.v)
-       for n in np.where(cli_subs > 0)[0]:
-           for m in cl_subs[n, :cli_subs[n]]:
-               r_rel = particles.r[n] - self.r_c[m]
-               r_rel_mag_sq = r_rel.dot(r_rel)
-               if r_rel_mag_sq < self.R_c_sq[m]:
-                   u_rel = r_rel / np.sqrt(r_rel_mag_sq)
-                   particles.r[n] = self.r_c[m] + (1.0 + Porous.BUFFER_SIZE) * self.R_c[m] * u_rel
-                   if particles.motile_flag:
-                       v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
-                       particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
+       super(Porous, self).obstruct(particles, *args, **kwargs)
+       # bounce-back
+       particles.v[self.is_obstructed(particles.r, particles.R)] *= -1
+
+    # def obstruct(self, particles, *args, **kwargs):
+    #    super(Porous, self).obstruct(particles, *args, **kwargs)
+    #    inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
+    #    cl_subs = self.cl[tuple(inds.T)]
+    #    cli_subs = self.cli[tuple(inds.T)]
+    #    v_mag = utils.vector_mag(particles.v)
+    #    for n in np.where(cli_subs > 0)[0]:
+    #        for m in cl_subs[n, :cli_subs[n]]:
+    #            r_rel = particles.r[n] - self.r_c[m]
+    #            r_rel_mag_sq = r_rel.dot(r_rel)
+    #            if r_rel_mag_sq < self.R_c_sq[m]:
+    #                u_rel = r_rel / np.sqrt(r_rel_mag_sq)
+    #                particles.r[n] = self.r_c[m] + (1.0 + Porous.BUFFER_SIZE) * self.R_c[m] * u_rel
+    #                if particles.motile_flag:
+    #                    v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
+    #                    particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
 
     def get_A_obstructed(self):
         return (1.0 - self.porosity) * self.env.get_A()
@@ -119,7 +133,7 @@ class Droplet(Obstruction):
         if self.R >= self.env.L_half:
             raise Exception('Require droplet diameter < system size')
 
-        self.ecc = 4.0
+        self.ecc = 2.0
 
     def to_field(self, dx):
         M = int(self.env.L / dx)
@@ -147,7 +161,6 @@ class Droplet(Obstruction):
             particles_R_eff = particles.R * (1.0 + self.ecc * np.abs(cos_theta))
         else:
             particles_R_eff = particles.R
-        # print(np.max(particles_R_eff))
 
         obstructed = self.is_obstructed(particles.r, particles_R_eff)
 
@@ -156,7 +169,6 @@ class Droplet(Obstruction):
             v_new  = particles.v - vp
             vu_new = utils.vector_unit_nonull(v_new)
             aligned = np.logical_and(obstructed, cos_theta > 0.0)
-            print(np.sum(cos_theta<0.0))
             particles.v[aligned] = (vm[..., np.newaxis] * vu_new)[aligned]
 
         particles.r[obstructed] = ((self.R - particles_R_eff[:, np.newaxis]) * self.OFFSET * ru)[obstructed]
