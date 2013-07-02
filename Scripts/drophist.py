@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 from __future__ import print_function
 import os
@@ -11,9 +11,6 @@ import yaml
 import glob
 import utils
 from mpl_toolkits.mplot3d import Axes3D
-
-mpl.rc('font', family='serif', serif='STIXGeneral')
-# mpl.rc('text', usetex=True)
 
 def parse_dir(dirname, samples=1):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))

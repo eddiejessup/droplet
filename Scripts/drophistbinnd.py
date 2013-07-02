@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/env python
 
 from __future__ import print_function
 import os
@@ -8,9 +8,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pp
 import utils
-
-mpl.rc('font', family='serif', serif='STIXGeneral')
-mpl.rc('text', usetex=True)
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('dirs', nargs='*', default=os.listdir(os.curdir),
@@ -50,8 +47,11 @@ for dirname in args.dirs:
 	print()
 
 	label = '%.2g %.2g' % (R, vf)
-	if 8.0 < R < 10.0:
-		ax.errorbar(r, rho, yerr=rho_err, xerr=r_err, label=label)
+#	if 8.0 < R < 10.0:
+	ax.errorbar(r, rho, yerr=rho_err, xerr=r_err, label=label)
+
+ax.set_xlabel('R / R_0')
+ax.set_ylabel('rho / rho_0')
 
 ax.legend()
 pp.show()
