@@ -10,7 +10,7 @@ import ejm_rcparams
 import matplotlib.pyplot as pp
 import yaml
 import glob
-import utils
+import utils    
 
 def parse_dir(dirname, samples=1):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
@@ -136,13 +136,10 @@ def set_plot(sets, params, norm_R=False, norm_rho=False, errorbars=True):
         # Plotting
         vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
         af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
-        # label = r'R=%.2g\si{\micro\metre}, n=%i, $\theta$=%.2g%%' % (R_drop, n, vf)
-        label = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g%%' % (R_drop, vf)
+        label = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g%%' % (R_drop, 100.0 * vf)
         c = mpl.cm.jet(i/float(len(sets)))
-        if errorbars:
-            p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3, c=c).lines[0]
-        else:
-            p = ax.plot(R_plot, rho_plot, label=label, lw=3, c=c)[0]
+        if errorbars: p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3, c=c).lines[0]
+        else: p = ax.plot(R_plot, rho_plot, label=label, lw=3, c=c)[0]
 
         # ax.axvline(R_plot[i_peak], c=p.get_color())
         ax.set_ylim([0.0, max(ax.get_ylim()[1], 1.1 * rho_plot[R / R_drop > 0.5].max())])
