@@ -138,12 +138,15 @@ def set_plot(sets, params, norm_R=False, norm_rho=False, errorbars=True):
         af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
         label = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g%%' % (R_drop, 100.0 * vf)
         c = mpl.cm.jet(i/float(len(sets)))
-        if errorbars: p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=3, c=c).lines[0]
-        else: p = ax.plot(R_plot, rho_plot, label=label, lw=3, c=c)[0]
+        lw = 2
+        if errorbars: p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=lw, c=c).lines[0]
+        else: p = ax.plot(R_plot, rho_plot, label=label, lw=lw, c=c)[0]
 
         # ax.axvline(R_plot[i_peak], c=p.get_color())
         ax.set_ylim([0.0, max(ax.get_ylim()[1], 1.1 * rho_plot[R / R_drop > 0.5].max())])
         ax.set_xlim([0.0, max(ax.get_xlim()[1], 1.1 * R_plot.max())])
+
+    # a x.set_ylim([0.0, 5.3])
 
     ax.legend(loc='upper left')
     xlabel = r'$r / \mathrm{R}$' if norm_R else r'$r$'

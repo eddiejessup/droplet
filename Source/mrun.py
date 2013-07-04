@@ -61,7 +61,7 @@ def main():
         try:
             dx = system.obstructs.dx
         except AttributeError:
-            dx = system.L / 500.0
+            dx = system.L / 200.0
         o = system.obstructs.to_field(dx)
         np.savez('%s/static' % args.dir, o=o, L=system.L, r_0=system.p.r_0)
         utils.makedirs_soft('%s/dyn' % args.dir)

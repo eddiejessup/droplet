@@ -158,7 +158,7 @@ class Droplet(Obstruction):
             vm = utils.vector_mag(particles.v)
             v_dot_ru = np.sum(particles.v * ru, axis=-1)
             cos_theta = v_dot_ru / vm
-            particles_R_eff = particles.R * (1.0 + self.ecc * np.abs(cos_theta))
+            particles_R_eff = particles.R * (1.0 + (self.ecc - 1.0) * np.abs(cos_theta))
         else:
             particles_R_eff = particles.R
 
