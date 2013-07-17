@@ -5,16 +5,11 @@ import argparse
 import cProfile
 import pstats
 import datetime
-import os
-import subprocess
-import csv
 import yaml
-import matplotlib as mpl
-import matplotlib.pyplot as pp
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import utils
-import System
+import obstructions
+import environment
 
 parser = argparse.ArgumentParser(description='Run a particle simulation')
 parser.add_argument('f',
@@ -37,49 +32,52 @@ args = parser.parse_args()
 if args.profile and args.runtime == float('inf'):
     raise Exception('Cannot profile a simulation run without a specified run-time')
 
-def get_git_hash():
-    os.chdir(os.path.dirname(__file__))
-    return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
-
 def main():
     yaml_args = yaml.safe_load(open(args.f, 'r'))
 
     if args.dir is not None:
         if not args.silent: print('Initialising output...')
         utils.makedirs_safe(args.dir)
-        git_hash = get_git_hash()
+        git_hash = utils.get_git_hash()
         yaml_args['about_args'] = {'git_hash': git_hash, 'started': str(datetime.datetime.now())}
         yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'))
         if not args.silent: print('done!\n')
 
     if not args.silent: print('Initialising system...')
-    system = System.System(**yaml_args)
+    env = environment.Environment(**yaml_args)
     if not args.silent: print('done!\n')
 
     if args.dir is not None:
         if not args.silent: print('Outputting static data...')
-        try:
-            dx = system.obstructs.dx
-        except AttributeError:
-            dx = system.L / 200.0
-        o = system.obstructs.to_field(dx)
-        np.savez('%s/static' % args.dir, o=o, L=system.L, r_0=system.p.r_0)
+        static_dat = {'L': env.o.L,
+                      'r_0': env.p.r_0}
+        if isinstance(env.o, obstructions.Walls):
+            static_dat['o'] = env.o.a
+        elif isinstance(env.o, obstructions.Droplet):
+            static_dat['R'] = env.o.R
+        elif isinstance(env.o, obstructions.Porous):
+            static_dat['r'] = env.o.r
+            static_dat['R'] = env.o.R
+
+        np.savez('%s/static' % args.dir, **static_dat)
         utils.makedirs_soft('%s/dyn' % args.dir)
         if not args.silent: print('done!\n')
 
     if not args.silent: print('Iterating system...')
-    while system.t < args.runtime:
-        if not system.i % args.every:
+    while env.t < args.runtime:
+        if not env.i % args.every:
             if not args.silent:
-                print('\tt:%010g i:%08i...' % (system.t, system.i), end='')
+                print('\tt:%010g i:%08i...' % (env.t, env.i), end='')
             if args.dir is not None:
-                out_fname = 'latest' if args.latest else '%010f' % system.t
-                dyn_dat = {'t': system.t, 
-                           'r': system.p.r,
-                           'r_un': system.p.get_r_unwrapped()}
+                out_fname = 'latest' if args.latest else '%010f' % env.t
+                dyn_dat = {'t': env.t, 
+                           'r': env.p.r,
+                           'v': env.p.v,
+                           'r_un': env.p.get_r_unwrapped()}
                 np.savez_compressed('%s/dyn/%s' % (args.dir, out_fname), **dyn_dat)
             if not args.silent: print('done!')
-        system.iterate()
+
+        env.iterate()
     if not args.silent: print('done!\n')
 
 if args.profile:

@@ -32,6 +32,7 @@ def parse_dir(dirname, samples=1):
     if samples == 0: samples = available
     if available < samples:
         raise Exception('Requested %i samples but only have %i available for %s' % (samples, available, dirname))
+    print('For dirname %s using %i samples' % (dirname, samples))
 
     rs = []
     for i in range(samples):
@@ -124,29 +125,30 @@ def set_plot(sets, params, norm_R=False, norm_rho=False, errorbars=True):
             rho_plot = rho
             rho_plot_err = rho_err
 
-        rho_peak_max = rho[R / R_drop > 0.5].max()
-
-        i_peak = np.intersect1d(np.where(R / R_drop > 0.5)[0], np.where((rho - rho_0) / (rho_peak_max - rho_0) > 0.5)[0]).min()
-        rho_peak = ns[i_peak:].sum() / dV[i_peak:].sum()
-        rho_peak_err = np.sqrt(np.sum(np.square(ns_err[i_peak:]))) / dV[i_peak:].sum()
-        rho_bulk = ns[:i_peak].sum() / dV[:i_peak].sum()
-        rho_bulk_err = np.sqrt(np.sum(np.square(ns_err[:i_peak]))) / dV[:i_peak].sum()
         r_mean = np.sum(R * ns) / ns.sum()
+        i_mean = np.where(R > r_mean)[0].min()
+        rho_peak = ns[i_mean:].sum() / dV[i_mean:].sum()
+        rho_peak_err = np.sqrt(np.sum(np.square(ns_err[i_mean:]))) / dV[i_mean:].sum()
+        rho_bulk = ns[:i_mean].sum() / dV[:i_mean].sum()
+        rho_bulk_err = np.sqrt(np.sum(np.square(ns_err[:i_mean]))) / dV[:i_mean].sum()
 
-        # Plotting
         vf = (n * particle_volume(r_c, dim)) / drop_volume(R_drop, dim)
         af = (n * particle_area(r_c, dim)) / drop_area(R_drop, dim)
+
+        print(n, vf, af, r_mean, rho_peak/rho_0, rho_bulk/rho_0)
+
+        # Plotting
         label = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g%%' % (R_drop, 100.0 * vf)
         c = mpl.cm.jet(i/float(len(sets)))
         lw = 2
         if errorbars: p = ax.errorbar(R_plot, rho_plot, yerr=rho_plot_err, label=label, marker=None, lw=lw, c=c).lines[0]
         else: p = ax.plot(R_plot, rho_plot, label=label, lw=lw, c=c)[0]
 
-        # ax.axvline(R_plot[i_peak], c=p.get_color())
+        # ax.axvline(R_plot[i_mean], c=p.get_color())
         ax.set_ylim([0.0, max(ax.get_ylim()[1], 1.1 * rho_plot[R / R_drop > 0.5].max())])
         ax.set_xlim([0.0, max(ax.get_xlim()[1], 1.1 * R_plot.max())])
 
-    # a x.set_ylim([0.0, 5.3])
+    # ax.set_ylim([0.0, 11.01])
 
     ax.legend(loc='upper left')
     xlabel = r'$r / \mathrm{R}$' if norm_R else r'$r$'

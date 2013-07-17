@@ -2,18 +2,13 @@ import numpy as np
 import unittest
 import obstructions
 
-class EnvDummy(object):
-	def __init__(self, L):
-		self.L = L
-		self.L_half = L / 2.0
-
 class TestDroplet(unittest.TestCase):
 
 	def setUp(self):
 		L = 25.0
-		env = EnvDummy(L)
+		dim = 3
 		R = 10.0
-		self.o = obstructions.Droplet(env, R)
+		self.o = obstructions.Droplet(L, dim, R)
 
 	def test_obstructed(self):
 		R = np.array([0.1])

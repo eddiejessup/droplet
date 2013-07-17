@@ -1,148 +1,106 @@
 from __future__ import print_function
 import numpy as np
 import utils
+import pack
 import fields
 import maze
 
-def factory(key, env, kwargs):
+def factory(key, **kwargs):
     keys = {'closed_args': Closed,
             'trap_args': Traps,
             'maze_args': Maze,
             'porous_args': Porous,
             'droplet_args': Droplet
             }
-    return keys[key](env, **kwargs)
+    return keys[key](**kwargs)
 
-class Obstruction(object):
-    def __init__(self, env):
-        self.env = env
-        self.d = self.env.L_half
+class Obstruction(fields.Space):
+    def __init__(self, L, dim):
+        super(Obstruction, self).__init__(L, dim)
+        self.d = self.L_half
 
     def to_field(self, dx):
-        return np.zeros(self.env.dim * [self.env.L / dx], dtype=np.uint8)
+        return np.zeros(self.dim * [self.L / dx], dtype=np.uint8)
 
     def is_obstructed(self, r, *args, **kwargs):
         return False
 
+    def couldbe_obstructed(self, *args, **kwargs):
+        return self.is_obstructed(*args, **kwargs)
+
     def obstruct(self, *args, **kwargs):
         pass
 
-    def get_A_obstructed(self):
+    def A_obstructed(self):
         return 0.0
 
-    def get_A_free(self):
-        return self.env.get_A() - self.get_A_obstructed()
+    def A_free(self):
+        return self.A() - self.A_obstructed()
 
 class Porous(Obstruction):
-    BUFFER_SIZE = 0.005
-
-    def __init__(self, env, R, porosity, delta):
-        super(Porous, self).__init__(env)
-        rs = utils.sphere_pack(R / self.env.L, self.env.dim, 1.0 - porosity)
-        self.r_c = np.array(rs) * self.env.L
-        self.R_c = np.ones([self.r_c.shape[0]]) * R
-        self.R_c_sq = self.R_c ** 2
-        self.porosity = 1.0 - utils.sphere_volume(self.R_c, self.env.dim).sum() / self.env.get_A()
-        self.threshold = np.pi / 2.0 - delta
-        if len(self.R_c) > 0: self.d = self.R_c.min()
-
-        if self.threshold < 0.0:
-            raise Exception('Require 0 <= alignment angle <= pi/2')
-
-#        print('True porosity: %f' % self.porosity)
-        self.init_cell_list()
-
-    def init_cell_list(self):
-        if len(self.R_c): dx = self.R_c.min() / 5.0
-        else: dx = self.env.L
-        M = int(self.env.L / dx)
-        dx = self.env.L / M
-        self.cl = np.zeros(self.env.dim * [M] + [self.env.dim * 2], dtype=np.int)
-        self.cli = np.zeros(self.env.dim * [M], dtype=np.int)
-        axes = [i + 1 for i in range(self.env.dim)] + [0]
-        inds = np.transpose(np.indices(self.cl.shape[:-1]), axes=axes).reshape(M ** self.env.dim, self.env.dim)
-        for ind in inds:
-            r = -self.env.L_half + (ind + 0.5) * dx
-            r_rels_mag_sq = utils.vector_mag_sq(r[np.newaxis, :] - self.r_c)
-            for m in np.where(r_rels_mag_sq < np.square(self.R_c + np.sqrt(self.env.dim) * dx))[0]:
-                self.cl[tuple(ind)][self.cli[tuple(ind)]] = m
-                self.cli[tuple(ind)] += 1
+    def __init__(self, L, dim, R, porosity):
+        super(Porous, self).__init__(L, dim)
+        self.r, self.R = pack.random(1.0 - porosity, self.dim, R / self.L)
+        self.r, self.R = self.r * self.L, self.R * self.L
+        self.m = len(self.r)
+        self.porosity = 1.0 - self.A_obstructed() / self.A()
+        self.d = self.R
+        print('True porosity: %f, sphere radius: %f' % (self.porosity, self.R))
 
     def to_field(self, dx):
-        M = int(self.env.L / dx)
-        dx = self.env.L / M
-        field = np.zeros(self.env.dim * [M], dtype=np.uint8)
-        axes = [i + 1 for i in range(self.env.dim)] + [0]
-        inds = np.transpose(np.indices(self.env.dim * [M]), axes=axes)
-        rs = -self.env.L_half + (inds + 0.5) * dx
-        for m in range(len(self.R_c)):
-            r_rels_mag_sq = utils.vector_mag_sq(rs - self.r_c[np.newaxis, np.newaxis, m])
-            field += r_rels_mag_sq < self.R_c_sq[m]
+        M = int(self.L / dx)
+        dx = self.L / M
+        field = np.zeros(self.dim * [M], dtype=np.uint8)
+        axes = [i + 1 for i in range(self.dim)] + [0]
+        inds = np.transpose(np.indices(self.dim * [M]), axes=axes)
+        rs = -self.L_half + (inds + 0.5) * dx
+        for m in range(self.m):
+            r_rels_mag_sq = utils.vector_mag_sq(rs - self.r[np.newaxis, np.newaxis, m])
+            field += r_rels_mag_sq < self.R ** 2.0
         return field
 
-    # def is_obstructed(self, r, R):
-    #     ind = utils.r_to_i(r, self.env.L, self.env.L / self.cl.shape[0])
-    #     for m in self.cl[tuple(ind)][:self.cli[tuple(ind)]]:
-    #         if utils.sphere_intersect(r, -R, self.r_c[m], self.R_c[m]): return True
-    #     return False
-
+    # old
     def is_obstructed(self, r, R):
         if r.ndim == 1: obstructed = False
         else: obstructed = np.zeros([len(r)], dtype=np.bool)
-        for m in range(len(self.R_c)):
-            obstructed += utils.sphere_intersect(r, R, self.r_c[m], self.R_c[m])
+        
+        for m in range(self.m):
+            obstructed += utils.sphere_intersect(r, R, self.r[m], self.R)
         return obstructed
 
-    couldbe_obstructed = is_obstructed
+    # new
+    # def is_obstructed(self, r, R)
+    #     return scipy.spatial.distance.cdist(r, self.r, metric='sqeuclidean').min(axis=-1) < (R + self.R) ** 2.0
 
     def obstruct(self, particles, *args, **kwargs):
        super(Porous, self).obstruct(particles, *args, **kwargs)
        # bounce-back
        particles.v[self.is_obstructed(particles.r, particles.R)] *= -1
 
-    # def obstruct(self, particles, *args, **kwargs):
-    #    super(Porous, self).obstruct(particles, *args, **kwargs)
-    #    inds = utils.r_to_i(particles.r, self.env.L, self.env.L / self.cl.shape[0])
-    #    cl_subs = self.cl[tuple(inds.T)]
-    #    cli_subs = self.cli[tuple(inds.T)]
-    #    v_mag = utils.vector_mag(particles.v)
-    #    for n in np.where(cli_subs > 0)[0]:
-    #        for m in cl_subs[n, :cli_subs[n]]:
-    #            r_rel = particles.r[n] - self.r_c[m]
-    #            r_rel_mag_sq = r_rel.dot(r_rel)
-    #            if r_rel_mag_sq < self.R_c_sq[m]:
-    #                u_rel = r_rel / np.sqrt(r_rel_mag_sq)
-    #                particles.r[n] = self.r_c[m] + (1.0 + Porous.BUFFER_SIZE) * self.R_c[m] * u_rel
-    #                if particles.motile_flag:
-    #                    v_new = particles.v[n] - np.sum(particles.v[n] * u_rel) * u_rel
-    #                    particles.v[n] = v_new * v_mag[n] / np.sqrt(v_new.dot(v_new))
-
-    def get_A_obstructed(self):
-        return (1.0 - self.porosity) * self.env.get_A()
+    def A_obstructed(self):
+        return self.m * utils.sphere_volume(self.R, self.dim)
 
 class Droplet(Obstruction):
     BUFFER_SIZE = 0.005
     OFFSET = 1.0 + BUFFER_SIZE
 
-    def __init__(self, env, R):
-        super(Droplet, self).__init__(env)
+    def __init__(self, L, dim, R, ecc=1.0):
+        super(Droplet, self).__init__(L, dim)
         self.R = R
-        self.R_sq = R ** 2
-        self.d = self.env.L - 2.0 * self.R
+        self.ecc = ecc
+        self.d = self.L - 2.0 * self.R
 
-        if self.R >= self.env.L_half:
+        if self.R >= self.L_half:
             raise Exception('Require droplet diameter < system size')
 
-        self.ecc = 2.0
-
     def to_field(self, dx):
-        M = int(self.env.L / dx)
-        dx = self.env.L / M
-        field = np.zeros(self.env.dim * [M], dtype=np.uint8)
-        axes = [i + 1 for i in range(self.env.dim)] + [0]
-        inds = np.transpose(np.indices(self.env.dim * [M]), axes=axes)
-        rs = -self.env.L_half + (inds + 0.5) * dx
-        field[...] = np.logical_not(utils.vector_mag_sq(rs) < self.R_sq)
+        M = int(self.L / dx)
+        dx = self.L / M
+        field = np.zeros(self.dim * [M], dtype=np.uint8)
+        axes = [i + 1 for i in range(self.dim)] + [0]
+        inds = np.transpose(np.indices(self.dim * [M]), axes=axes)
+        rs = -self.L_half + (inds + 0.5) * dx
+        field[...] = np.logical_not(utils.vector_mag_sq(rs) < self.R ** 2)
         return field
 
     def is_obstructed(self, r, R):
@@ -173,34 +131,34 @@ class Droplet(Obstruction):
 
         particles.r[obstructed] = ((self.R - particles_R_eff[:, np.newaxis]) * self.OFFSET * ru)[obstructed]
 
-    def get_A_obstructed(self):
-        return self.env.get_A() - utils.sphere_volume(self.R, self.env.dim)
+    def A_obstructed(self):
+        return self.A() - utils.sphere_volume(self.R, self.dim)
 
 class Walls(Obstruction, fields.Field):
     BUFFER_SIZE = 0.999
 
-    def __init__(self, env, dx):
-        Obstruction.__init__(self, env)
-        fields.Field.__init__(self, env, dx)
-        self.a = np.zeros(self.env.dim * (self.M,), dtype=np.uint8)
+    def __init__(self, L, dim, dx):
+        Obstruction.__init__(self, L, dim)
+        fields.Field.__init__(self, L, dim, dx)
+        self.a = np.zeros(self.dim * (self.M,), dtype=np.uint8)
+
+    def to_field(self, dx=None):
+        if dx is None: dx = self.dx()
+        if dx == self.dx():
+            return self.a
+        elif self.dx() % dx == 0.0:
+            return utils.extend_array(self.a, int(self.dx() // dx))
+        else:
+            raise NotImplementedError
 
     def is_obstructed(self, r, *args, **kwargs):
         return self.a[tuple(self.r_to_i(r).T)]
-
-    def to_field(self, dx=None):
-        if dx is None: dx = self.dx
-        if dx == self.dx:
-            return self.a
-        elif self.dx % dx == 0.0:
-            return utils.extend_array(self.a, int(self.dx // dx))
-        else:
-            raise NotImplementedError
 
     def obstruct(self, particles, r_old, *args, **kwargs):
         super(Walls, self).obstruct(particles, r_old, *args, **kwargs)
         inds_old = self.r_to_i(r_old)
         inds_new = self.r_to_i(particles.r)
-        dx_half = Walls.BUFFER_SIZE * (self.dx / 2.0)
+        dx_half = Walls.BUFFER_SIZE * (self.dx() / 2.0)
         for i in np.where(self.is_obstructed(particles.r))[0]:
             for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
                 particles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(particles.v[i, i_dim])
@@ -208,48 +166,48 @@ class Walls(Obstruction, fields.Field):
         assert not self.is_obstructed(particles.r).any()
         if particles.motile_flag: particles.v = utils.vector_unit_nullrand(particles.v) * particles.v_0
 
-    def get_A_obstructed_i(self):
+    def A_obstructed_i(self):
         return self.a.sum()
 
-    def get_A_i(self):
+    def A_i(self):
         return self.a.size
 
-    def get_A_obstructed(self):
-        return self.env.get_A() * (float(self.get_A_obstructed_i()) / float(self.get_A_i()))
+    def A_obstructed(self):
+        return self.A() * (float(self.A_obstructed_i()) / float(self.A_i()))
 
 class Closed(Walls):
-    def __init__(self, env, dx, d, closedness=None):
-        super(Closed, self).__init__(env, dx)
+    def __init__(self, L, dim, dx, d, closedness=None):
+        super(Closed, self).__init__(L, dim, dx)
         self.d_i = int(d / dx) + 1
-        self.d = self.d_i * self.dx
+        self.d = self.d_i * self.dx()
         if closedness is None:
-            closedness = self.env.dim
+            closedness = self.dim
         self.closedness = closedness
 
-        if not 0 <= self.closedness <= self.env.dim:
+        if not 0 <= self.closedness <= self.dim:
             raise Exception('Require 0 <= closedness <= dimension')
 
         for dim in range(self.closedness):
-            inds = [Ellipsis for i in range(self.env.dim)]
+            inds = [Ellipsis for i in range(self.dim)]
             inds[dim] = slice(0, self.d_i)
             self.a[inds] = True
             inds[dim] = slice(-1, -(self.d_i + 1), -1)
             self.a[inds] = True
 
 class Traps(Walls):
-    def __init__(self, env, dx, n, d, w, s):
-        super(Traps, self).__init__(env, dx)
+    def __init__(self, L, dim, dx, n, d, w, s):
+        super(Traps, self).__init__(L, dim, dx)
         self.n = n
-        self.d_i = int(d / self.dx) + 1
-        self.w_i = int(w / self.dx) + 1
-        self.s_i = int(s / self.dx) + 1
-        self.d = self.d_i * self.dx
-        self.w = self.w_i * self.dx
-        self.s = self.s_i * self.dx
+        self.d_i = int(d / self.dx()) + 1
+        self.w_i = int(w / self.dx()) + 1
+        self.s_i = int(s / self.dx()) + 1
+        self.d = self.d_i * self.dx()
+        self.w = self.w_i * self.dx()
+        self.s = self.s_i * self.dx()
 
-        if self.env.dim != 2:
+        if self.dim != 2:
             raise Exception('Traps not implemented in this dimension')
-        if self.w < 0.0 or self.w > self.env.L:
+        if self.w < 0.0 or self.w > self.L:
             raise Exception('Invalid trap width')
         if self.s < 0.0 or self.s > self.w:
             raise Exception('Invalid slit length')
@@ -276,16 +234,16 @@ class Traps(Walls):
             self.a[x - s_i_half:x + s_i_half + 1,
                    y + w_i_half:y + w_i_half + self.d_i + 1] = False
 
-    def get_A_traps_i(self):
+    def A_traps_i(self):
         A_traps_i = 0
         for x, y in self.traps_i:
             A_traps_i += np.logical_not(self.a[x - w_i_half: x + w_i_half + 1, y - w_i_half:y + w_i_half + 1]).sum()
         return A_traps_i
 
-    def get_A_traps(self):
-        return self.A * (float(self.get_A_traps_i()) / float(self.get_A_free_i))
+    def A_traps(self):
+        return self.A() * (float(self.A_traps_i()) / float(self.A_free_i))
 
-    def get_fracs(self, r):
+    def fracs(self, r):
         inds = self.r_to_i(r)
         n_traps = [0 for i in range(len(self.traps_i))]
         for i_trap in range(len(self.traps_i)):
@@ -299,21 +257,21 @@ class Traps(Walls):
         return [float(n_trap) / float(r.shape[0]) for n_trap in n_traps]
 
 class Maze(Walls):
-    def __init__(self, env, dx, d, seed=None):
-        super(Maze, self).__init__(env, dx)
-        if self.env.L / self.dx % 1 != 0:
+    def __init__(self, L, dim, dx, d, seed=None):
+        super(Maze, self).__init__(L, dim, dx)
+        if self.L / self.dx() % 1 != 0:
             raise Exception('Require L / dx to be an integer')
-        if self.env.L / self.d % 1 != 0:
+        if self.L / self.d % 1 != 0:
             raise Exception('Require L / d to be an integer')
-        if (self.env.L / self.dx) / (self.env.L / self.d) % 1 != 0:
+        if (self.L / self.dx()) / (self.L / self.d) % 1 != 0:
             raise Exception('Require array size / maze size to be integer')
 
         self.seed = seed
         self.d = d
 
-        self.M_m = int(self.env.L / self.d)
+        self.M_m = int(self.L / self.d)
         self.d_i = int(self.M / self.M_m)
-        maze_array = maze.make_maze_dfs(self.M_m, self.env.dim, self.seed)
+        maze_array = maze.make_maze_dfs(self.M_m, self.dim, self.seed)
         self.a[...] = utils.extend_array(maze_array, self.d_i)
 
     def shrink(w_old, n):

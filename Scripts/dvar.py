@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pp
 import fields
+import utils
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)
@@ -36,5 +37,6 @@ print(dx)
 for fname in args.dyns:
 	dyn = np.load(fname.strip())
 	r = dyn['r']
+    print(np.)
     density = fields.density(r, L, args.dx)
     print(np.std(density[valids]))
