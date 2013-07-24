@@ -46,6 +46,6 @@ class Environment(object):
         if isinstance(self.f, walled_fields.Food):
             self.f.iterate(self.p.get_density_field(self.f.dx()))
         if isinstance(self.c, walled_fields.Secretion):
-            self.c.iterate(p.get_density_field(self.c.dx()), self.f)
+            self.c.iterate(self.p.get_density_field(self.c.dx()), self.f)
         self.t += self.dt
         self.i += 1
