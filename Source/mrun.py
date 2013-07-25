@@ -21,17 +21,14 @@ parser.add_argument('-d', '--dir', default=None,
     help='output directory, default is no output')
 parser.add_argument('-e', '--every', type=int, default=1,
     help='how many iterations should elapse between outputs, default is 1')
-parser.add_argument('-c', '--cp', type=int, default=-1,
-    help='how many iterations should elapse between checkpoints, negative means never')
+parser.add_argument('-c', '--cp', type=int, default=20,
+    help='how many data outputs should elapse between checkpoints, negative means never')
 parser.add_argument('-l', '--latest', default=False, action='store_true',
     help='only keep output of latest system configuration, default is false')
 parser.add_argument('-s', '--silent', default=False, action='store_true',
     help='don''t print to stdout')
 
 args = parser.parse_args()
-
-if args.cp == -1:
-    raw_input('Warning: no checkpointing requested, press enter to continue anyway...')
 
 if not args.silent: print('\n' + 5*'*' + ' Bannock simulation ' + 5*'*' + '\n')
 
@@ -78,11 +75,11 @@ while env.t < args.runtime:
         if args.dir is not None:
             out_fname = 'latest' if args.latest else '%010f' % env.t
             env.output('%s/dyn/%s' % (args.dir, out_fname))
+        i_dat = env.i // args.every
+        if i_dat == 0 or (args.cp > 0 and not i_dat % args.cp):
+            print('making checkpoint...', end='')
+            env.checkpoint('%s/cp' % args.dir)
         if not args.silent: print('done!')
-    if env.i == 0 or (args.cp > 0 and not env.i % args.cp):
-        print('Making checkpoint...', end='')
-        env.checkpoint('%s/cp' % args.dir)
-        print('done!')
 
     env.iterate()
 if not args.silent: print('done!\n')
