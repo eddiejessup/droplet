@@ -189,17 +189,14 @@ class Traps(Walls):
     def __init__(self, L, dim, dx, n, d, w, s):
         Walls.__init__(self, L, dim, dx)
         self.n = n
-        self.d_i = int(d / self.dx()) + 1
-        self.w_i = int(w / self.dx()) + 1
-        self.s_i = int(s / self.dx()) + 1
-        self.d = self.d_i * self.dx()
-        self.w = self.w_i * self.dx()
-        self.s = self.s_i * self.dx()
-
-        if self.w < 0.0 or self.w > self.L:
-            raise Exception('Invalid trap width')
-        if self.s < 0.0 or self.s > self.w:
-            raise Exception('Invalid slit length')
+        d_i = int(d / self.dx()) + 1
+        w_i = int(w / self.dx()) + 1
+        s_i = int(s / self.dx()) + 1
+        w_i_half = w_i // 2
+        s_i_half = s_i // 2
+        self.d = d_i * self.dx()
+        self.w = w_i * self.dx()
+        self.s = s_i * self.dx()
 
         if self.dim == 2:
             if self.n == 1:
@@ -209,26 +206,25 @@ class Traps(Walls):
             elif self.n == 5:
                 self.centres_f = [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75], [0.50, 0.50]]
             else:
-                raise Exception('Traps not implemented for this number of traps in this dimension')
+                raise Exception('Traps not implemented for %i traps' % self.n)
         elif self.dim == 3:
             if self.n == 1:
                 self.centres_f = [[0.50, 0.50, 0.50]]
             else:
-                raise Exception('Traps not implemented for this number of traps in this dimension')
+                raise Exception('Traps not implemented for %i traps' % self.n)
         else:
-            raise Exception('Traps not implemented in this dimension')
+            raise Exception('Traps not implemented in %i dimensions' % self.dim)
 
-        w_i_half = self.w_i // 2
-        s_i_half = self.s_i // 2
         self.centres_i = np.asarray(self.M * np.array(self.centres_f), dtype=np.int)
 
+        self.fill_inds, self.empty_inds, self.trap_inds = [], [], []
         for c in self.centres_i:
             fill_ind = []
             empty_ind = []
             trap_ind = []
             for d in range(self.dim):
                 # fill from centre +/- (w + d)
-                fill_ind.append(slice(c[d] - w_i_half - self.d_i, c[d] + w_i_half + self.d_i + 1))
+                fill_ind.append(slice(c[d] - w_i_half - d_i, c[d] + w_i_half + d_i + 1))
                 # empty out again from centre +/- w
                 empty_ind.append(slice(c[d] - w_i_half, c[d] + w_i_half + 1))
                 if d != 0:
@@ -238,31 +234,35 @@ class Traps(Walls):
                     # empty out from c+w to c+w+d on one axis
                     trap_ind.append(slice(c[0] + w_i_half, c[0] + w_i_half + self.d_i + 1))
 
-            self.a[tuple(fill_ind)] = True
-            self.a[tuple(empty_ind)] = False
-            self.a[tuple(trap_ind)] = False
+            fill_ind = tuple(fill_ind)
+            empty_ind = tuple(empty_ind)
+            trap_ind = tuple(trap_ind)
+
+            self.a[fill_ind] = True
+            self.a[empty_ind] = False
+            self.a[trap_ind] = False
+
+            self.fill_inds.append(fill_ind)
+            self.empty_inds.append(empty_ind)
+            self.trap_inds.append(trap_ind)
 
     def A_traps_i(self):
         A_traps_i = 0
-        for x, y in self.traps_i:
-            A_traps_i += np.logical_not(self.a[x - w_i_half: x + w_i_half + 1, y - w_i_half:y + w_i_half + 1]).sum()
+        for c in self.centres_i:
+            A_traps_i += np.logical_not(self.a[self.empty_ind]).sum()
         return A_traps_i
 
     def A_traps(self):
-        return self.A() * (float(self.A_traps_i()) / float(self.A_free_i))
+        return self.A() * float(self.A_traps_i()) / self.A_free_i
 
     def fracs(self, r):
-        inds = self.r_to_i(r)
-        n_traps = [0 for i in range(len(self.traps_i))]
-        for i_trap in range(len(self.traps_i)):
-            mix_x, mid_y = self.traps_i[i_trap]
-            w_i_half = self.w_i // 2
-            low_x, high_x = mid_x - w_i_half, mid_x + w_i_half
-            low_y, high_y = mid_y - w_i_half, mid_y + w_i_half
-            for i_x, i_y in inds:
-                if low_x < i_x < high_x and low_y < i_y < high_y:
-                    n_traps[i_trap] += 1
-        return [float(n_trap) / float(r.shape[0]) for n_trap in n_traps]
+        fracs = []
+        for s in self.empty_inds:
+            n_trap = 0
+            for x in self.r_to_i(r):
+                n_trap += all([s[d].start < x[d] < s[d].stop for d in range(self.dim)])
+            fracs.append(float(n_trap) / len(r))
+        return fracs
 
 class Maze(Walls):
     def __init__(self, L, dim, dx, d, seed=None):
