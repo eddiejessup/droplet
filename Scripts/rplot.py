@@ -19,12 +19,9 @@ parser.add_argument('dyns', nargs='*',
     help='npz files containing dynamic states')
 parser.add_argument('-f', '--force', default=False, action='store_true',
     help='Force plotting all states')
-parser.add_argument('-i', '--int', default=False, action='store_true',
-    help='Plot state interactively')
+parser.add_argument('-s', '--save', default=False, action='store_true',
+    help='Save plot')
 args = parser.parse_args()
-
-# If there are arguments, use those, otherwise expect to be fed data
-if not args.dyns: args.dyns = sys.stdin
 
 stat = np.load(args.static)
 o = stat['o']
@@ -46,12 +43,11 @@ ax.set_yticks([])
 rp = ax.scatter([], [], s=1)
 
 for fname in args.dyns:
-	img_fname = '%s.pdf' % fname[:-4]
-	print(img_fname)
-	if args.int or args.force or not os.path.isfile(img_fname):
-		dyn = np.load(fname.strip())
-		r = dyn['r']
-		rp.set_offsets(r[:,:2])
+	dyn = np.load(fname.strip())
+	r = dyn['r']
+	rp.set_offsets(r[:,:2])
 
-		if args.int: pp.show()
-		else: fig.savefig(img_fname, bbox_inches='tight')
+	if args.save: 
+        img_fname = '%s.pdf' % fname[:-4]
+        fig.savefig(img_fname, bbox_inches='tight')
+	else: pp.show()
