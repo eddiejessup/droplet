@@ -16,7 +16,7 @@ def factory(key, **kwargs):
 
 class Obstruction(fields.Space):
     def __init__(self, L, dim):
-        super(Obstruction, self).__init__(L, dim)
+        fields.Space.__init__(self, L, dim)
         self.d = self.L_half
 
     def to_field(self, dx):
@@ -39,7 +39,7 @@ class Obstruction(fields.Space):
 
 class Porous(Obstruction):
     def __init__(self, L, dim, R, porosity):
-        super(Porous, self).__init__(L, dim)
+        Obstruction.__init__(self, L, dim)
         self.r, self.R = pack.random(1.0 - porosity, self.dim, R / self.L)
         self.r, self.R = self.r * self.L, self.R * self.L
         self.m = len(self.r)
@@ -73,7 +73,7 @@ class Porous(Obstruction):
     #     return scipy.spatial.distance.cdist(r, self.r, metric='sqeuclidean').min(axis=-1) < (R + self.R) ** 2.0
 
     def obstruct(self, particles, *args, **kwargs):
-       super(Porous, self).obstruct(particles, *args, **kwargs)
+       Obstruction.obstruct(self, particles, *args, **kwargs)
        # bounce-back
        particles.v[self.is_obstructed(particles.r, particles.R)] *= -1
 
@@ -85,7 +85,7 @@ class Droplet(Obstruction):
     OFFSET = 1.0 + BUFFER_SIZE
 
     def __init__(self, L, dim, R, ecc=1.0):
-        super(Droplet, self).__init__(L, dim)
+        Obstruction.__init__(self, L, dim)
         self.R = R
         self.ecc = ecc
         self.d = self.L - 2.0 * self.R
@@ -110,7 +110,7 @@ class Droplet(Obstruction):
         return utils.vector_mag(r) > self.R - R * self.ecc
 
     def obstruct(self, particles, r_old, *args, **kwargs):
-        super(Droplet, self).obstruct(particles, *args, **kwargs)
+        Obstruction.obstruct(self, particles, *args, **kwargs)
         ru = utils.vector_unit_nonull(particles.r)
         if particles.motile_flag:
             vm = utils.vector_mag(particles.v)
@@ -155,7 +155,7 @@ class Walls(Obstruction, fields.Field):
         return self.a[tuple(self.r_to_i(r).T)]
 
     def obstruct(self, particles, r_old, *args, **kwargs):
-        super(Walls, self).obstruct(particles, r_old, *args, **kwargs)
+        Obstruction.obstruct(self, particles, r_old, *args, **kwargs)
         inds_old = self.r_to_i(r_old)
         inds_new = self.r_to_i(particles.r)
         dx_half = Walls.BUFFER_SIZE * (self.dx() / 2.0)
@@ -177,7 +177,7 @@ class Walls(Obstruction, fields.Field):
 
 class Closed(Walls):
     def __init__(self, L, dim, dx, d, closedness=None):
-        super(Closed, self).__init__(L, dim, dx)
+        Walls.__init__(self, L, dim, dx)
         self.d_i = int(d / dx) + 1
         self.d = self.d_i * self.dx()
         if closedness is None:
@@ -196,7 +196,7 @@ class Closed(Walls):
 
 class Traps(Walls):
     def __init__(self, L, dim, dx, n, d, w, s):
-        super(Traps, self).__init__(L, dim, dx)
+        Walls.__init__(self, L, dim, dx)
         self.n = n
         self.d_i = int(d / self.dx()) + 1
         self.w_i = int(w / self.dx()) + 1
@@ -258,7 +258,7 @@ class Traps(Walls):
 
 class Maze(Walls):
     def __init__(self, L, dim, dx, d, seed=None):
-        super(Maze, self).__init__(L, dim, dx)
+        Walls.__init__(self, L, dim, dx)
         if self.L / self.dx() % 1 != 0:
             raise Exception('Require L / dx to be an integer')
         if self.L / self.d % 1 != 0:

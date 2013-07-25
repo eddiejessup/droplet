@@ -5,7 +5,6 @@ import walled_field_numerics
 
 class Scalar(fields.Scalar):
     def __init__(self, L, dim, dx, obstructs, a_0=0.0, grad=0.0):
-#        super(Scalar, self).__init__(env, dx, a_0=a_0)
         fields.Scalar.__init__(self, L, dim, dx, a_0=a_0, grad=grad)
         # Make field zero-valued where obstructed
         self.of = obstructs.to_field(self.dx())
@@ -29,21 +28,21 @@ class Diffusing(Scalar, fields.Diffusing):
 
 class Food(Diffusing):
     def __init__(self, L, dim, dx, obstructs, D, dt, sink_rate, f_0=0.0):
-        super(Food, self).__init__(L, dim, dx, obstructs, D, dt, a_0=f_0)
+        Diffusing.__init__(self, L, dim, dx, obstructs, D, dt, a_0=f_0)
         self.sink_rate = sink_rate
 
     def iterate(self, density):
-        super(Food, self).iterate()
+        Diffusing.iterate(self)
         self.a -= self.sink_rate * density * self.dt
         self.a = np.maximum(self.a, 0.0)
 
 class Secretion(Diffusing):
     def __init__(self, L, dim, dx, obstructs, D, dt, sink_rate, source_rate, c_0=0.0):
-        super(Secretion, self).__init__(L, dim, dx, obstructs, D, dt, a_0=c_0)
+        Diffusing.__init__(self, L, dim, dx, obstructs, D, dt, a_0=c_0)
         self.source_rate = source_rate
         self.sink_rate = sink_rate
 
     def iterate(self, density, f):
-        super(Secretion, self).iterate()
+        Diffusing.iterate(self)
         self.a += (self.source_rate * density * f.a - self.sink_rate * self.a) * self.dt
         self.a = np.maximum(self.a, 0.0)
