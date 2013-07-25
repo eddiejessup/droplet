@@ -9,6 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as pp
 import fields
 import utils
+import butils
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)
@@ -27,7 +28,7 @@ args = parser.parse_args()
 # If there are arguments, use those, otherwise expect to be fed data
 if not args.dyns: args.dyns = sys.stdin
 
-stat = np.load(args.static)
+stat = butils.get_stat(args.dir)
 # o = stat['o']
 # valids = np.asarray(np.logical_not(o, dtype=np.bool))
 L = stat['L']

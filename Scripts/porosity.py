@@ -7,10 +7,10 @@ import argparse
 import numpy as np
 
 parser = argparse.ArgumentParser(description='Plot system states')
-parser.add_argument('static',
-    help='npz file containing static state')
+parser.add_argument('dir',
+    help='data directory')
 args = parser.parse_args()
 
-stat = np.load(args.static)
+stat = butils.get_stat(args.dir)
 o = stat['o']
 print(1.0 - o.sum() / o.size)

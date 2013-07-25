@@ -7,14 +7,14 @@ import argparse
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pp
-import visual as vp
+import butils
 
 mpl.rc('font', family='serif', serif='STIXGeneral')
 mpl.rc('text', usetex=True)
 
 parser = argparse.ArgumentParser(description='Plot system states')
-parser.add_argument('static',
-    help='npz file containing static state')
+parser.add_argument('dir',
+    help='data directory')
 parser.add_argument('dyns', nargs='*',
     help='npz files containing dynamic states')
 parser.add_argument('-f', '--force', default=False, action='store_true',
@@ -23,7 +23,7 @@ parser.add_argument('-s', '--save', default=False, action='store_true',
     help='Save plot')
 args = parser.parse_args()
 
-stat = np.load(args.static)
+stat = butils.get_stat(args.dir)
 o = stat['o']
 L_half = stat['L'] / 2.0
 
@@ -43,11 +43,12 @@ ax.set_yticks([])
 rp = ax.scatter([], [], s=1)
 
 for fname in args.dyns:
-	dyn = np.load(fname.strip())
-	r = dyn['r']
-	rp.set_offsets(r[:,:2])
+    dyn = np.load(fname.strip())
+    r = dyn['r']
+    rp.set_offsets(r[:,:2])
 
-	if args.save: 
+    if args.save:
         img_fname = '%s.pdf' % fname[:-4]
         fig.savefig(img_fname, bbox_inches='tight')
-	else: pp.show()
+    else: 
+        pp.show()

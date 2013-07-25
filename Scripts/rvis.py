@@ -7,6 +7,7 @@ import time
 import numpy as np
 import vtk
 from vtk.util import numpy_support
+import butils
 
 def pad_to_3d(a):
     a_pad = np.zeros([len(a), 3], dtype=a.dtype)
@@ -14,8 +15,8 @@ def pad_to_3d(a):
     return a_pad
 
 parser = argparse.ArgumentParser(description='Visualise system states using VTK')
-parser.add_argument('static',
-    help='npz file containing static state')
+parser.add_argument('dir',
+    help='data directory')
 parser.add_argument('dyns', nargs='*',
     help='npz files containing dynamic states')
 parser.add_argument('-s', '--save', default=False, action='store_true',
@@ -37,7 +38,7 @@ if args.save:
     writer = vtk.vtkPNGWriter()
     writer.SetInputConnection(winImFilt.GetOutputPort())
 
-stat = np.load(args.static)
+stat = butils.get_stat(args.dir)
 
 # System bounds
 L = stat['L']

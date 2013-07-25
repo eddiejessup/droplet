@@ -7,6 +7,7 @@ import argparse
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pp
+import butils
 
 parser = argparse.ArgumentParser(description='Calculate drift speeds')
 parser.add_argument('dir',
@@ -15,7 +16,7 @@ parser.add_argument('--header', default=False, action='store_true',
     help='print header')
 args = parser.parse_args()
 
-stat = np.load('%s/static.npz' % args.dir)
+stat = butils.get_stat(args.dir)
 
 r_0 = stat['r_0']
 L = stat['L']

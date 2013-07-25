@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pp
 import utils
+import butils
 
 parser = argparse.ArgumentParser(description='Calculate mean radial particle distance in a droplet')
 parser.add_argument('dir',
@@ -16,7 +17,7 @@ parser.add_argument('dir',
 args = parser.parse_args()
 
 yaml_args = yaml.safe_load(open('%s/params.yaml' % args.dir, 'r'))
-stat = np.load('%s/static.npz' % args.dir)
+stat = butils.get_stat(args.dir)
 
 r_0 = stat['r_0']
 L = stat['L']
