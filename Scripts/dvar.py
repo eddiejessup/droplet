@@ -28,15 +28,18 @@ args = parser.parse_args()
 if not args.dyns: args.dyns = sys.stdin
 
 stat = np.load(args.static)
-o = stat['o']
+# o = stat['o']
+# valids = np.asarray(np.logical_not(o, dtype=np.bool))
 L = stat['L']
 
-valids = np.asarray(np.logical_not(o, dtype=np.bool))
+# dx = L / float(o.shape[0])
 
-print(dx)
+dx = L / 50.0
+
 for fname in args.dyns:
-	dyn = np.load(fname.strip())
-	r = dyn['r']
-    print(np.)
-    density = fields.density(r, L, args.dx)
-    print(np.std(density[valids]))
+    dyn = np.load(fname.strip())
+    r = dyn['r']
+    t = dyn['t']
+    density = fields.density(r, L, dx)
+    dvar = np.std(density)
+    print(t, dvar)
