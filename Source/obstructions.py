@@ -1,5 +1,6 @@
 from __future__ import print_function
 import numpy as np
+import scipy.spatial.distance
 import utils
 import pack
 import fields
@@ -59,18 +60,8 @@ class Porous(Obstruction):
             field += r_rels_mag_sq < self.R ** 2.0
         return field
 
-    # old
     def is_obstructed(self, r, R):
-        if r.ndim == 1: obstructed = False
-        else: obstructed = np.zeros([len(r)], dtype=np.bool)
-        
-        for m in range(self.m):
-            obstructed += utils.sphere_intersect(r, R, self.r[m], self.R)
-        return obstructed
-
-    # new
-    # def is_obstructed(self, r, R)
-    #     return scipy.spatial.distance.cdist(r, self.r, metric='sqeuclidean').min(axis=-1) < (R + self.R) ** 2.0
+        return scipy.spatial.distance.cdist(r.reshape(-1, self.dim), self.r, metric='sqeuclidean').min(axis=-1) < (R + self.R) ** 2.0
 
     def obstruct(self, particles, *args, **kwargs):
        Obstruction.obstruct(self, particles, *args, **kwargs)
