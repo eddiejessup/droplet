@@ -235,6 +235,21 @@ class Particles(object):
     def get_density_field(self, dx):
         return fields.density(self.r, self.L, dx)
 
+    def __getstate__(self):
+        odict = self.__dict__.copy()
+        # change fitness_alg from instance method reference to string as instance method
+        # references can't be pickled
+        odict['fitness_alg'] = str(self.fitness_alg)
+        return odict
+
+    def __setstate__(self, odict):
+        # Convert back from str to instance method ref for unpickling purposes
+        if odict['fitness_alg'] in dir(self):
+            self.fitness_alg = getattr(self, odict['fitness_alg'])
+        else:
+            raise Exception
+        self.__dict__.update(odict)
+
 # class Particles(object):
 #     def __init__(self, L, dim, dt, obstructs, n=None, density=None, D=0.0, R=0.0, v_0=0.0, 
 #                  vicsek_R=0.0, quorum_R=0.0, quorum_sense=0.0, tumble_p_0=0.0, tumble_chemo_flag=False, 

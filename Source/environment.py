@@ -2,6 +2,7 @@ import numpy as np
 import obstructions
 import walled_fields
 import particles
+import pickle
 
 class Environment(object):
     def __init__(self, seed, L, dim, dt, obstruction_args=None, particle_args=None, attractant_args=None, food_args=None, **kwargs):
@@ -49,3 +50,7 @@ class Environment(object):
             self.c.iterate(self.p.get_density_field(self.c.dx()), self.f)
         self.t += self.dt
         self.i += 1
+
+    def checkpoint(self):
+        with open('env.pickle', 'wb') as f:
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
