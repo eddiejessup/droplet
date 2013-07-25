@@ -75,10 +75,10 @@ while env.t < args.runtime:
         if args.dir is not None:
             out_fname = 'latest' if args.latest else '%010f' % env.t
             env.output('%s/dyn/%s' % (args.dir, out_fname))
-        i_dat = env.i // args.every
-        if i_dat == 0 or (args.cp > 0 and not i_dat % args.cp):
-            print('making checkpoint...', end='')
-            env.checkpoint('%s/cp' % args.dir)
+            i_dat = env.i // args.every
+            if i_dat == 0 or (args.cp > 0 and not i_dat % args.cp):
+                print('making checkpoint...', end='')
+                env.checkpoint('%s/cp' % args.dir)
         if not args.silent: print('done!')
 
     env.iterate()
