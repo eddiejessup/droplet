@@ -121,7 +121,7 @@ class Particles(object):
                     self.r[i] = np.random.uniform(-self.L_half, self.L_half, self.dim)
                     if obstructs.couldbe_obstructed(self.r[i], self.R): continue
                     if self.collide_flag and i > 0:
-                        if np.min(utils.vector_mag_sq(self.r[i] - self.r[:i])) < (2.0 * self.R) ** 2: continue
+                        if np.any(utils.sphere_intersect(self.r[i], self.R, self.r[:i], self.R)): continue
                     break
             # Count number of times wrapped around and initial positions for displacement calculations
             self.wrapping_number = np.zeros([self.n, self.dim], dtype=np.int)
@@ -155,9 +155,9 @@ class Particles(object):
             v_mags = utils.vector_mag(self.v)
             grad_c_i = c.grad_i(self.r)
             if self.chemo_onesided_flag:
-                i_forced = np.where(np.sum(self.v * grad_c_i, -1) > 0.0)[0]
+                i_forced = np.sum(self.v * grad_c_i, -1) > 0.0
             else:
-                i_forced = np.arange(self.n)
+                i_forced = Ellipsis
             v_new = utils.vector_unit_nullnull(self.v)
             v_new[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.dt
             self.v[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.dt
@@ -198,7 +198,7 @@ class Particles(object):
             self.r = utils.diff(self.r, self.D, self.dt)
         self.r += self.v * self.dt
 
-        i_wrap = np.where(np.abs(self.r) > self.L_half)
+        i_wrap = np.abs(self.r) > self.L_half
         self.wrapping_number[i_wrap] += np.sign(self.r[i_wrap])
         self.r[i_wrap] -= np.sign(self.r[i_wrap]) * self.L
 
@@ -223,11 +223,10 @@ class Particles(object):
     def fitness(self, c):
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-        if self.fitness_alg != self.fitness_alg_mem:
-            if np.max(np.abs(fitness)) >= 1.0:
-                print('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
-            elif np.max(np.abs(fitness)) < 0.05:
-                print('Not much happening... %g' % np.max(np.abs(fitness)))
+        # if np.max(np.abs(fitness)) >= 1.0:
+        #     print('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+        # elif np.max(np.abs(fitness)) < 0.05:
+        #     print('Not much happening... %g' % np.max(np.abs(fitness)))
         return fitness
 
     def get_r_unwrapped(self):
