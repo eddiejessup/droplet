@@ -239,16 +239,16 @@ class Particles(object):
         odict = self.__dict__.copy()
         # change fitness_alg from instance method reference to string as instance method
         # references can't be pickled
-        odict['fitness_alg'] = str(self.fitness_alg)
+        odict['fitness_alg'] = self.fitness_alg.__name__
         return odict
 
     def __setstate__(self, odict):
         # Convert back from str to instance method ref for unpickling purposes
+        self.__dict__.update(odict)
         if odict['fitness_alg'] in dir(self):
             self.fitness_alg = getattr(self, odict['fitness_alg'])
         else:
             raise Exception
-        self.__dict__.update(odict)
 
 # class Particles(object):
 #     def __init__(self, L, dim, dt, obstructs, n=None, density=None, D=0.0, R=0.0, v_0=0.0, 
