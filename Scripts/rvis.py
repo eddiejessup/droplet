@@ -156,7 +156,7 @@ for fname in args.dyns:
     # ren.GetActiveCamera().Azimuth(1)
 
     if args.save:
-        fname = os.path.splitext(os.path.split(fname)[1])[0]
+        fname = os.path.splitext(os.path.basename(fname))[0]
         winImFilt.Modified()
         writer.SetFileName('img/%s.png' % fname)
         writer.Write()
