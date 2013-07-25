@@ -205,34 +205,51 @@ class Traps(Walls):
         self.w = self.w_i * self.dx()
         self.s = self.s_i * self.dx()
 
-        if self.dim != 2:
-            raise Exception('Traps not implemented in this dimension')
         if self.w < 0.0 or self.w > self.L:
             raise Exception('Invalid trap width')
         if self.s < 0.0 or self.s > self.w:
             raise Exception('Invalid slit length')
 
-        if self.n == 1:
-            self.traps_f = np.array([[0.50, 0.50]], dtype=np.float)
-        elif self.n == 4:
-            self.traps_f = np.array([[0.25, 0.25], [0.25, 0.75], [0.75, 0.25],
-                [0.75, 0.75]], dtype=np.float)
-        elif self.n == 5:
-            self.traps_f = np.array([[0.25, 0.25], [0.25, 0.75], [0.75, 0.25],
-                [0.75, 0.75], [0.50, 0.50]], dtype=np.float)
+        if self.dim == 2:
+            if self.n == 1:
+                self.centres_f = [[0.50, 0.50]]
+            elif self.n == 4:
+                self.centres_f = [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75]]
+            elif self.n == 5:
+                self.centres_f = [[0.25, 0.25], [0.25, 0.75], [0.75, 0.25], [0.75, 0.75], [0.50, 0.50]]
+            else:
+                raise Exception('Traps not implemented for this number of traps in this dimension')
+        elif self.dim == 3:
+            if self.n == 1:
+                self.centres_f = [[0.50, 0.50, 0.50]]
+            else:
+                raise Exception('Traps not implemented for this number of traps in this dimension')
         else:
-            raise Exception('Traps not implemented for this number of traps')
+            raise Exception('Traps not implemented in this dimension')
 
         w_i_half = self.w_i // 2
         s_i_half = self.s_i // 2
-        self.traps_i = np.asarray(self.M * self.traps_f, dtype=np.int)
-        for x, y in self.traps_i:
-            self.a[x - w_i_half - self.d_i:x + w_i_half + self.d_i + 1,
-                   y - w_i_half - self.d_i:y + w_i_half + self.d_i + 1] = True
-            self.a[x - w_i_half:x + w_i_half + 1,
-                   y - w_i_half:y + w_i_half + 1] = False
-            self.a[x - s_i_half:x + s_i_half + 1,
-                   y + w_i_half:y + w_i_half + self.d_i + 1] = False
+        self.centres_i = np.asarray(self.M * np.array(self.centres_f), dtype=np.int)
+
+        for c in self.centres_i:
+            fill_ind = []
+            empty_ind = []
+            trap_ind = []
+            for d in range(self.dim):
+                # fill from centre +/- (w + d)
+                fill_ind.append(slice(c[d] - w_i_half - self.d_i, c[d] + w_i_half + self.d_i + 1))
+                # empty out again from centre +/- w
+                empty_ind.append(slice(c[d] - w_i_half, c[d] + w_i_half + 1))
+                if d != 0:
+                    #  empty out centre +/- s on all but one axis for entrance
+                    trap_ind.append(slice(c[d] - s_i_half, c[d] + s_i_half + 1))
+                else:
+                    # empty out from c+w to c+w+d on one axis
+                    trap_ind.append(slice(c[0] + w_i_half, c[0] + w_i_half + self.d_i + 1))
+
+            self.a[tuple(fill_ind)] = True
+            self.a[tuple(empty_ind)] = False
+            self.a[tuple(trap_ind)] = False
 
     def A_traps_i(self):
         A_traps_i = 0
