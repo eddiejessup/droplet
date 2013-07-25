@@ -51,6 +51,13 @@ class Environment(object):
         self.t += self.dt
         self.i += 1
 
-    def checkpoint(self):
-        with open('env.pickle', 'wb') as f:
+    def checkpoint(self, fname):
+        with open('%s.pkl' % fname, 'wb') as f:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
+
+    def output(self, fname):
+        dat = {'t': self.t, 
+                'r': self.p.r,
+                'v': self.p.v,
+                'r_un': self.p.get_r_unwrapped()}
+        np.savez_compressed(fname, **dat)

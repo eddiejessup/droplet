@@ -20,6 +20,8 @@ parser.add_argument('-d', '--dir', default=None,
     help='output directory, default is no output')
 parser.add_argument('-e', '--every', type=int, default=1,
     help='how many iterations should elapse between outputs, default is 1')
+parser.add_argument('-c', '--cpevery', type=int, default=-1,
+    help='how many iterations should elapse between checkpoints, default is never')
 parser.add_argument('-l', '--latest', default=False, action='store_true',
     help='only keep output of latest system configuration, default is false')
 parser.add_argument('-s', '--silent', default=False, action='store_true',
@@ -61,6 +63,8 @@ def main():
 
         np.savez('%s/static' % args.dir, **static_dat)
         utils.makedirs_soft('%s/dyn' % args.dir)
+        if args.cpevery != -1:
+            utils.makedirs_soft('%s/cp' % args.dir)
         if not args.silent: print('done!\n')
 
     if not args.silent: print('Iterating system...')
@@ -70,12 +74,13 @@ def main():
                 print('\tt:%010g i:%08i...' % (env.t, env.i), end='')
             if args.dir is not None:
                 out_fname = 'latest' if args.latest else '%010f' % env.t
-                dyn_dat = {'t': env.t, 
-                           'r': env.p.r,
-                           'v': env.p.v,
-                           'r_un': env.p.get_r_unwrapped()}
-                np.savez_compressed('%s/dyn/%s' % (args.dir, out_fname), **dyn_dat)
+                env.output('%s/dyn/%s' % (args.dir, out_fname))
             if not args.silent: print('done!')
+        if args.cpevery != -1 and not env.i % args.cpevery:
+            print('MAKING CHECKPOINT...', end='')
+            out_fname = '%010f' % env.t
+            env.checkpoint('%s/cp/%s' % (args.dir, out_fname))
+            print('done!')
 
         env.iterate()
     if not args.silent: print('done!\n')
