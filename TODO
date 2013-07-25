@@ -1,6 +1,0 @@
-- HIGH: Finish off vicsek results!
-- HIGH: D(pf) and D(r_para)
-- MED: v_drift(pf) and v_drift(r_para)
-- MED: Investigate reason for sqrt(2) difference for 3d rot diff
-- LOW: Make traps & maze work in 3d
-- LOW: Set up proper unit-testing
