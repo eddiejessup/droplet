@@ -51,17 +51,7 @@ def main():
 
     if args.dir is not None:
         if not args.silent: print('Outputting static data...')
-        static_dat = {'L': env.o.L,
-                      'r_0': env.p.r_0}
-        if isinstance(env.o, obstructions.Walls):
-            static_dat['o'] = env.o.a
-        elif isinstance(env.o, obstructions.Droplet):
-            static_dat['R'] = env.o.R
-        elif isinstance(env.o, obstructions.Porous):
-            static_dat['r'] = env.o.r
-            static_dat['R'] = env.o.R
-
-        np.savez('%s/static' % args.dir, **static_dat)
+        env.checkpoint('%s/initial.pkl' % args.dir)
         utils.makedirs_soft('%s/dyn' % args.dir)
         if args.cpevery != -1:
             utils.makedirs_soft('%s/cp' % args.dir)
