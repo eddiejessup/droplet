@@ -238,13 +238,15 @@ class Particles(object):
     def __getstate__(self):
         odict = self.__dict__.copy()
         # Convert fitness_alg from instance method ref to string as can't pickle instance method refs
-        odict['fitness_alg'] = self.fitness_alg.__name__
+        if 'fitness_alg' in odict:
+            odict['fitness_alg'] = self.fitness_alg.__name__
         return odict
 
     def __setstate__(self, odict):
         self.__dict__.update(odict)
         # Convert back from string to instance method ref
-        self.fitness_alg = getattr(self, odict['fitness_alg'])
+        if 'fitness_alg' in odict:
+            self.fitness_alg = getattr(self, odict['fitness_alg'])
 
 # class Particles(object):
 #     def __init__(self, L, dim, dt, obstructs, n=None, density=None, D=0.0, R=0.0, v_0=0.0, 
