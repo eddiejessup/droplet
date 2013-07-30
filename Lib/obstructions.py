@@ -61,7 +61,10 @@ class Porous(Obstruction):
         return field
 
     def is_obstructed(self, r, R):
-        return scipy.spatial.distance.cdist(r.reshape(-1, self.dim), self.r, metric='sqeuclidean').min(axis=-1) < (R + self.R) ** 2.0
+        # Make sure input array is 2D even for a single position
+        r_ = r.reshape(-1, self.dim)
+        if not len(self.r): return np.zeros([len(r_)], dtype=np.bool)
+        return scipy.spatial.distance.cdist(r_, self.r, metric='sqeuclidean').min(axis=-1) < (R + self.R) ** 2.0
 
     def obstruct(self, particles, *args, **kwargs):
        Obstruction.obstruct(self, particles, *args, **kwargs)
