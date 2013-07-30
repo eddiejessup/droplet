@@ -4,7 +4,6 @@ import numpy as np
 import obstructions
 
 def get_stat(dirname):
-    print('%s/cp.pkl' % dirname)
     if os.path.exists('%s/cp.pkl' % dirname):
 
         env = pickle.load(open('%s/cp.pkl' % dirname, 'rb'))

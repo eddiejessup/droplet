@@ -21,7 +21,7 @@ parser.add_argument('-d', '--dir', default=None,
     help='output directory, default is no output')
 parser.add_argument('-e', '--every', type=int, default=1,
     help='how many iterations should elapse between outputs, default is 1')
-parser.add_argument('-c', '--cp', type=int, default=20,
+parser.add_argument('-c', '--cp', type=int, default=10,
     help='how many data outputs should elapse between checkpoints, negative means never')
 parser.add_argument('-l', '--latest', default=False, action='store_true',
     help='only keep output of latest system configuration, default is false')
