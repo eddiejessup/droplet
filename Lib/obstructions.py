@@ -257,10 +257,7 @@ class Traps(Walls):
             self.trap_inds.append(trap_ind)
 
     def A_traps_i(self):
-        A_traps_i = 0
-        for c in self.centres_i:
-            A_traps_i += np.logical_not(self.a[self.empty_ind]).sum()
-        return A_traps_i
+        return sum([np.logical_not(self.a[self.empty_ind]).sum()])
 
     def A_traps(self):
         return self.A() * float(self.A_traps_i()) / self.A_free_i
