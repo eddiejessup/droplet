@@ -155,12 +155,10 @@ class Particles(object):
             v_mags = utils.vector_mag(self.v)
             grad_c_i = c.grad_i(self.r)
             if self.chemo_onesided_flag:
-                i_forced = np.sum(self.v * grad_c_i, -1) > 0.0
+                forceds = np.sum(self.v * grad_c_i, -1) > 0.0
             else:
-                i_forced = Ellipsis
-            v_new = utils.vector_unit_nullnull(self.v)
-            v_new[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.dt
-            self.v[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.dt
+                forceds = Ellipsis
+            self.v[forceds] += self.chemo_sense * grad_c_i[forceds] * self.dt
             self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
 
         def tumble():
@@ -198,9 +196,9 @@ class Particles(object):
             self.r = utils.diff(self.r, self.D, self.dt)
         self.r += self.v * self.dt
 
-        i_wrap = np.abs(self.r) > self.L_half
-        self.wrapping_number[i_wrap] += np.sign(self.r[i_wrap])
-        self.r[i_wrap] -= np.sign(self.r[i_wrap]) * self.L
+        wraps = np.abs(self.r) > self.L_half
+        self.wrapping_number[wraps] += np.sign(self.r[wraps])
+        self.r[wraps] -= np.sign(self.r[wraps]) * self.L
 
         obstructs.obstruct(self, r_old)
 
