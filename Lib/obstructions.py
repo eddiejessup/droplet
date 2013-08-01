@@ -150,14 +150,21 @@ class Walls(Obstruction, fields.Field):
 
     def obstruct(self, particles, r_old, *args, **kwargs):
         Obstruction.obstruct(self, particles, r_old, *args, **kwargs)
-        inds_old = self.r_to_i(r_old)
-        inds_new = self.r_to_i(particles.r)
-        dx_half = Walls.BUFFER_SIZE * (self.dx() / 2.0)
-        for i in np.where(self.is_obstructed(particles.r))[0]:
-            for i_dim in np.where(inds_new[i] != inds_old[i])[0]:
-                particles.r[i, i_dim] = self.i_to_r(inds_old[i, i_dim]) + dx_half * np.sign(particles.v[i, i_dim])
-                if particles.motile_flag: particles.v[i, i_dim] = 0.0
+
+        obstructeds = self.is_obstructed(particles.r)
+        # find particles and dimensions which have changed cell
+        changeds = np.not_equal(self.r_to_i(particles.r), self.r_to_i(r_old))
+        # find where particles have collided with a wall, and the dimensions on which it happened
+        collideds = np.logical_and(obstructeds[:, np.newaxis], changeds)
+        
+        # reset particle position components along which a collision occurred
+        particles.r[collideds] = r_old[collideds]
+        # and set velocity along that axis to zero, i.e. cut off perpendicular wall component
+        if particles.motile_flag: particles.v[collideds] = 0.0
+
+        # make sure no particles are left obstructed
         assert not self.is_obstructed(particles.r).any()
+        # rescale new velocities to particle speed, randomising stationary particles
         if particles.motile_flag: particles.v = utils.vector_unit_nullrand(particles.v) * particles.v_0
 
     def A_obstructed_i(self):
