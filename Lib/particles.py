@@ -210,21 +210,26 @@ class Particles(object):
     def fitness_alg_grad(self, c):
         ''' Calculate unit(v) dot grad(c).
         'i' suffix indicates it's an array of vectors, not a field. '''
-        return np.sum(self.v * c.grad_i(self.r), 1) / self.v_0
+        # grad_c = c.grad_i(self.r)
+        grad_c = np.zeros_like(self.v)
+        grad_c[:, 0] = 1.0
+        return np.sum(self.v * grad_c, 1) / self.v_0
 
     def fitness_alg_mem(self, c):
         ''' Approximate unit(v) dot grad(c) via temporal integral. '''
+        # c_i = utils.field_subset(c.a, c.r_to_i(self.r))
+        c_i = self.get_r_unwrapped()[:, 0]
         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
-        self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.r)) * self.wrapping_number[:, 0]
+        self.c_mem[:, 0] = c_i
         return np.sum(self.c_mem * self.K_dt, 1) / self.v_0
 
     def fitness(self, c):
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-        # if np.max(np.abs(fitness)) >= 1.0:
-        #     print('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
-        # elif np.max(np.abs(fitness)) < 0.05:
-        #     print('Not much happening... %g' % np.max(np.abs(fitness)))
+        if np.max(np.abs(fitness)) >= 1.0:
+            raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+        elif np.mean(np.abs(fitness)) < 0.01:
+            print('Not much happening... %g' % np.mean(np.abs(fitness)))
         return fitness
 
     def get_r_unwrapped(self):

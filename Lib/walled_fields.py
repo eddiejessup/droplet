@@ -4,8 +4,8 @@ import fields
 import walled_field_numerics
 
 class Scalar(fields.Scalar):
-    def __init__(self, L, dim, dx, obstructs, a_0=0.0, grad=0.0):
-        fields.Scalar.__init__(self, L, dim, dx, a_0=a_0, grad=grad)
+    def __init__(self, L, dim, dx, obstructs, a_0=0.0):
+        fields.Scalar.__init__(self, L, dim, dx, a_0=a_0)
         # Make field zero-valued where obstructed
         self.of = obstructs.to_field(self.dx())
         self.a *= np.logical_not(self.of)
