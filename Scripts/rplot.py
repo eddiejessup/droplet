@@ -12,7 +12,7 @@ import matplotlib.pyplot as pp
 from matplotlib import animation 
 import butils
 
-parser = argparse.ArgumentParser(description='Plot system states')
+parser = argparse.ArgumentParser(description='Visualise 2D system states using matplotlib')
 parser.add_argument('dir',
     help='data directory')
 parser.add_argument('dyns', nargs='*',
@@ -21,8 +21,6 @@ parser.add_argument('-f', '--format', default='png',
     help='Save file format')
 parser.add_argument('-s', '--save', default=False, action='store_true',
     help='Save plot')
-parser.add_argument('-a', '--animate', default=False, action='store_true',
-    help='Animate plot')
 args = parser.parse_args()
 
 stat = butils.get_stat(args.dir)
@@ -59,23 +57,13 @@ def iterate(i):
         rp.set_offsets(r[:,:2])
     return rp,
 
-if args.animate:
+if len(args.dyns) == 1:
+    iterate(0)
+    if args.save:
+        fig.savefig('%s.%s' % (args.dyns[0][:-4], args.format))
+else:
     anim = animation.FuncAnimation(fig, iterate, init_func=init, frames=len(args.dyns), interval=1, blit=True)
     if args.save:
         anim.save('out.mp4', fps=50, dpi=150)
-    else:
-        pp.show()
-else:
-    if not args.save:
-        pp.ion()
-        pp.show()
-    for i in range(len(args.dyns)):
-        iterate(i)
-        if args.save:
-            img_fname = '%s.%s' % (args.dyns[i][:-4], args.format)
-            fig.savefig(img_fname, bbox_inches='tight')
-        else:
-            fig.canvas.draw()
-    if not args.save: 
-        pp.ioff()
-        pp.show()
+if not args.save:
+    pp.show()
