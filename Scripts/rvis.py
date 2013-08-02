@@ -23,20 +23,34 @@ parser.add_argument('-s', '--save', default=False, action='store_true',
     help='Save plot')
 args = parser.parse_args()
 
+video = len(args.dyns) > 1
+
 # create a rendering window and renderer
 ren = vtk.vtkRenderer()
 renWin = vtk.vtkRenderWindow()
 renWin.SetSize(600, 600)
 renWin.AddRenderer(ren)
-# create a renderwindowinteractor
-iren = vtk.vtkRenderWindowInteractor()
-iren.SetRenderWindow(renWin)
 if args.save:
+    # Hide onscreen render window
+    renWin.OffScreenRenderingOn()
+
     # create a window to image filter attached to render window
     winImFilt = vtk.vtkWindowToImageFilter()
     winImFilt.SetInput(renWin)
-    writer = vtk.vtkPNGWriter()
+
+    if video:
+        writer = vtk.vtkOggTheoraWriter()
+        writer.SetFileName('out.ogv')
+    else:
+        writer = vtk.vtkPNGWriter()
     writer.SetInputConnection(winImFilt.GetOutputPort())
+    if video:
+        writer.Start()
+else:
+    # create a renderwindowinteractor
+    iren = vtk.vtkRenderWindowInteractor()
+    iren.SetRenderWindow(renWin)
+    iren.Initialize()
 
 stat = butils.get_stat(args.dir)
 
@@ -152,25 +166,39 @@ particlesMapper.SetInputConnection(particles.GetOutputPort())
 particlesActor = vtk.vtkActor()
 particlesActor.SetMapper(particlesMapper)
 particlesActor.GetProperty().SetColor(0, 1, 0)
-envActor.GetProperty().SetOpacity(0.8)
+# particlesActor.GetProperty().SetOpacity(0.8)
 ren.AddActor(particlesActor)
 
-iren.Initialize()
+particlePoints.SetData(numpy_support.numpy_to_vtk(r_0))
+renWin.Render()
+ren.GetActiveCamera().Zoom(2.0)
+ren.GetActiveCamera().Azimuth(10.0)
 
 for fname in args.dyns:
     dyn = np.load(fname.strip())
-    r = pad_to_3d(dyn['r'])
+    try:
+        r = pad_to_3d(dyn['r'])
+        v = pad_to_3d(dyn['v'])
+    except KeyError:
+        print('Invalid dyn file %s' % fname)
+        continue
     particlePoints.SetData(numpy_support.numpy_to_vtk(r))
+    particlePolys.GetPointData().SetVectors(numpy_support.numpy_to_vtk(v))
 
     renWin.Render()
-    # ren.GetActiveCamera().Azimuth(1)
-
+    # raw_input()
+    # ren.GetActiveCamera().Azimuth(0.5)
+    # ren.GetActiveCamera().Zoom(1.01)
     if args.save:
         fname = os.path.splitext(os.path.basename(fname))[0]
         winImFilt.Modified()
-        writer.SetFileName('img/%s.png' % fname)
+        if not video:
+            writer.SetFileName('%s.png' % fname)
         writer.Write()
     else:
-        time.sleep(0.1)
-iren.Start()
-    
+        time.sleep(0.01)
+if args.save:
+    if video:
+        writer.End()
+else:
+    iren.Start()
