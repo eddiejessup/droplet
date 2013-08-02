@@ -52,9 +52,9 @@ sysMapper = vtk.vtkPolyDataMapper()
 sysMapper.SetInputConnection(sys.GetOutputPort())
 # Actor
 sysActor = vtk.vtkActor()
-sysActor.GetProperty().SetOpacity(0.5)
+sysActor.GetProperty().SetOpacity(0.2)
 sysActor.SetMapper(sysMapper)
-# ren.AddActor(sysActor)
+ren.AddActor(sysActor)
 
 # Obstacles
 # Mapper
@@ -65,7 +65,7 @@ if 'o' in stat:
     o = stat['o']
 
     dx = L / o.shape[0]
-    inds = np.indices(o.shape).reshape((o.ndim,-1)).T
+    inds = np.indices(o.shape).reshape((o.ndim, -1)).T
     ors = []
     for ind in inds:
         if o[tuple(ind)]:
@@ -116,24 +116,33 @@ elif 'R' in stat:
 envMapper.SetInputConnection(env.GetOutputPort())
 envActor.SetMapper(envMapper)
 envActor.GetProperty().SetColor(1, 0, 0)
-envActor.GetProperty().SetOpacity(0.3)
+# envActor.GetProperty().SetOpacity(0.2)
 # ren.AddActor(envActor)
 
 # Particles
 # Poly
 r_0 = pad_to_3d(stat['r_0'])
 particlePoints = vtk.vtkPoints()
-particlePoints.SetData(numpy_support.numpy_to_vtk(r_0))
 particlePolys = vtk.vtkPolyData()
 particlePolys.SetPoints(particlePoints)
-
-sphereSource = vtk.vtkSphereSource()
-sphereSource.SetThetaResolution(4)
-sphereSource.SetPhiResolution(4)
-sphereSource.SetRadius(0.5)
+# can't use numpy to vtk conversion funnction here for some reason
+particle_scale = 0.02
+particle_scale *= L
+scales = vtk.vtkFloatArray()
+for i in range(len(r_0)):
+    scales.InsertNextValue(particle_scale)
+scales.SetName("scales")
+particlePolys.GetPointData().SetScalars(scales)
 
 particles = vtk.vtkGlyph3D()
-particles.SetSourceConnection(sphereSource.GetOutputPort())
+
+particleSource = vtk.vtkArrowSource()
+particleSource.SetTipRadius(0.2)
+particleSource.SetTipLength(1.0)
+particleSource.SetTipResolution(10)
+particleSource.SetShaftRadius(0.0)
+
+particles.SetSourceConnection(particleSource.GetOutputPort())
 particles.SetInputData(particlePolys)
 
 # mapper
