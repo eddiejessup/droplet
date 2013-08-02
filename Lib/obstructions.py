@@ -242,7 +242,7 @@ class Traps(Walls):
                     trap_ind.append(slice(c[d] - s_i_half, c[d] + s_i_half + 1))
                 else:
                     # empty out from c+w to c+w+d on one axis
-                    trap_ind.append(slice(c[0] + w_i_half, c[0] + w_i_half + self.d_i + 1))
+                    trap_ind.append(slice(c[0] + w_i_half, c[0] + w_i_half + d_i + 1))
 
             fill_ind = tuple(fill_ind)
             empty_ind = tuple(empty_ind)
@@ -275,7 +275,6 @@ class Maze(Walls):
     def __init__(self, L, dim, dx, d, seed=None):
         Walls.__init__(self, L, dim, dx)
         self.seed = seed
-        self.d = d
 
         if self.L / self.dx() % 1 != 0:
             raise Exception('Require L / dx to be an integer')
@@ -284,7 +283,8 @@ class Maze(Walls):
         if (self.L / self.dx()) / (self.L / self.d) % 1 != 0:
             raise Exception('Require array size / maze size to be integer')
 
-        self.M_m = int(self.L / self.d)
-        self.d_i = int(self.M / self.M_m)
-        maze_array = maze.make_maze_dfs(self.M_m, self.dim, self.seed)
-        self.a[...] = utils.extend_array(maze_array, self.d_i)
+        M_m = int(self.L / self.d)
+        d_i = int(self.M / self.M_m)
+        self.d = d_i * self.dx()
+        maze_array = maze.make_maze_dfs(M_m, self.dim, self.seed)
+        self.a[...] = utils.extend_array(maze_array, d_i)
