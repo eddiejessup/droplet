@@ -15,11 +15,10 @@ r_c = float(utils.sphere_radius(V_particle, dim))
 parser = argparse.ArgumentParser(description='Analyse droplet distribution excel files')
 parser.add_argument('fname',
     help='Input excel filename')
-parser.add_argument('-s', '--sheet', type=int, default=0,
-    help='Input excel sheet index')
 parser.add_argument('dirname',
     help='Output directory name')
-
+parser.add_argument('-s', '--sheet', type=int, default=0,
+    help='Input excel sheet index')
 args = parser.parse_args()
 
 ef = pn.io.parsers.ExcelFile(args.fname)
