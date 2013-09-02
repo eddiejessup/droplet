@@ -77,7 +77,7 @@ while env.t < args.runtime:
             env.output('%s/dyn/%s' % (args.dir, out_fname))
             i_dat = env.i // args.every
             if i_dat == 0 or (args.cp > 0 and not i_dat % args.cp):
-                print('making checkpoint...', end='')
+                if not args.silent: print('making checkpoint...', end='')
                 env.checkpoint('%s/cp' % args.dir)
         if not args.silent: print('done!')
 
