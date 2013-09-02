@@ -15,15 +15,17 @@ def pad_to_3d(a):
     return a_pad
 
 parser = argparse.ArgumentParser(description='Visualise system states using VTK')
-parser.add_argument('dir',
-    help='data directory')
 parser.add_argument('dyns', nargs='*',
     help='npz files containing dynamic states')
 parser.add_argument('-s', '--save', default=False, action='store_true',
     help='Save plot')
 args = parser.parse_args()
 
-video = len(args.dyns) > 1
+multis = len(args.dyns) > 1
+if multis:
+    dt = butils.t(args.dyns[1]) - butils.t(args.dyns[0])
+
+datdir = os.path.abspath(os.path.join(args.dyns[0], '../..'))
 
 # create a rendering window and renderer
 ren = vtk.vtkRenderer()
@@ -38,13 +40,15 @@ if args.save:
     winImFilt = vtk.vtkWindowToImageFilter()
     winImFilt.SetInput(renWin)
 
-    if video:
+    if multis:
         writer = vtk.vtkOggTheoraWriter()
         writer.SetFileName('out.ogv')
+        writer.SetRate(1.0 / dt)
+        writer.SetQuality(0)
     else:
         writer = vtk.vtkPNGWriter()
     writer.SetInputConnection(winImFilt.GetOutputPort())
-    if video:
+    if multis:
         writer.Start()
 else:
     # create a renderwindowinteractor
@@ -52,7 +56,7 @@ else:
     iren.SetRenderWindow(renWin)
     iren.Initialize()
 
-stat = butils.get_stat(args.dir)
+stat = butils.get_stat(datdir)
 
 # System bounds
 L = stat['L']
@@ -68,7 +72,11 @@ sysMapper.SetInputConnection(sys.GetOutputPort())
 sysActor = vtk.vtkActor()
 sysActor.GetProperty().SetOpacity(0.2)
 sysActor.SetMapper(sysMapper)
-ren.AddActor(sysActor)
+# ren.AddActor(sysActor)
+
+timeActor = vtk.vtkTextActor()
+timeActor.SetInput('init')
+ren.AddActor(timeActor)
 
 # Obstacles
 # Mapper
@@ -102,37 +110,29 @@ if 'o' in stat:
     env.SetInputData(polypoints)
 
 elif 'r' in stat:
-    r = stat['r']
-    R = stat['R']
+    r_pack = stat['r']
+    R_pack = stat['R']
 
     points = vtk.vtkPoints()
-    points.SetData(numpy_support.numpy_to_vtk(r))
+    points.SetData(numpy_support.numpy_to_vtk(r_pack))
     polypoints = vtk.vtkPolyData()
     polypoints.SetPoints(points)
 
     sphereSource = vtk.vtkSphereSource()
     sphereSource.SetThetaResolution(30)
     sphereSource.SetPhiResolution(30)
-    sphereSource.SetRadius(R)
+    sphereSource.SetRadius(R_pack)
 
     env = vtk.vtkGlyph3D()
     env.SetSourceConnection(sphereSource.GetOutputPort())
     env.SetInputData(polypoints)
 
 elif 'R' in stat:
-    R = stat['R']
+    R_drop = stat['R']
 
     env = vtk.vtkSphereSource()
     env.SetThetaResolution(30)
     env.SetPhiResolution(30)
-    env.SetRadius(R)
-
-envMapper.SetInputConnection(env.GetOutputPort())
-envActor.SetMapper(envMapper)
-envActor.GetProperty().SetColor(1, 0, 0)
-# envActor.GetProperty().SetOpacity(0.2)
-# ren.AddActor(envActor)
-
 # Particles
 # Poly
 r_0 = pad_to_3d(stat['r_0'])
@@ -173,7 +173,21 @@ particlePoints.SetData(numpy_support.numpy_to_vtk(r_0))
 renWin.Render()
 ren.GetActiveCamera().Zoom(2.0)
 ren.GetActiveCamera().Azimuth(10.0)
+    env.SetRadius(R_drop)
 
+try:
+    envMapper.SetInputConnection(env.GetOutputPort())
+except NameError:
+    pass
+else:
+    envActor.SetMapper(envMapper)
+    envActor.GetProperty().SetColor(1, 0, 0)
+    envActor.GetProperty().SetOpacity(0.2)
+    envActor.GetProperty().SetRepresentationToWireframe()
+    ren.AddActor(envActor)
+
+
+first = True
 for fname in args.dyns:
     dyn = np.load(fname.strip())
     try:
@@ -186,19 +200,27 @@ for fname in args.dyns:
     particlePolys.GetPointData().SetVectors(numpy_support.numpy_to_vtk(v))
 
     renWin.Render()
-    # raw_input()
+    renWin.SetWindowName(fname)
+
+    if first:
+        ren.GetActiveCamera().Azimuth(20.0)
+        # ren.GetActiveCamera().Yaw(1.0)
+        # ren.GetActiveCamera().Pitch(1.0)
+        ren.GetActiveCamera().Zoom(1.5)
+        first = False
     # ren.GetActiveCamera().Azimuth(0.5)
     # ren.GetActiveCamera().Zoom(1.01)
     if args.save:
+        print(fname)
         fname = os.path.splitext(os.path.basename(fname))[0]
         winImFilt.Modified()
-        if not video:
+        if not multis:
             writer.SetFileName('%s.png' % fname)
         writer.Write()
-    else:
-        time.sleep(0.01)
+    elif multis:
+        time.sleep(5.0*dt)
 if args.save:
-    if video:
+    if multis:
         writer.End()
 else:
     iren.Start()

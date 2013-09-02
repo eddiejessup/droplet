@@ -6,7 +6,7 @@ import obstructions
 def get_stat(dirname):
     if os.path.exists('%s/cp.pkl' % dirname):
 
-        env = pickle.load(open('%s/cp.pkl' % dirname, 'rb'))
+        env = get_env(dirname)
         stat = {'L': env.o.L,
                 'r_0': env.p.r_0}
         if isinstance(env.o, obstructions.Walls):
@@ -19,3 +19,12 @@ def get_stat(dirname):
         return stat
     else:
         return np.load('%s/static.npz' % dirname)
+
+def get_env(dirname):
+    return pickle.load(open('%s/cp.pkl' % dirname, 'rb'))
+
+def t(f):
+    '''
+    Convert a dyn filename to a time
+    '''
+    return float(os.path.splitext(os.path.basename(f))[0])
