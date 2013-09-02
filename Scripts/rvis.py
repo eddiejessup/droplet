@@ -199,6 +199,8 @@ for fname in args.dyns:
     particlePoints.SetData(numpy_support.numpy_to_vtk(r))
     particlePolys.GetPointData().SetVectors(numpy_support.numpy_to_vtk(v))
 
+    timeActor.SetInput(fname)
+
     renWin.Render()
     renWin.SetWindowName(fname)
 
