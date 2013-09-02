@@ -2,7 +2,6 @@
 
 from __future__ import print_function
 import os
-import sys
 import argparse
 import numpy as np
 import matplotlib as mpl
@@ -20,10 +19,10 @@ def parse_dir(dirname, s=0):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
     dim = yaml_args['dim']
     R_drop = yaml_args['obstruction_args']['droplet_args']['R']
-    try:
-        r_c = yaml_args['particle_args']['collide_args']['R']
-    except KeyError:
-        r_c = 0.0
+    r_c = yaml_args['particle_args']['collide_args']['R']
+    lu_c = yaml_args['particle_args']['collide_args']['lu']
+    ld_c = yaml_args['particle_args']['collide_args']['ld']
+    L_c = lu_c + ld_c
 
     dyns = sorted(glob.glob('%s/dyn/*.npz' % dirname), key=butils.t)[::-1]
 
@@ -37,7 +36,7 @@ def parse_dir(dirname, s=0):
         dyndat = np.load(dyn)
         r_head = dyndat['r']
         rs.append(utils.vector_mag(r_head))
-    return np.array(rs), dim, R_drop, r_c
+    return np.array(rs), dim, R_drop, r_c, L_c
 
 def make_hist(rs, R_drop, bins=100):
     ns = []
@@ -72,7 +71,8 @@ if args.vfprag:
     def particle_volume(*args, **kwargs):
         return 0.7
 else:
-    particle_volume = utils.sphere_volume
+    def particle_volume(R, L, dim):
+        return utils.sphere_volume(R, dim) + (np.pi * R ** 2) * L
 
 if not args.interactive: fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
 else: fig = pp.figure()
@@ -82,12 +82,12 @@ ax.set_ylim(0.0, 1e-6)
 ax.set_xlim(0.0, 1e-6)
 
 for dirname in args.dirs:
-    rs, dim, R_drop, r_c = parse_dir(dirname, args.samples)
+    rs, dim, R_drop, r_c, L_c = parse_dir(dirname, args.samples)
     Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins)
     ns = filters.gaussian_filter1d(ns, sigma=args.smooth * float(len(ns)) / Rs_edge.max(), mode='constant', cval=0.0)
 
     n = rs.shape[1]
-    V_particle = particle_volume(r_c, dim)
+    V_particle = particle_volume(r_c, L_c, dim)
     V_drop = utils.sphere_volume(R_drop, dim)
     Vs_edge = utils.sphere_volume(Rs_edge, dim)
     dVs = Vs_edge[1:] - Vs_edge[:-1]

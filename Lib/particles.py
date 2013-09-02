@@ -5,22 +5,7 @@ import fields
 from cell_list import intro as cl_intro
 import particle_numerics
 import potentials
-
-def get_mem_kernel(t_mem, dt, D_rot_0):
-    ''' Calculate memory kernel.
-    Model parameter, A=0.5 makes K's area zero, which makes rate
-    independent of absolute attractant concentration. '''
-    A = 0.5
-    # Normalisation constant, determined analytically, hands off!
-    N = 1.0 / np.sqrt(0.8125 * A ** 2 - 0.75 * A + 0.5)
-    t_s = np.arange(0.0, t_mem, dt)
-    g_s = D_rot_0 * t_s
-    K = N * D_rot_0 * np.exp(-g_s) * (1.0 - A * (g_s + (g_s ** 2) / 2.0))
-    # Modify curve shape to make pseudo-integral exactly zero by scaling
-    # negative bit of the curve. Introduces a gradient kink at K=0.
-    K[K < 0.0] *= np.abs(K[K >= 0.0].sum() / K[K < 0.0].sum())
-    assert K.sum() < 1e-10
-    return K
+import geom
 
 class Particles(object):
     def __init__(self, L, dim, dt, obstructs, n=None, density=None, **kwargs):
@@ -37,10 +22,12 @@ class Particles(object):
             if 'collide_args' in kwargs:
                 self.collide_flag = True
                 self.R = kwargs['collide_args']['R']
+                self.lu = kwargs['collide_args']['lu']
+                self.ld = kwargs['collide_args']['ld']
                 if self.R == 0.0:
                     print('Turning off collisions because radius is zero')
                     self.collide_flag = False
-                self.R_comm = max(self.R_comm, self.R)
+                self.R_comm = max(self.R_comm, self.R + 2.0 * max(self.lu, self.ld))
             else:
                 self.R = 0.0
 
@@ -52,83 +39,37 @@ class Particles(object):
 
                 D_rot_0_eff = 0.0
 
-                self.vicsek_flag = False
-                if 'vicsek_args' in motile_args:
-                    self.vicsek_flag = True
-                    self.vicsek_R = motile_args['vicsek_args']['R']
-                    self.R_comm = max(self.R_comm, self.vicsek_R)
-
-                self.quorum_flag = False
-                if 'quorum_args' in motile_args:
-                    self.quorum_flag = True
-                    self.quorum_R = motile_args['quorum_args']['R']
-                    self.quorum_v_flag = False
-                    if 'v_args' in motile_args['quorum_args']:
-                        self.quorum_v_flag = True
-                        self.quorum_v_sense = motile_args['quorum_args']['v_args']['sensitivity']
-
-                self.tumble_flag = False
-                if 'tumble_args' in motile_args:
-                    self.tumble_flag = True
-                    self.p_0 = motile_args['tumble_args']['p_0']
-                    D_rot_0_eff += self.p_0
-                    self.tumble_chemo_flag = False
-                    if 'chemotaxis_flag' in motile_args['tumble_args']:
-                        self.tumble_chemo_flag = motile_args['tumble_args']['chemotaxis_flag']
-                    if self.p_0 * self.dt > 0.1:
-                        raise Exception('Time-step too large for p_0')
-
                 self.rot_diff_flag = False
                 if 'rot_diff_args' in motile_args:
                     self.rot_diff_flag = True
                     self.D_rot_0 = motile_args['rot_diff_args']['D_rot_0']
                     D_rot_0_eff += self.D_rot_0
-                    self.rot_diff_chemo_flag = False
-                    if 'chemotaxis_flag' in motile_args['rot_diff_args']:
-                        self.rot_diff_chemo_flag = motile_args['rot_diff_args']['chemotaxis_flag']
                     if self.D_rot_0 * self.dt > 0.1:
                         raise Exception('Time-step too large for D_rot_0')
-
-                self.chemo_flag = False
-                if 'chemotaxis_args' in motile_args:
-
-                    self.chemo_flag = True
-                    self.chemo_onesided_flag = motile_args['chemotaxis_args']['onesided_flag']
-                    self.chemo_sense = motile_args['chemotaxis_args']['sensitivity']
-                    self.chemo_force_flag = False
-                    if 'force_args' in motile_args['chemotaxis_args']:
-                        self.chemo_force_flag = True
-                    elif 'grad_args' in motile_args['chemotaxis_args']:
-                        self.fitness_alg = self.fitness_alg_grad
-                    elif 'mem_args' in motile_args['chemotaxis_args']:
-                        self.fitness_alg = self.fitness_alg_mem
-                        n_mem = motile_args['chemotaxis_args']['mem_args']['n_mem']
-                        self.t_mem = n_mem / D_rot_0_eff
-                        self.K_dt = get_mem_kernel(self.t_mem, self.dt, D_rot_0_eff)[np.newaxis, ...] * self.dt
-                        # t_s = np.arange(0.0, self.t_mem, self.dt)
-                        # f_max = self.chemo_sense * np.sum(self.K_dt * -t_s)
-                        # print('fitness max: %f' % f_max)
-                        # raw_input()
-                        self.c_mem = np.zeros([self.n, self.K_dt.shape[-1]])
 
             if self.R_comm > obstructs.d:
                 raise Exception('Cannot have inter-obstruction particle communication')
 
-        def initialise_r():
+        def initialise():
             self.r = np.zeros([self.n, self.dim])
+            self.u = np.zeros_like(self.r)
+
             for i in range(self.n):
                 while True:
                     self.r[i] = np.random.uniform(-self.L_half, self.L_half, self.dim)
-                    if obstructs.couldbe_obstructed(self.r[i], self.R): continue
+                    self.u[i] = utils.sphere_pick(self.dim)
+                    if obstructs.is_obstructed(np.array([self.r[i]]), np.array([self.u[i]]), self.lu, self.ld, self.R): continue
                     if self.collide_flag and i > 0:
-                        if np.any(utils.sphere_intersect(self.r[i], self.R, self.r[:i], self.R)): continue
+                        if np.any(self.collisions(self.r[:i + 1], self.u[:i + 1])):
+                            continue
                     break
+                print(i)
+            assert not np.any(self.collisions(self.r, self.u))
+            assert not np.any(obstructs.is_obstructed(self.r, self.u, self.lu, self.ld, self.R))
+
             # Count number of times wrapped around and initial positions for displacement calculations
             self.wrapping_number = np.zeros([self.n, self.dim], dtype=np.int)
             self.r_0 = self.r.copy()
-
-        def initialise_v():
-            self.v = utils.sphere_pick(self.dim, self.n) * self.v_0
 
         self.L = L
         self.L_half = self.L / 2.0
@@ -138,297 +79,89 @@ class Particles(object):
         else: self.n = int(round(obstructs.A_free() * density))
 
         parse_args()
-        if self.motile_flag: initialise_v()
-        initialise_r()
+        initialise()
+
+        print(100 * self.n * np.pi * self.R ** 2 / (4.0 * np.pi * 16 ** 2))
+        import time
+        time.sleep(2.0)
+
+    def displace(self, r_new, u_new, obstructs):
+        ro, uo = self.r.copy(), self.u.copy()
+        assert not np.any(self.collisions(self.r, self.u))
+
+        self.r = r_new
+        self.u = u_new
+
+        erks = 0
+        while True:
+            self.r, self.u = obstructs.obstruct(self.r, self.u, self.lu, self.ld, self.R)
+
+            # Less than because we're checking for capsules going _inside_ each other
+            seps = self.seps(self.r, self.u)
+            over_mag = utils.vector_mag(seps) - 2.0 * self.R
+            c = over_mag < 0.0
+            if not np.any(c): break
+
+            # in theory there should be a 0.5 prefactor here, but it doesn't work for some reason
+            u_seps = utils.vector_unit_nonull(seps[c])
+            self.r[c] -= u_seps * over_mag[c][:, np.newaxis]
+
+            # u_dot_u_seps = np.sum(self.u[c] * u_seps, axis=-1)
+            # self.u[c] = utils.vector_unit_nonull(self.u[c] - u_seps * u_dot_u_seps[:, np.newaxis])
+
+            # self.r[c] = ro[c]
+            # self.u[c] = uo[c]
+
+            wraps = np.abs(self.r) > self.L_half
+            self.r[wraps] -= np.sign(self.r[wraps]) * self.L
+
+            erks += 1
+        # if erks > 0: print('disp erks: %i' % erks)
+
+        # print(utils.vector_mag(self.r - ro).max())
+
+        assert not np.any(self.collisions(self.r, self.u))
+
+    def seps(self, r, u):
+        return geom.caps_sep_intro(r, u, self.lu, self.ld, self.R, self.L)
+
+    def collisions(self, r, u):
+        collisions = utils.vector_mag(self.seps(r, u)) < 2.0 * self.R
+
+        # collisions = geom.caps_intersect_intro(r, u, self.lu, self.ld, self.R, self.L)
+
+        # collisions_check = np.zeros(len(r), dtype=np.bool)
+        # inters, intersi = cl_intro.get_inters(r, self.L, 2.0 * (self.R + max(self.lu, self.ld)))
+        # for i in range(len(inters)):
+        #     for i2 in inters[i, :intersi[i]]:
+        #         if geom.caps_intersect(
+        #                 r[i] - u[i] * self.ld, 
+        #                 r[i] + u[i] * self.lu, self.R, 
+        #                 r[i2] - u[i2] * self.ld, 
+        #                 r[i2] + u[i2] * self.lu, self.R):
+        #             collisions_check[i] = True
+        #             break
+        # if not np.array_equal(collisions, collisions_check):
+        #     print(np.equal(collisions, collisions_check))
+        #     raise Exception
+
+        return collisions
 
     def iterate(self, obstructs, c=None):
-        def vicsek():
-            inters, intersi = cl_intro.get_inters(self.r, self.L, self.vicsek_R)
-            self.v = particle_numerics.vicsek_inters(self.v, inters, intersi)
-
-        def quorum():
-            inters, intersi = cl_intro.get_inters(self.r, self.L, self.quorum_R)
-            if self.quorum_v_flag:
-                self.v *= np.exp(-self.quorum_v_sense * intersi)[:, np.newaxis]
-
-        def chemo_force():
-            v_mags = utils.vector_mag(self.v)
-            grad_c_i = c.grad_i(self.r)
-            if self.chemo_onesided_flag:
-                forceds = np.sum(self.v * grad_c_i, -1) > 0.0
-            else:
-                forceds = Ellipsis
-            self.v[forceds] += self.chemo_sense * grad_c_i[forceds] * self.dt
-            self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
-
-        def tumble():
-            p = self.p_0
-            if self.tumble_chemo_flag: p *= 1.0 - self.fitness(c)
-            self.randomise_v(np.random.uniform(size=self.n) < p * self.dt)
-
-        def rot_diff():
-            D_rot = self.D_rot_0
-            if self.rot_diff_chemo_flag: D_rot *= 1.0 - self.fitness(c)
-            self.v = utils.rot_diff(self.v, D_rot, self.dt)
-
-        def collide():
-            while True:
-                inters, intersi = cl_intro.get_inters(self.r, self.L, 2.0 * self.R)
-                collided = intersi > 0
-                if not np.any(collided): break
-                # r_sep = self.r[np.newaxis, :, :] - self.r[:, np.newaxis, :]
-                # particle_numerics.collide_inters(self.v, r_sep, inters, intersi, 2)
-                self.randomise_v(collided)
-                self.r[collided] = r_old[collided].copy()
-
-        r_old = self.r.copy()
-
-        if self.motile_flag:
-            # Randomise stationary particles
-            self.v = utils.vector_unit_nullrand(self.v) * self.v_0
-            # Update motile velocity according to various rules
-            if self.vicsek_flag: vicsek()
-            if self.quorum_flag: quorum()
-            if self.chemo_flag and self.chemo_force_flag: chemo_force()
-            if self.tumble_flag: tumble()
-            if self.rot_diff_flag: rot_diff()
-        if self.diff_flag:
-            self.r = utils.diff(self.r, self.D, self.dt)
-        self.r += self.v * self.dt
-
-        wraps = np.abs(self.r) > self.L_half
-        self.wrapping_number[wraps] += np.sign(self.r[wraps])
-        self.r[wraps] -= np.sign(self.r[wraps]) * self.L
-
-        obstructs.obstruct(self, r_old)
-
-        if self.collide_flag: collide()
+        r_new = self.r
+        u_new = self.u
+        if self.motile_flag: r_new = self.r + self.v_0 * self.u * self.dt
+        if self.diff_flag: r_new = utils.diff(r_new, self.D, self.dt)
+        if self.rot_diff_flag: u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
+        wraps = np.abs(r_new) > self.L_half
+        r_new[wraps] -= np.sign(r_new[wraps]) * self.L
+        self.displace(r_new, u_new, obstructs)
 
     def randomise_v(self, mask=Ellipsis):
-        self.v[mask] = utils.sphere_pick(self.dim, mask.sum()) * utils.vector_mag(self.v[mask])[:, np.newaxis]
-
-    def fitness_alg_grad(self, c):
-        ''' Calculate unit(v) dot grad(c).
-        'i' suffix indicates it's an array of vectors, not a field. '''
-        # grad_c = c.grad_i(self.r)
-        grad_c = np.zeros_like(self.v)
-        grad_c[:, 0] = 1.0
-        return np.sum(self.v * grad_c, 1) / self.v_0
-
-    def fitness_alg_mem(self, c):
-        ''' Approximate unit(v) dot grad(c) via temporal integral. '''
-        # c_i = utils.field_subset(c.a, c.r_to_i(self.r))
-        c_i = self.get_r_unwrapped()[:, 0]
-        self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
-        self.c_mem[:, 0] = c_i
-        return np.sum(self.c_mem * self.K_dt, 1) / self.v_0
-
-    def fitness(self, c):
-        fitness = self.chemo_sense * self.fitness_alg(c)
-        if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-        if np.max(np.abs(fitness)) >= 1.0:
-            raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
-        elif np.mean(np.abs(fitness)) < 0.01:
-            print('Not much happening... %g' % np.mean(np.abs(fitness)))
-        return fitness
+        self.v[mask] = utils.sphere_pick(self.dim, mask.sum())
 
     def get_r_unwrapped(self):
         return self.r + self.L * self.wrapping_number
 
     def get_density_field(self, dx):
         return fields.density(self.r, self.L, dx)
-
-    def __getstate__(self):
-        odict = self.__dict__.copy()
-        # Convert fitness_alg from instance method ref to string as can't pickle instance method refs
-        if 'fitness_alg' in odict:
-            odict['fitness_alg'] = self.fitness_alg.__name__
-        return odict
-
-    def __setstate__(self, odict):
-        self.__dict__.update(odict)
-        # Convert back from string to instance method ref
-        if 'fitness_alg' in odict:
-            self.fitness_alg = getattr(self, odict['fitness_alg'])
-
-# class Particles(object):
-#     def __init__(self, L, dim, dt, obstructs, n=None, density=None, D=0.0, R=0.0, v_0=0.0, 
-#                  vicsek_R=0.0, quorum_R=0.0, quorum_sense=0.0, tumble_p_0=0.0, tumble_chemo_flag=False, 
-#                  D_rot_0=0.0, rot_diff_chemo_flag=False, chemo_onesided_flag=True, chemo_force_sense=0.0,
-#                  chemo_fitness_alg='g', chemo_fitness_sense=0.0, chemo_fitness_mem_n=0.0):
-
-#         def parse_args():
-
-#         def initialise_r():
-#             self.r = np.zeros([self.n, self.dim])
-#             for i in range(self.n):
-#                 while True:
-#                     self.r[i] = np.random.uniform(-self.L_half, self.L_half, self.dim)
-#                     if obstructs.couldbe_obstructed(self.r[i], self.R): continue
-#                     if self.collide_flag and i > 0:
-#                         if np.min(utils.vector_mag_sq(self.r[i] - self.r[:i])) < (2.0 * self.R) ** 2: continue
-#                     break
-#             # Count number of times wrapped around and initial positions for displacement calculations
-#             self.wrapping_number = np.zeros([self.n, self.dim], dtype=np.int)
-#             self.r_0 = self.r.copy()
-
-#         def initialise_v():
-#             self.v = utils.sphere_pick(self.dim, self.n) * self.v_0
-
-#         self.L = L
-#         self.L_half = self.L / 2.0
-#         self.dim = dim
-#         self.dt = dt
-#         if n is not None: self.n = n
-#         else: self.n = int(round(obstructs.A_free() * density))
-
-#             self.R_comm = 0.0
-
-#             self.D = D
-
-#             self.R = R
-#             self.R_comm = max(self.R_comm, self.R)
-
-#             self.v_0 = v_0
-
-#             D_rot_0_eff = 0.0
-
-#             self.vicsek_R = vicsek_R
-#             self.R_comm = max(self.R_comm, self.vicsek_R)
-
-#             self.quorum_R = quorum_R
-#             self.quorum_sense = quorum_sense
-
-#             self.p_0 = tumble_p_0
-#             D_rot_0_eff += self.p_0
-#             self.tumble_chemo_flag = tumble_chemo_flag
-#             if self.p_0 * self.dt > 0.1:
-#                 raise Exception('Time-step too large for p_0')
-
-#             self.rot_diff_flag = False
-#             self.D_rot_0 = D_rot_0
-#             D_rot_0_eff += self.D_rot_0
-#             self.rot_diff_chemo_flag = rot_diff_chemo_flag
-#             if self.D_rot_0 * self.dt > 0.1:
-#                 raise Exception('Time-step too large for D_rot_0')
-
-#             self.chemo_force_sense = self.chemo_force_sense
-
-#             self.chemo_fitness_sense = self.chemo_fitness_sense
-
-#             if chemo_fitness_alg == 'g':
-#                 self.fitness_alg = self.fitness_alg_grad
-#             elif chemo_fitness_alg == 'm':
-#                 self.fitness_alg = self.fitness_alg_mem
-                
-#                 self.chemo_fitness_mem_n = chemo_fitness_mem_n
-#                 self.t_mem = n_mem / D_rot_0_eff
-#                 self.K_dt = get_mem_kernel(self.t_mem, self.dt, D_rot_0_eff)[np.newaxis, ...] * self.dt
-#                 # t_s = np.arange(0.0, self.t_mem, self.dt)
-#                 # f_max = self.chemo_sense * np.sum(self.K_dt * -t_s)
-#                 # print('fitness max: %f' % f_max)
-#                 # raw_input()
-#                 self.c_mem = np.zeros([self.n, self.K_dt.shape[-1]])
-
-#             self.chemo_onesided_flag = chemo_onesided_flag
-
-#             if self.R_comm > obstructs.d:
-#                 raise Exception('Cannot have inter-obstruction particle communication')
-
-#         if self.motile_flag: initialise_v()
-#         initialise_r()
-
-#     def iterate(self, obstructs, c=None):
-#         def vicsek():
-#             inters, intersi = cl_intro.get_inters(self.r, self.L, self.vicsek_R)
-#             self.v = particle_numerics.vicsek_inters(self.v, inters, intersi)
-
-#         def quorum():
-#             inters, intersi = cl_intro.get_inters(self.r, self.L, self.quorum_R)
-#             if self.quorum_v_flag:
-#                 self.v *= np.exp(-self.quorum_v_sense * intersi)[:, np.newaxis]
-
-#         def chemo_force():
-#             v_mags = utils.vector_mag(self.v)
-#             grad_c_i = c.grad_i(self.r)
-#             if self.chemo_onesided_flag:
-#                 i_forced = np.where(np.sum(self.v * grad_c_i, -1) > 0.0)[0]
-#             else:
-#                 i_forced = np.arange(self.n)
-#             v_new = utils.vector_unit_nullnull(self.v)
-#             v_new[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.dt
-#             self.v[i_forced] += self.chemo_sense * grad_c_i[i_forced] * self.dt
-#             self.v = utils.vector_unit_nullnull(self.v) * v_mags[:, np.newaxis]
-
-#         def tumble():
-#             p = self.p_0
-#             if self.tumble_chemo_flag: p *= 1.0 - self.fitness(c)
-#             self.randomise_v(np.random.uniform(size=self.n) < p * self.dt)
-
-#         def rot_diff():
-#             D_rot = self.D_rot_0
-#             if self.rot_diff_chemo_flag: D_rot *= 1.0 - self.fitness(c)
-#             self.v = utils.rot_diff(self.v, D_rot, self.dt)
-
-#         def collide():
-#             while True:
-#                 inters, intersi = cl_intro.get_inters(self.r, self.L, 2.0 * self.R)
-#                 collided = intersi > 0
-#                 if not np.any(collided): break
-#                 # r_sep = self.r[np.newaxis, :, :] - self.r[:, np.newaxis, :]
-#                 # particle_numerics.collide_inters(self.v, r_sep, inters, intersi, 2)
-#                 self.randomise_v(collided)
-#                 self.r[collided] = r_old[collided].copy()
-
-#         r_old = self.r.copy()
-
-#         if self.motile_flag:
-#             # Randomise stationary particles
-#             self.v = utils.vector_unit_nullrand(self.v) * self.v_0
-#             # Update motile velocity according to various rules
-#             if self.vicsek_flag: vicsek()
-#             if self.quorum_flag: quorum()
-#             if self.chemo_flag and self.chemo_force_flag: chemo_force()
-#             if self.tumble_flag: tumble()
-#             if self.rot_diff_flag: rot_diff()
-#         if self.diff_flag:
-#             self.r = utils.diff(self.r, self.D, self.dt)
-#         self.r += self.v * self.dt
-
-#         i_wrap = np.where(np.abs(self.r) > self.L_half)
-#         self.wrapping_number[i_wrap] += np.sign(self.r[i_wrap])
-#         self.r[i_wrap] -= np.sign(self.r[i_wrap]) * self.L
-
-#         obstructs.obstruct(self, r_old)
-
-#         if self.collide_flag: collide()
-
-#     def randomise_v(self, mask=Ellipsis):
-#         self.v[mask] = utils.sphere_pick(self.dim, mask.sum()) * utils.vector_mag(self.v[mask])[:, np.newaxis]
-
-#     def fitness_alg_grad(self, c):
-#         ''' Calculate unit(v) dot grad(c).
-#         'i' suffix indicates it's an array of vectors, not a field. '''
-#         return np.sum(self.v * c.grad_i(self.r), 1) / self.v_0
-
-#     def fitness_alg_mem(self, c):
-#         ''' Approximate unit(v) dot grad(c) via temporal integral. '''
-#         self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
-#         self.c_mem[:, 0] = utils.field_subset(c.a, c.r_to_i(self.r)) * self.wrapping_number[:, 0]
-#         return np.sum(self.c_mem * self.K_dt, 1) / self.v_0
-
-#     def fitness(self, c):
-#         fitness = self.chemo_sense * self.fitness_alg(c)
-#         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
-#         if self.fitness_alg != self.fitness_alg_mem:
-#             if np.max(np.abs(fitness)) >= 1.0:
-#                 print('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
-#             elif np.max(np.abs(fitness)) < 0.05:
-#                 print('Not much happening... %g' % np.max(np.abs(fitness)))
-#         return fitness
-
-#     def get_r_unwrapped(self):
-#         return self.r + self.L * self.wrapping_number
-
-#     def get_density_field(self, dx):
-#         return fields.density(self.r, self.L, dx)

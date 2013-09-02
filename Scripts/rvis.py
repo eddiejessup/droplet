@@ -57,6 +57,10 @@ else:
     iren.Initialize()
 
 stat = butils.get_stat(datdir)
+sysenv = butils.get_env(datdir)
+lu = sysenv.p.lu
+ld = sysenv.p.ld
+R = sysenv.p.R
 
 # System bounds
 L = stat['L']
@@ -133,46 +137,6 @@ elif 'R' in stat:
     env = vtk.vtkSphereSource()
     env.SetThetaResolution(30)
     env.SetPhiResolution(30)
-# Particles
-# Poly
-r_0 = pad_to_3d(stat['r_0'])
-particlePoints = vtk.vtkPoints()
-particlePolys = vtk.vtkPolyData()
-particlePolys.SetPoints(particlePoints)
-# can't use numpy to vtk conversion funnction here for some reason
-particle_scale = 0.02
-particle_scale *= L
-scales = vtk.vtkFloatArray()
-for i in range(len(r_0)):
-    scales.InsertNextValue(particle_scale)
-scales.SetName("scales")
-particlePolys.GetPointData().SetScalars(scales)
-
-particles = vtk.vtkGlyph3D()
-
-particleSource = vtk.vtkArrowSource()
-particleSource.SetTipRadius(0.2)
-particleSource.SetTipLength(1.0)
-particleSource.SetTipResolution(10)
-particleSource.SetShaftRadius(0.0)
-
-particles.SetSourceConnection(particleSource.GetOutputPort())
-particles.SetInputData(particlePolys)
-
-# mapper
-particlesMapper = vtk.vtkPolyDataMapper()
-particlesMapper.SetInputConnection(particles.GetOutputPort())
-# actor
-particlesActor = vtk.vtkActor()
-particlesActor.SetMapper(particlesMapper)
-particlesActor.GetProperty().SetColor(0, 1, 0)
-# particlesActor.GetProperty().SetOpacity(0.8)
-ren.AddActor(particlesActor)
-
-particlePoints.SetData(numpy_support.numpy_to_vtk(r_0))
-renWin.Render()
-ren.GetActiveCamera().Zoom(2.0)
-ren.GetActiveCamera().Azimuth(10.0)
     env.SetRadius(R_drop)
 
 try:
@@ -186,18 +150,80 @@ else:
     envActor.GetProperty().SetRepresentationToWireframe()
     ren.AddActor(envActor)
 
+particleCPoints = vtk.vtkPoints()
+particleCPolys = vtk.vtkPolyData()
+particleCPolys.SetPoints(particleCPoints)
+particlesC = vtk.vtkGlyph3D()
+
+lineSource = vtk.vtkLineSource()
+lineSource.SetPoint1(-ld, 0.0, 0.0)
+lineSource.SetPoint2(lu, 0.0, 0.0)
+particleCSource = vtk.vtkTubeFilter()
+particleCSource.SetInputConnection(lineSource.GetOutputPort())
+particleCSource.SetRadius(R)
+particleCSource.SetNumberOfSides(10)
+# particleCSource.CappingOn()
+
+particlesC.SetSourceConnection(particleCSource.GetOutputPort())
+particlesC.SetInputData(particleCPolys)
+particlesCMapper = vtk.vtkPolyDataMapper()
+particlesCMapper.SetInputConnection(particlesC.GetOutputPort())
+particlesCActor = vtk.vtkActor()
+particlesCActor.SetMapper(particlesCMapper)
+# particlesCActor.GetProperty().SetColor(0, 1, 0)
+ren.AddActor(particlesCActor)
+
+particleESource = vtk.vtkSphereSource()
+particleESource.SetRadius(0.95*R)
+particleESource.SetThetaResolution(10)
+particleESource.SetPhiResolution(10)
+
+particleE1Points = vtk.vtkPoints()
+particleE1Polys = vtk.vtkPolyData()
+particleE1Polys.SetPoints(particleE1Points)
+particlesE1 = vtk.vtkGlyph3D()
+particlesE1.SetSourceConnection(particleESource.GetOutputPort())
+particlesE1.SetInputData(particleE1Polys)
+particlesE1Mapper = vtk.vtkPolyDataMapper()
+particlesE1Mapper.SetInputConnection(particlesE1.GetOutputPort())
+particlesE1Actor = vtk.vtkActor()
+particlesE1Actor.SetMapper(particlesE1Mapper)
+particlesE1Actor.GetProperty().SetColor(1, 0, 0)
+ren.AddActor(particlesE1Actor)
+
+particleE2Points = vtk.vtkPoints()
+particleE2Polys = vtk.vtkPolyData()
+particleE2Polys.SetPoints(particleE2Points)
+particlesE2 = vtk.vtkGlyph3D()
+# particleE2Source = vtk.vtkSphereSource()
+# particleE2Source.SetRadius(R)
+particlesE2.SetSourceConnection(particleESource.GetOutputPort())
+particlesE2.SetInputData(particleE2Polys)
+particlesE2Mapper = vtk.vtkPolyDataMapper()
+particlesE2Mapper.SetInputConnection(particlesE2.GetOutputPort())
+particlesE2Actor = vtk.vtkActor()
+particlesE2Actor.SetMapper(particlesE2Mapper)
+# particlesE2Actor.GetProperty().SetColor(0, 0, 1)
+ren.AddActor(particlesE2Actor)
 
 first = True
 for fname in args.dyns:
     dyn = np.load(fname.strip())
     try:
         r = pad_to_3d(dyn['r'])
-        v = pad_to_3d(dyn['v'])
+        u = pad_to_3d(dyn['u'])
     except KeyError:
         print('Invalid dyn file %s' % fname)
         continue
-    particlePoints.SetData(numpy_support.numpy_to_vtk(r))
-    particlePolys.GetPointData().SetVectors(numpy_support.numpy_to_vtk(v))
+
+    particleCPoints.SetData(numpy_support.numpy_to_vtk(r))
+    particleCPolys.GetPointData().SetVectors(numpy_support.numpy_to_vtk(u))
+
+    re1 = r + u * lu
+    particleE1Points.SetData(numpy_support.numpy_to_vtk(re1))
+
+    re2 = r - u * ld
+    particleE2Points.SetData(numpy_support.numpy_to_vtk(re2))
 
     timeActor.SetInput(fname)
 

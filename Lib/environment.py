@@ -58,6 +58,6 @@ class Environment(object):
     def output(self, fname):
         dat = {'t': self.t, 
                'r': self.p.r,
-               'v': self.p.v,
+               'u': self.p.u,
                'r_un': self.p.get_r_unwrapped()}
         np.savez_compressed(fname, **dat)
