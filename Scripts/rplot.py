@@ -2,68 +2,89 @@
 
 from __future__ import print_function
 import os
-import sys
 import argparse
 import numpy as np
 import matplotlib as mpl
-# macosx backend doesn't do animation without a bit of fiddling
-mpl.use('TkAgg')
 import matplotlib.pyplot as pp
 from matplotlib import animation 
 import butils
 
+mpl.rcParams['font.family'] = 'serif'
+
 parser = argparse.ArgumentParser(description='Visualise 2D system states using matplotlib')
-parser.add_argument('dir',
-    help='data directory')
 parser.add_argument('dyns', nargs='*',
     help='npz files containing dynamic states')
-parser.add_argument('-f', '--format', default='png',
-    help='Save file format')
 parser.add_argument('-s', '--save', default=False, action='store_true',
     help='Save plot')
+parser.add_argument('-f', '--format', default='png',
+    help='Save file format')
 args = parser.parse_args()
 
-stat = butils.get_stat(args.dir)
-o = stat['o']
-L_half = stat['L'] / 2.0
+multis = len(args.dyns) > 1
+datdir = os.path.abspath(os.path.join(args.dyns[0], '../..'))
 
-lims = 2 * [-L_half, L_half]
+stat = butils.get_stat(datdir)
+L = stat['L']
 
+if multis:
+    dt = butils.t(args.dyns[1]) - butils.t(args.dyns[0])
+
+# Create figure window
 fig = pp.figure()
 ax = fig.gca()
-if np.any(o):
-	o_plot = np.logical_not(o.T)
-	ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=lims, origin='lower', interpolation='nearest', cmap='Greens_r')
+lims = 2 * [-L / 2.0, L / 2.0]
 ax.set_aspect('equal')
-ax.set_xlim(lims[:2])
-ax.set_ylim(lims[2:])
+z = 1.0
+ax.set_xlim(lims[0]/z, lims[1]/z)
+ax.set_ylim(lims[2]/z, lims[3]/z)
 ax.set_xticks([])
 ax.set_yticks([])
+if multis and not args.save:
+    pp.ion()
+    pp.show()
 
-rp = ax.scatter([], [], s=1)
+# Time
+tp = ax.text(0.0, 1.1 * L / 2.0, '0.0', ha='center')
 
-def init():
-    rp.set_offsets([])
-    return rp,
+# Obstructions
+if 'o' in stat:
+    o = stat['o']
+    dx = L / o.shape[0]
+    if np.any(o):
+    	o_plot = np.logical_not(o.T)
+    	ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=lims, origin='lower', interpolation='nearest', cmap='Greens_r')
 
-def iterate(i):
-    print(i)
-    dyn = np.load(args.dyns[i].strip())
+# Food
+fp = ax.imshow([[1]], extent=lims, origin='lower', interpolation='nearest')
+
+# Particles
+rp = ax.quiver([], [], [], [], scale=2000.0)
+
+for fname in args.dyns:
+    # Get state
+    dyn = np.load(fname.strip())
+
+    # Get data
     try:
         r = dyn['r']
+        v = dyn['v']
+        f = dyn['f']
     except KeyError:
-        print('Skipping invalid dyn file %i' % i)
-    else:
-        rp.set_offsets(r[:,:2])
-    return rp,
+        print('Invalid dyn file %s' % fname)
+        continue
 
-if len(args.dyns) == 1:
-    iterate(0)
+    # Update actors
+    rp.set_offsets(r[:, :2])
+    rp.set_UVC(v[:, 0], v[:, 1])
+    fp.set_data(f)
+    fp.autoscale()
+    tp.set_text(str(butils.t(fname)))
+
+    # Update plot
+    fig.canvas.draw()
+
+    # Save if necessary
     if args.save:
-        fig.savefig('%s.%s' % (args.dyns[0][:-4], args.format))
-else:
-    anim = animation.FuncAnimation(fig, iterate, init_func=init, frames=len(args.dyns), interval=1, blit=True)
-    if args.save:
-        anim.save('out.mp4', fps=50, dpi=150)
-if not args.save:
-    pp.show()
+        print(fname)
+        fname = os.path.splitext(os.path.basename(fname))[0]
+        fig.savefig('%s.%s' % (fname, args.format))
