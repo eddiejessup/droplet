@@ -1,10 +1,12 @@
 from __future__ import print_function
 import numpy as np
 import utils
+import geom
 import fields
 from cell_list import intro as cl_intro
 import particle_numerics
 import potentials
+import warnings
 
 def get_mem_kernel(t_mem, dt, D_rot_0):
     ''' Calculate memory kernel.
@@ -121,7 +123,7 @@ class Particles(object):
                     self.r[i] = np.random.uniform(-self.L_half, self.L_half, self.dim)
                     if obstructs.couldbe_obstructed(self.r[i], self.R): continue
                     if self.collide_flag and i > 0:
-                        if np.any(utils.sphere_intersect(self.r[i], self.R, self.r[:i], self.R)): continue
+                        if np.any(geom.spheres_intersect(self.r[i], self.R, self.r[:i], self.R)): continue
                     break
             # Count number of times wrapped around and initial positions for displacement calculations
             self.wrapping_number = np.zeros([self.n, self.dim], dtype=np.int)
@@ -210,26 +212,26 @@ class Particles(object):
     def fitness_alg_grad(self, c):
         ''' Calculate unit(v) dot grad(c).
         'i' suffix indicates it's an array of vectors, not a field. '''
-        # grad_c = c.grad_i(self.r)
-        grad_c = np.zeros_like(self.v)
-        grad_c[:, 0] = 1.0
+        grad_c = c.grad_i(self.r)
+        # grad_c = np.zeros_like(self.v)
+        # grad_c[:, 0] = 1.0
         return np.sum(self.v * grad_c, 1) / self.v_0
 
     def fitness_alg_mem(self, c):
         ''' Approximate unit(v) dot grad(c) via temporal integral. '''
-        # c_i = utils.field_subset(c.a, c.r_to_i(self.r))
-        c_i = self.get_r_unwrapped()[:, 0]
-        self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
-        self.c_mem[:, 0] = c_i
+        c_i = utils.field_subset(c.a, c.r_to_i(self.r))
+        # c_i = self.get_r_unwrapped()[:, 0]
+        # self.c_mem[:, 1:] = self.c_mem.copy()[:, :-1]
+        # self.c_mem[:, 0] = c_i
         return np.sum(self.c_mem * self.K_dt, 1) / self.v_0
 
     def fitness(self, c):
         fitness = self.chemo_sense * self.fitness_alg(c)
         if self.chemo_onesided_flag: fitness = np.maximum(0.0, fitness)
         if np.max(np.abs(fitness)) >= 1.0:
-            raise Exception('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
+            warnings.warn('Unrealistic fitness: %g' % np.max(np.abs(fitness)))
         elif np.mean(np.abs(fitness)) < 0.01:
-            print('Not much happening... %g' % np.mean(np.abs(fitness)))
+            warnings.warn('Not much happening... %g' % np.mean(np.abs(fitness)))
         return fitness
 
     def get_r_unwrapped(self):
