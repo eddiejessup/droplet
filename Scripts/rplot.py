@@ -34,7 +34,7 @@ fig = pp.figure()
 ax = fig.gca()
 lims = 2 * [-L / 2.0, L / 2.0]
 ax.set_aspect('equal')
-z = 1.0
+z = 2.0
 ax.set_xlim(lims[0]/z, lims[1]/z)
 ax.set_ylim(lims[2]/z, lims[3]/z)
 ax.set_xticks([])
@@ -44,7 +44,7 @@ if multis and not args.save:
     pp.show()
 
 # Time
-tp = ax.text(0.0, 1.1 * L / 2.0, '0.0', ha='center')
+tp = ax.text(0.0, 1.1 * L / (2.0 * z), '0.0', ha='center')
 
 # Obstructions
 if 'o' in stat:
