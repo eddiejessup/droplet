@@ -5,11 +5,12 @@ import os
 import argparse
 import numpy as np
 import matplotlib as mpl
-import ejm_rcparams
+# import ejm_rcparams
 import matplotlib.pyplot as pp
 import yaml
 import glob
-import utils    
+import utils
+import geom
 import scipy.ndimage.filters as filters
 import butils
 
@@ -72,7 +73,7 @@ if args.vfprag:
         return 0.7
 else:
     def particle_volume(R, L, dim):
-        return utils.sphere_volume(R, dim) + (np.pi * R ** 2) * L
+        return geom.sphere_volume(R, dim) + (np.pi * R ** 2) * L
 
 if not args.interactive: fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
 else: fig = pp.figure()
@@ -88,15 +89,15 @@ for dirname in args.dirs:
 
     n = rs.shape[1]
     V_particle = particle_volume(r_c, L_c, dim)
-    V_drop = utils.sphere_volume(R_drop, dim)
-    Vs_edge = utils.sphere_volume(Rs_edge, dim)
+    V_drop = geom.sphere_volume(R_drop, dim)
+    Vs_edge = geom.sphere_volume(Rs_edge, dim)
     dVs = Vs_edge[1:] - Vs_edge[:-1]
     rhos = ns / dVs
     rhos_err = ns_err / dVs
     rho_0 = n / V_drop
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
     vf = n * V_particle / V_drop
-    af = n * utils.sphere_area(r_c, dim - 1) / utils.sphere_area(R_drop, dim)
+    af = n * geom.sphere_area(r_c, dim - 1) / geom.sphere_area(R_drop, dim)
 
     if not args.rawd:
         rhos /= rho_0
