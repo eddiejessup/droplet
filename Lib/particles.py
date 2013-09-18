@@ -1,4 +1,5 @@
 from __future__ import print_function
+import logging
 import numpy as np
 import utils
 import fields
@@ -81,10 +82,6 @@ class Particles(object):
         parse_args()
         initialise()
 
-        print(100 * self.n * np.pi * self.R ** 2 / (4.0 * np.pi * 16 ** 2))
-        import time
-        time.sleep(2.0)
-
     def displace(self, r_new, u_new, obstructs):
         ro, uo = self.r.copy(), self.u.copy()
         assert not np.any(self.collisions(self.r, self.u))
@@ -116,9 +113,7 @@ class Particles(object):
             self.r[wraps] -= np.sign(self.r[wraps]) * self.L
 
             erks += 1
-        # if erks > 0: print('disp erks: %i' % erks)
-
-        # print(utils.vector_mag(self.r - ro).max())
+        if erks > 2: logging.warning('Particle erks: %i' % erks)
 
         assert not np.any(self.collisions(self.r, self.u))
 

@@ -1,4 +1,5 @@
 from __future__ import print_function
+import logging
 import numpy as np
 import scipy.spatial.distance
 import utils
@@ -94,8 +95,6 @@ class Droplet(Obstruction):
 
     def is_obstructed(self, r, u, lu, ld, R):
         return geom.cap_insphere_intersect(r - u * ld, r + u * lu, R, self.r, self.R)
-        # seps = geom.cap_insphere_sep(r - u * ld, r + u * lu, R, self.r, self.R)
-        # return utils.vector_mag(seps) + R - self.R > 0.0
 
     def obstruct(self, r, u, lu, ld, R):
         r_new = r.copy()
@@ -116,7 +115,7 @@ class Droplet(Obstruction):
             u_new[c] = utils.vector_unit_nonull(u_new[c] - u_seps * u_dot_u_seps[:, np.newaxis])
 
             erks += 1
-        # if erks > 0: print('\tobs erks: %i' % erks)
+        if erks > 2: logging.warn('Obstruction erks: %i' % erks)
 
         assert not np.any(self.is_obstructed(r_new, u_new, lu, ld, R))
         return r_new, u_new
