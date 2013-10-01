@@ -64,7 +64,7 @@ class Particles(object):
                         if np.any(self.collisions(self.r[:i + 1], self.u[:i + 1])):
                             continue
                     break
-                print(i)
+                # print(i)
             assert not np.any(self.collisions(self.r, self.u))
             assert not np.any(obstructs.is_obstructed(self.r, self.u, self.lu, self.ld, self.R))
 
@@ -100,14 +100,14 @@ class Particles(object):
             if not np.any(c): break
 
             # in theory there should be a 0.5 prefactor here, but it doesn't work for some reason
-            u_seps = utils.vector_unit_nonull(seps[c])
-            self.r[c] -= u_seps * over_mag[c][:, np.newaxis]
+            # u_seps = utils.vector_unit_nonull(seps[c])
+            # self.r[c] -= u_seps * over_mag[c][:, np.newaxis]
 
             # u_dot_u_seps = np.sum(self.u[c] * u_seps, axis=-1)
             # self.u[c] = utils.vector_unit_nonull(self.u[c] - u_seps * u_dot_u_seps[:, np.newaxis])
 
-            # self.r[c] = ro[c]
-            # self.u[c] = uo[c]
+            self.r[c] = ro[c]
+            self.u[c] = uo[c]
 
             wraps = np.abs(self.r) > self.L_half
             self.r[wraps] -= np.sign(self.r[wraps]) * self.L
@@ -118,7 +118,11 @@ class Particles(object):
         assert not np.any(self.collisions(self.r, self.u))
 
     def seps(self, r, u):
-        return geom.caps_sep_intro(r, u, self.lu, self.ld, self.R, self.L)
+        if not self.collide_flag:
+            seps = np.ones_like(r) * np.inf
+        else:
+            seps = geom.caps_sep_intro(r, u, self.lu, self.ld, self.R, self.L)
+        return seps
 
     def collisions(self, r, u):
         collisions = utils.vector_mag(self.seps(r, u)) < 2.0 * self.R
@@ -148,6 +152,9 @@ class Particles(object):
         if self.motile_flag: r_new = self.r + self.v_0 * self.u * self.dt
         if self.diff_flag: r_new = utils.diff(r_new, self.D, self.dt)
         if self.rot_diff_flag: u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
+        # randomise u if collided
+        colls = self.collisions(r_new, u_new)
+        u_new[colls] = utils.sphere_pick(self.dim, colls.sum())
         wraps = np.abs(r_new) > self.L_half
         r_new[wraps] -= np.sign(r_new[wraps]) * self.L
         self.displace(r_new, u_new, obstructs)
