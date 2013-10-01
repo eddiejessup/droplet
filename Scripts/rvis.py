@@ -246,7 +246,7 @@ for fname in args.dyns:
             writer.SetFileName('%s.png' % fname)
         writer.Write()
     elif multis:
-        time.sleep(5.0*dt)
+        time.sleep(dt)
 if args.save:
     if multis:
         writer.End()
