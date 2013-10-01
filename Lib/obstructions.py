@@ -65,7 +65,12 @@ class Porous(Obstruction):
         return cs
 
     def obstruct(self, r, u, lu, ld, R):
-       u[self.is_obstructed(r, u, lu, ld, R)] *= -1
+       r_new = r.copy()
+       u_new = u.copy()
+
+       u_new[self.is_obstructed(r, u, lu, ld, R)] *= -1
+
+       return r_new, u_new
 
     def A_obstructed(self):
         return self.m * utils.sphere_volume(self.R, self.dim)
