@@ -54,13 +54,19 @@ if 'o' in stat:
         o_plot = np.logical_not(o).T
         ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=lims,
                   origin='lower', interpolation='nearest', cmap='gray_r')
+else:
+    o_plot = np.zeros_like(c)
 
 # Particles
 # rp = ax.quiver([], [], [], [], scale=2000.0)
 rp = ax.scatter([], [], s=1)
 
 # Chemo
-cp = ax.imshow([[1]], extent=lims, origin='lower', interpolation='bicubic')
+if 'c' in stat:
+    # cp = ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=lims,
+    #                origin='lower', interpolation='nearest')
+    cp = ax.imshow([[]], extent=lims,
+                   origin='lower', interpolation='nearest')
 
 # density
 # rhop = ax.imshow([[1]], extent=lims, origin='lower', interpolation='nearest')
@@ -70,13 +76,15 @@ for fname in args.dyns:
     dyn = np.load(fname.strip())
 
     # Get data
-    # try:
-    r = dyn['r']
-    c = dyn['c']
-    print(r)
-    # except KeyError:
-    #     print('Invalid dyn file %s' % fname)
-    #     continue
+    try:
+        r = dyn['r']
+        if 'c' in stat:
+            c = dyn['c']
+        if 'f' in stat:
+            f = dyn['f']
+    except KeyError:
+        print('Invalid dyn file %s' % fname)
+        continue
 
     # Update actors
     rp.set_offsets(r)
@@ -86,11 +94,11 @@ for fname in args.dyns:
     # rhop.set_data(rho.T)
     # rhop.autoscale()
 
-    cp.set_data(np.log(c).T)
-    cp.autoscale()
-
-    # ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=lims,
-    #           origin='lower', interpolation='nearest', cmap='gray_r')
+    try:
+        cp.set_data(np.ma.array(np.log(c).T, mask=1-o_plot))
+        cp.autoscale()
+    except AttributeError:
+        pass
 
     tp.set_text(str(butils.t(fname)))
 

@@ -71,6 +71,22 @@ particle_parser.add_argument('-Dr', type=float, default=0.0,
 obstruct_parser = parser_new.add_argument_group('obstructions')
 obstruct_parser.add_argument('--drop_R', type=float, default=None,
                              help='Droplet radius')
+obstruct_parser.add_argument('--closed_d', type=float, default=None,
+                             help='Width of closed boundaries')
+obstruct_parser.add_argument('--closed_i', type=int, default=None,
+                             help='Number of dimensions on which to close')
+obstruct_parser.add_argument('--trap_n', type=int, default=None,
+                             help='Number of traps')
+obstruct_parser.add_argument('--trap_d', type=float, default=None,
+                             help='Trap edge width')
+obstruct_parser.add_argument('--trap_w', type=float, default=None,
+                             help='Trap width')
+obstruct_parser.add_argument('--trap_s', type=float, default=None,
+                             help='Trap entrance width')
+obstruct_parser.add_argument('--maze_d', type=float, default=None,
+                             help='Maze channel width')
+obstruct_parser.add_argument('--maze_seed', type=int, default=None,
+                             help='Maze generation seed')
 
 food_parser = parser_new.add_argument_group('obstructions')
 food_parser.add_argument('-f0', type=float, default=None,
@@ -128,6 +144,9 @@ if args.cmd == 'new':
     logging.info('Initialising system...')
     env = environment.Environment(args.seed, args.L, args.dim, args.dt, args.dx,
                                   args.drop_R,
+                                  args.closed_d, args.closed_i,
+                                  args.trap_n, args.trap_d, args.trap_w, args.trap_s,
+                                  args.maze_d, args.maze_seed,                                  
                                   args.n, args.pD, args.pR, args.lu, args.ld, args.v, args.Dr,
                                   args.f0, args.fD, args.fdown,
                                   args.c0, args.cD, args.cup, args.cdown)

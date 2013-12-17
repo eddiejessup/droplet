@@ -97,7 +97,7 @@ class Particles(object):
             self.wrapping_number[wraps] += np.sign(r[wraps])
 
     def displace(self, r_new, u_new, obstructs):
-        self.r, self.u = obstructs.obstruct(r_new, u_new, self.lu, self.ld, self.R)
+        self.r, self.u = obstructs.obstruct(r_new, u_new, self.lu, self.ld, self.R, r_old=self.r)
         self.fold(self.r, final=True)
 
     def seps(self, r, u):
@@ -122,9 +122,12 @@ class Particles(object):
     def iterate(self, obstructs, c=None):
         r_new = self.r.copy()
         u_new = self.u.copy()
-        if self.v_0 > 0.0: r_new = self.r + self.v_0 * self.u * self.dt
-        if self.D > 0.0: r_new = utils.diff(r_new, self.D, self.dt)
-        if self.D_rot_0 > 0.0: u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
+        if self.v_0 > 0.0:
+            r_new = self.r + self.v_0 * self.u * self.dt
+        if self.D > 0.0:
+            r_new = utils.diff(r_new, self.D, self.dt)
+        if self.D_rot_0 > 0.0:
+            u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
         self.fold(r_new)
 
         # # randomise u if collided

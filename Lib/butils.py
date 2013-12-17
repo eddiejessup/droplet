@@ -16,10 +16,23 @@ def get_stat(dirname):
         stat = {'L': env.o.L,
                 'r_0': env.p.r_0}
 
-        # if isinstance(env.o, obstructions.Walls):
-        #     stat['o'] = env.o.a
-        if isinstance(env.o, obstructions.Droplet):
+        try:
+            stat['f'] = env.f.a
+        except AttributeError:
+            pass
+        try:
+            stat['c'] = env.c.a
+        except AttributeError:
+            pass
+
+        try:
+            stat['o'] = env.o.a
+        except AttributeError:
+            pass
+        try:
             stat['R'] = env.o.R
+        except AttributeError:
+            pass
         return stat
     else:
         return np.load('%s/static.npz' % dirname)
