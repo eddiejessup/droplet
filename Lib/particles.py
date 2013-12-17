@@ -9,18 +9,19 @@ import potentials
 import geom
 
 class Particles(object):
-    def __init__(self, L, dim, dt, n, D, R, lu, ld, v_0, D_rot_0, obstructs):
+    def __init__(self, L, dim, dt, n, D, R, lu, ld, v_0, D_rot_0, p_0, obstructs):
         self.L = L
         self.L_half = self.L / 2.0
         self.dim = dim
         self.dt = dt
+        self.n = n
         self.D = D
         self.R = R
         self.lu = lu
         self.ld = ld
         self.v_0 = v_0
         self.D_rot_0 = D_rot_0
-        self.n = n
+        self.p_0 = p_0
 
         self.R_comm = 0.0
         self.R_comm = max(self.R_comm, self.R + 2.0 * max(self.lu, self.ld))
@@ -29,13 +30,12 @@ class Particles(object):
 
         D_rot_0_eff = 0.0
         D_rot_0_eff += self.D_rot_0
-        if self.D_rot_0 * self.dt > 0.1:
-            raise Exception('Time-step too large for D_rot_0')
+        D_rot_0_eff += self.p_0
+        if D_rot_0_eff * self.dt > 0.1:
+            raise Exception('Time-step too large for effective rotational diffusion')
 
         self.r = np.random.uniform(-self.L_half, self.L_half, [self.n, self.dim])
         self.u = utils.sphere_pick(self.dim, self.n)
-        # self.r = np.zeros([self.n, self.dim])
-        # self.u = np.zeros_like(self.r)
 
         for i in range(self.n):
             while True:
@@ -119,6 +119,13 @@ class Particles(object):
             collisions = utils.vector_mag(self.seps(r, u)) < 2.0 * self.R
         return collisions
 
+    def tumble(self, u):
+        u_new = u.copy()
+        p = self.p_0
+        tumbles = np.random.uniform(size=self.n) < p * self.dt
+        u_new[tumbles] = utils.sphere_pick(self.dim, tumbles.sum())
+        return u_new
+
     def iterate(self, obstructs, c=None):
         r_new = self.r.copy()
         u_new = self.u.copy()
@@ -126,6 +133,8 @@ class Particles(object):
             r_new = self.r + self.v_0 * self.u * self.dt
         if self.D > 0.0:
             r_new = utils.diff(r_new, self.D, self.dt)
+        if self.p_0 > 0.0:
+            u_new = self.tumble(u_new)
         if self.D_rot_0 > 0.0:
             u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
         self.fold(r_new)
@@ -138,9 +147,6 @@ class Particles(object):
             # u_new[colls] = utils.rot_diff(u_new[colls], D_rot_coll, self.dt)
 
         self.displace(r_new, u_new, obstructs)
-
-    def randomise_v(self, mask=Ellipsis):
-        self.v[mask] = utils.sphere_pick(self.dim, mask.sum())
 
     def get_r_unwrapped(self):
         return self.r + self.L * self.wrapping_number

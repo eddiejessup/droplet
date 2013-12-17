@@ -67,6 +67,8 @@ particle_parser.add_argument('-ld', type=float, default=0.0,
                              help='Particle lower segment length')
 particle_parser.add_argument('-Dr', type=float, default=0.0,
                              help='Particle base rotational diffusion constant')
+particle_parser.add_argument('-p0', type=float, default=0.0,
+                             help='Particle base tumble rate')
 
 obstruct_parser = parser_new.add_argument_group('obstructions')
 obstruct_parser.add_argument('--drop_R', type=float, default=None,
@@ -147,7 +149,7 @@ if args.cmd == 'new':
                                   args.closed_d, args.closed_i,
                                   args.trap_n, args.trap_d, args.trap_w, args.trap_s,
                                   args.maze_d, args.maze_seed,                                  
-                                  args.n, args.pD, args.pR, args.lu, args.ld, args.v, args.Dr,
+                                  args.n, args.pD, args.pR, args.lu, args.ld, args.v, args.Dr, args.p0,
                                   args.f0, args.fD, args.fdown,
                                   args.c0, args.cD, args.cup, args.cdown)
 
