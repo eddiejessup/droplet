@@ -26,7 +26,7 @@ class Particles(object):
                 self.lu = kwargs['collide_args']['lu']
                 self.ld = kwargs['collide_args']['ld']
                 if self.R == 0.0:
-                    print('Turning off collisions because radius is zero')
+                    logging.info('Turning off collisions because radius is zero')
                     self.collide_flag = False
                 self.R_comm = max(self.R_comm, self.R + 2.0 * max(self.lu, self.ld))
             else:
@@ -52,8 +52,10 @@ class Particles(object):
                 raise Exception('Cannot have inter-obstruction particle communication')
 
         def initialise():
-            self.r = np.zeros([self.n, self.dim])
-            self.u = np.zeros_like(self.r)
+            self.r = np.random.uniform(-self.L_half, self.L_half, [self.n, self.dim])
+            self.u = utils.sphere_pick(self.dim, self.n)
+            # self.r = np.zeros([self.n, self.dim])
+            # self.u = np.zeros_like(self.r)
 
             for i in range(self.n):
                 while True:
@@ -64,7 +66,6 @@ class Particles(object):
                         if np.any(self.collisions(self.r[:i + 1], self.u[:i + 1])):
                             continue
                     break
-                # print(i)
             assert not np.any(self.collisions(self.r, self.u))
             assert not np.any(obstructs.is_obstructed(self.r, self.u, self.lu, self.ld, self.R))
 
@@ -82,50 +83,68 @@ class Particles(object):
         parse_args()
         initialise()
 
+    # def displace(self, r_new, u_new, obstructs):
+    #     wraps = np.abs(r_new) > self.L_half
+    #     r_new[wraps] -= np.sign(r_new[wraps]) * self.L
+
+    #     ro, uo = self.r.copy(), self.u.copy()
+    #     # assert not np.any(self.collisions(self.r, self.u))
+
+    #     self.r = r_new.copy()
+    #     self.u = u_new.copy()
+
+    #     erks = 0
+    #     while True:
+    #         self.r, self.u = obstructs.obstruct(self.r, self.u, self.lu, self.ld, self.R)
+
+    #         # Less than because we're checking for capsules going _inside_ each other
+    #         seps = self.seps(self.r, self.u)
+    #         over_mag = utils.vector_mag(seps) - 2.0 * self.R
+    #         c = over_mag < 0.0
+    #         if not np.any(c): break
+
+    #         # in theory there should be a 0.5 prefactor here, but it doesn't work for some reason
+    #         # u_seps = utils.vector_unit_nonull(seps[c])
+    #         # self.r[c] -= u_seps * over_mag[c][:, np.newaxis]
+
+    #         # u_dot_u_seps = np.sum(self.u[c] * u_seps, axis=-1)
+    #         # self.u[c] = utils.vector_unit_nonull(self.u[c] - u_seps * u_dot_u_seps[:, np.newaxis])
+
+    #         self.r[c] = ro[c]
+    #         self.u[c] = uo[c]
+
+    #         wraps = np.abs(self.r) > self.L_half
+    #         self.r[wraps] -= np.sign(self.r[wraps]) * self.L
+
+    #         erks += 1
+    #     if erks > 2: logging.warning('Particle erks: %i' % erks)
+
+    #     # assert not np.any(self.collisions(self.r, self.u))
+
     def displace(self, r_new, u_new, obstructs):
-        ro, uo = self.r.copy(), self.u.copy()
-        assert not np.any(self.collisions(self.r, self.u))
+        wraps = np.abs(r_new) > self.L_half
+        r_new[wraps] -= np.sign(r_new[wraps]) * self.L
 
-        self.r = r_new
-        self.u = u_new
-
-        erks = 0
-        while True:
-            self.r, self.u = obstructs.obstruct(self.r, self.u, self.lu, self.ld, self.R)
-
-            # Less than because we're checking for capsules going _inside_ each other
-            seps = self.seps(self.r, self.u)
-            over_mag = utils.vector_mag(seps) - 2.0 * self.R
-            c = over_mag < 0.0
-            if not np.any(c): break
-
-            # in theory there should be a 0.5 prefactor here, but it doesn't work for some reason
-            # u_seps = utils.vector_unit_nonull(seps[c])
-            # self.r[c] -= u_seps * over_mag[c][:, np.newaxis]
-
-            # u_dot_u_seps = np.sum(self.u[c] * u_seps, axis=-1)
-            # self.u[c] = utils.vector_unit_nonull(self.u[c] - u_seps * u_dot_u_seps[:, np.newaxis])
-
-            self.r[c] = ro[c]
-            self.u[c] = uo[c]
-
-            wraps = np.abs(self.r) > self.L_half
-            self.r[wraps] -= np.sign(self.r[wraps]) * self.L
-
-            erks += 1
-        if erks > 2: logging.warning('Particle erks: %i' % erks)
-
-        assert not np.any(self.collisions(self.r, self.u))
+        self.r, self.u = obstructs.obstruct(r_new, u_new, self.lu, self.ld, self.R)
+        wraps = np.abs(self.r) > self.L_half
+        self.r[wraps] -= np.sign(self.r[wraps]) * self.L
 
     def seps(self, r, u):
         if not self.collide_flag:
             seps = np.ones_like(r) * np.inf
         else:
             seps = geom.caps_sep_intro(r, u, self.lu, self.ld, self.R, self.L)
+            # seps = np.ones_like(r) * np.inf
         return seps
 
     def collisions(self, r, u):
         collisions = utils.vector_mag(self.seps(r, u)) < 2.0 * self.R
+        if self.lu + self.ld == 0.0 and self.R > 0.0:
+            import scipy.spatial
+            d = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(r, 'sqeuclidean'))
+            d[d == 0.0] = np.inf
+            collisions2 = np.min(d, axis=-1) < (2.0 * self.R) ** 2
+            assert np.array_equal(collisions, collisions2), (collisions.shape, collisions2.shape, r, collisions - collisions2)
 
         # collisions = geom.caps_intersect_intro(r, u, self.lu, self.ld, self.R, self.L)
 
@@ -147,16 +166,18 @@ class Particles(object):
         return collisions
 
     def iterate(self, obstructs, c=None):
-        r_new = self.r
-        u_new = self.u
+        r_new = self.r.copy()
+        u_new = self.u.copy()
         if self.motile_flag: r_new = self.r + self.v_0 * self.u * self.dt
         if self.diff_flag: r_new = utils.diff(r_new, self.D, self.dt)
         if self.rot_diff_flag: u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
-        # randomise u if collided
+
+        # # randomise u if collided
         colls = self.collisions(r_new, u_new)
         u_new[colls] = utils.sphere_pick(self.dim, colls.sum())
-        wraps = np.abs(r_new) > self.L_half
-        r_new[wraps] -= np.sign(r_new[wraps]) * self.L
+        # D_rot_coll = 1.0
+        # u_new[colls] = utils.rot_diff(u_new[colls], D_rot_coll, self.dt)
+
         self.displace(r_new, u_new, obstructs)
 
     def randomise_v(self, mask=Ellipsis):
