@@ -16,193 +16,310 @@ import butils
 
 buff = 1.2
 
+V_particle = 0.7
+
+params_fname = '/Users/ejm/Desktop/Bannock/Scripts/dana_dat/params.csv'
+
+def stderr(d):
+    if d.ndim != 1: raise Exception
+    return np.std(d) / np.sqrt(len(d) - 1)
+
+def find_peak(Rs, rhos, gamma, R_drop, rho_0):
+    i_half = len(Rs) // 2
+    in_outer_half = Rs > Rs[i_half]
+    in_peak = rhos > 2*rho_0
+
+    try:
+        i_peak_0 = np.where(np.logical_and(in_outer_half, in_peak))[0][0]
+    except IndexError:
+        print('skip')
+        i_peak_0 = np.nan
+    return i_peak_0
+
 def parse_dir(dirname, s=0):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
-    dim = yaml_args['dim']
     R_drop = yaml_args['obstruction_args']['droplet_args']['R']
-    r_c = yaml_args['particle_args']['collide_args']['R']
-    lu_c = yaml_args['particle_args']['collide_args']['lu']
-    ld_c = yaml_args['particle_args']['collide_args']['ld']
-    L_c = lu_c + ld_c
 
     dyns = sorted(glob.glob('%s/dyn/*.npz' % dirname), key=butils.t)[::-1]
 
     if s == 0: pass
-    elif s > len(dyns): raise Exception('Requested %i samples but only %i available' % (s, len(dyns)))
+    elif s > len(dyns): 
+        # raise Exception('Requested %i samples but only %i available' % (s, len(dyns)))
+        print('Requested %i samples but only %i available' % (s, len(dyns)))
+        s = len(dyns)
     else: dyns = dyns[:s]
 
-    print('For dirname %s using %i samples' % (dirname, len(dyns)))
+    # print('For dirname %s using %i samples' % (dirname, len(dyns)))
     rs = []
     for dyn in dyns:
         dyndat = np.load(dyn)
         r_head = dyndat['r']
         rs.append(utils.vector_mag(r_head))
-    return np.array(rs), dim, R_drop, r_c, L_c
+    return np.array(rs), R_drop
 
-def make_hist(rs, R_drop, bins=100):
+def code_to_R_drop(fname):
+    import pandas as pd
+    f = open(params_fname, 'r')
+    r = pd.io.parsers.csv.reader(f)
+    while True:
+        row = r.next()
+        # print(row[0], fname.replace('.csv', ''))
+        if row[0] == fname.replace('.csv', ''): 
+            f.close()
+            return float(row[1])
+
+def parse_csv(fname, *args, **kwargs):
+    if fname == params_fname:
+        return [], np.nan
+    rs = np.genfromtxt(fname, delimiter=',', unpack=True)
+    R_drop = code_to_R_drop(os.path.basename(fname))
+    return rs, R_drop
+
+def make_hist(rs, R_drop, bins=None, res=None):
     ns = []
+    if res is not None:
+        bins = (buff * R_drop) / res
     for r in rs:
         n, R_edges = np.histogram(r, bins=bins, range=[0.0, buff * R_drop])
         ns.append(n)
     ns = np.array(ns)
     n = np.mean(ns, axis=0)
-    n_err = np.std(ns, axis=0) / np.sqrt(len(ns))
+    n_err = np.std(ns, axis=0) / np.sqrt(len(ns) - 1)
     return R_edges, n, n_err
 
-parser = argparse.ArgumentParser(description='Analyse droplet distributions')
-parser.add_argument('dirs', nargs='*',
-    help='Data directories')
-parser.add_argument('-s', '--samples', type=int, default=0,
-    help='Number of samples to use')
-parser.add_argument('-b', '--bins', type=int, default=20,
-    help='Number of bins to use')
-parser.add_argument('-g', '--smooth', type=float, default=0.0,
-    help='Length scale of gaussian blur')
-parser.add_argument('-rr', '--rawr', default=False, action='store_true',
-    help='Disable radial distance normalisation by droplet radius')
-parser.add_argument('-rd', '--rawd', default=False, action='store_true',
-    help='Disable density normalisation by mean density')
-parser.add_argument('--vfprag', default=False, action='store_true',
-    help='Use constant physical particle volume rather than calculated value')
-parser.add_argument('-i', '--interactive', default=False, action='store_true',
-    help='Show plot interactively')
-args = parser.parse_args()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Analyse droplet distributions')
+    parser.add_argument('-d','--dirs', nargs='*', action='append',
+        help='Data directories')
+    parser.add_argument('-s', '--samples', type=int, default=0,
+        help='Number of samples to use')
+    parser.add_argument('-b', '--bins', type=int, default=20,
+        help='Number of bins to use')
+    parser.add_argument('-i', '--interactive', default=False, action='store_true',
+        help='Show plot interactively')
+    parser.add_argument('-o', '--out', default='out', 
+        help='Output file prefix')
+    parser.add_argument('--dim', default=3, 
+        help='Spatial dimension')
+    args = parser.parse_args()
 
-if args.vfprag:
-    def particle_volume(*args, **kwargs):
-        return 0.7
-else:
-    def particle_volume(R, L, dim):
-        return geom.sphere_volume(R, dim) + (np.pi * R ** 2) * L
+    dim = args.dim
 
-if not args.interactive:
     import ejm_rcparams
 
-if not args.interactive: 
-    fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
-else: fig = pp.figure()
-ax = fig.gca()
-ax.set_ylim(0.0, 1e-6)
-ax.set_xlim(0.0, 1e-6)
-
-vfs, afs = [], []
-r_means, r_vars, r_skews, r_kurts = [], [], [], []
-rho_peaks, rho_bulks = [], []
-n_tots, n_peaks = [], []
-
-for dirname in args.dirs:
-    rs, dim, R_drop, r_c, L_c = parse_dir(dirname, args.samples)
-    Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins)
-    ns = filters.gaussian_filter1d(ns, sigma=args.smooth * float(len(ns)) / Rs_edge.max(), mode='constant', cval=0.0)
-
-    n = rs.shape[1]
-    V_particle = particle_volume(r_c, L_c, dim)
-    V_drop = geom.sphere_volume(R_drop, dim)
-    Vs_edge = geom.sphere_volume(Rs_edge, dim)
-    dVs = Vs_edge[1:] - Vs_edge[:-1]
-    rhos = ns / dVs
-    rhos_err = ns_err / dVs
-    rho_0 = n / V_drop
-    Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
-    vf = n * V_particle / V_drop
-    af = n * geom.sphere_area(r_c, dim - 1) / geom.sphere_area(R_drop, dim)
-
-    r_mean = np.mean(rs / R_drop)
-    r_var = np.var(rs / R_drop)
-    r_skew = st.skew(rs / R_drop, axis=None)
-    r_kurt = st.kurtosis(rs / R_drop, axis=None)
-
-    vfs.append(vf)
-    afs.append(af)
-
-    r_means.append(r_mean)
-    r_vars.append(r_var)
-    r_skews.append(r_skew)
-    r_kurts.append(r_kurt)
-
-    rho_peak = rhos[Rs > 0.5 * R_drop].max()
-    i_peak = np.where(rhos == rho_peak)[0][0]
-    rho_bulk = np.mean(rhos[:i_peak]) / rho_0
-    rho_peak = np.mean(rhos[i_peak]) / rho_0
-    rho_peaks.append(rho_peak)
-    rho_bulks.append(rho_bulk)
-
-    n_peak = ns[i_peak:].sum()
-    n_peaks.append(n_peak)
-    n_tots.append(n)
-
-    if not args.rawd:
-        rhos /= rho_0
-        rhos_err /= rho_0    
-    if not args.rawr:
-        Rs /= R_drop
-
-    if args.interactive:
-        label = r'Dir: %s, R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$' % (dirname, R_drop, 100.0 * vf)
+    if not args.interactive: 
+        figsize = ejm_rcparams.get_figsize(width=452, factor=0.7)
     else:
-        label = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$' % (R_drop, 100.0 * vf)
-    ax.errorbar(Rs, rhos, yerr=rhos_err, label=label)
-    ax.set_ylim(None, max(ax.get_ylim()[1], 1.1 * rhos[Rs / Rs.max() > 0.5].max()))
-    ax.set_xlim(None, max(ax.get_xlim()[1], 1.1 * Rs.max()))
+        figsize = None
+    figsize = (7.5, 5.5)
 
-# ax.legend(loc='upper left')
-# ax.set_xlabel(r'$r$' if args.rawr else r'$r / \mathrm{R}$')
-# ax.set_ylabel(r'$\rho(r)$' if args.rawd else r'$\rho(r) / \rho_0$')
-# if not args.interactive: fig.savefig('hist.pdf', bbox_inches='tight')
-# else: pp.show()
+    fig_hist = pp.figure(figsize=figsize)
+    ax_hist = fig_hist.gca()
 
-vps = 100.0 * np.array(vfs)
+    fig_peak = pp.figure(figsize=figsize)
+    ax_peak = fig_peak.gca()
 
-# if not args.interactive: fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
-# else: fig = pp.figure()
-# ax = fig.gca()
-# ax.scatter(vps, r_means)
-# ax.set_xlabel(r'Volume fraction (\%)')
-# ax.set_ylabel(r'$<r / R>$')
-# ax.set_xlim(0.0, None)
-# ax.set_ylim(0.0, None)
-# ax.axhline(dim / (dim + 1.0), label='${<r / R>}_0$')
-# ax.legend()
-# if not args.interactive: fig.savefig('r_mean.pdf', bbox_inches='tight')
-# else: pp.show()
+    fig_nf = pp.figure(figsize=figsize)
+    ax_nf = fig_nf.gca()
 
-# if not args.interactive: fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
-# else: fig = pp.figure()
-# ax = fig.gca()
-# ax.scatter(vps, r_vars)
-# ax.set_xlabel(r'Volume fraction (\%)')
-# ax.set_ylabel(r'$<(r / R)^2>$')
-# ax.set_xlim(0.0, None)
-# ax.set_ylim(0.0, None)
-# ax.axhline(dim * (1.0 / (dim + 2.0) - dim / (dim + 1.0) ** 2), label='${<(r / R)^2>}_0$')
-# ax.legend()
-# if not args.interactive: fig.savefig('r_var.pdf', bbox_inches='tight')
-# else: pp.show()
+    fig_mean = pp.figure(figsize=figsize)
+    ax_mean = fig_mean.gca()
 
-# if not args.interactive: fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
-# else: fig = pp.figure()
-# ax = fig.gca()
-# ax.scatter(vps, rho_peaks, c='red', label='Peak')
-# ax.scatter(vps, rho_bulks, c='blue', label='Bulk')
-# ax.set_xlabel(r'Volume fraction (\%)')
-# ax.set_ylabel(r'$\rho / \rho_0$')
-# ax.set_xlim(0.0, None)
-# ax.axhline(1.0, label=r'$\rho_0$')
-# ax.legend(loc='upper right')
-# if not args.interactive: fig.savefig('peak.pdf', bbox_inches='tight')
-# else: pp.show()
+    fig_var = pp.figure(figsize=figsize)
+    ax_var = fig_var.gca()
 
-if not args.interactive: fig = pp.figure(figsize=ejm_rcparams.get_figsize(width=452, factor=0.7))
-else: fig = pp.figure()
-ax = fig.gca()
-ax.scatter(n_tots, n_peaks)
-ax.set_xlabel(r'Number of bacteria')
-ax.set_ylabel(r'Number of bacteria in the peak')
-ax.set_xlim(0.0, None)
-ax.set_ylim(0.0, None)
-if not args.interactive: fig.savefig('n.pdf', bbox_inches='tight')
-else: pp.show()
+    markers = iter(['o', '^', 's', 'x', '*', '+'])
+    colors = iter(['red', 'green', 'blue', 'black', 'cyan', 'orange', 'purple'])
+    multiset = len(args.dirs) > 1
 
-np.savetxt('n.csv', zip(n_tots, n_peaks), header='n_total n_peak')
-np.savetxt('peak.csv', zip(vps, rho_peaks, rho_bulks), header='volume_percentage rho_peak rho_bulk')
-np.savetxt('r_mean.csv', zip(vps, r_means, r_vars), header='volume_percentage r_mean r_variance')
+    for i_ds, dirs in enumerate(args.dirs):
+        dana_dat = dirs[0].endswith('.csv')
+
+        vps = []
+        r_means, r_vars = [], []
+        n_tots, R_drops, R_peaks, n_peaks = [], [], [], []
+        n_tots_err, vps_err, r_means_err, r_vars_err = [], [], [], []
+
+        try:
+            c = colors.next()
+        except StopIteration:
+            pass
+        try:
+            m = markers.next()
+        except StopIteration:
+            pass
+        if dana_dat:
+            label = 'Experiment'
+        else:
+            label = os.path.commonprefix(list(dirs)).split('/')[-2].strip()
+            # label = label.replace('_', '\_')
+            if label == 'Dc_inf': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$'
+            elif label == 'Dc_0': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = 0$'
+            else: 
+                print(label)
+                label = 'Simulation'
+
+        # if i_ds == 0: 
+        #     c = 'blue'
+        #     m = 's'
+        #     label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$, $l=\SI{1}{\micro\metre}$'
+        # elif i_ds == 1: 
+        #     c = 'purple'
+        #     m = '*'
+        #     label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$, $l=\SI{0}{\micro\metre}$'
+
+        # pre-filter for increasing n
+        ns = []
+        dirs_sort = []
+        for dirname in dirs:
+            if dana_dat:
+                rs, R_drop = parse_csv(dirname)
+            else:
+                rs, R_drop = parse_dir(dirname, args.samples)
+            if not len(rs): continue
+            ns.append(np.mean([np.isfinite(r).sum() for r in rs]))
+            dirs_sort.append(dirname)
+        dirs = np.array(dirs_sort)[np.argsort(ns)]
+
+        for i_d, dirname in enumerate(dirs):
+
+            if dana_dat:
+                rs, R_drop = parse_csv(dirname)
+            else:
+                rs, R_drop = parse_dir(dirname, args.samples)
+
+            # R_drop *= 1.1
+            if not len(rs): continue
+            Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins)
+
+            n_raw = np.sum(np.isfinite(rs), axis=1)
+            n = np.mean(n_raw)
+            n_err = stderr(n_raw)
+
+            V_drop = geom.sphere_volume(R_drop, dim)
+            if dana_dat: V_drop /= 2.0
+
+            Vs_edge = geom.sphere_volume(Rs_edge, dim)
+            if dana_dat: Vs_edge /= 2.0
+            dVs = Vs_edge[1:] - Vs_edge[:-1]
+            rhos = ns / dVs
+            rhos_err = ns_err / dVs
+            rho_0 = n / V_drop
+            Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
+
+            vf = n * V_particle / V_drop
+            vf_err = n_err * V_particle / V_drop
+
+            r_mean_raw = np.nanmean(rs / R_drop, axis=1)
+            r_mean = np.mean(r_mean_raw)
+            r_mean_err = stderr(r_mean_raw)
+            r_var_raw = np.nanvar(rs / R_drop, axis=1, dtype=np.float64)
+            r_var = np.mean(r_var_raw)
+            r_var_err = stderr(r_var_raw)
+
+            i_peak = find_peak(Rs, rhos, 0.5, R_drop, rho_0)
+            if np.isnan(i_peak):
+                R_peak = n_peak = np.nan
+                # print('peak skip...')
+            else:
+                R_peak = Rs[i_peak]
+                n_peak = ns[i_peak:].sum()
+                # ax_hist.axvline(Rs[i_peak] / R_drop, c=c)
+            R_peaks.append(R_peak)
+            n_peaks.append(n_peak)
+
+            vps.append(100.0 * vf)
+            vps_err.append(100.0 * vf_err)
+            r_means.append(r_mean)
+            r_means_err.append(r_mean_err)
+            r_vars.append(r_var)
+            r_vars_err.append(r_var_err)
+            n_tots.append(n)
+            n_tots_err.append(n_err)
+            R_drops.append(R_drop)
+
+            if multiset: 
+                label_h = None
+            else:
+                # label_h = r'Dir: %s, R=%.2g\si{\micro\metre}, n=%i, $\theta$=%.2g$\%%$' % (dirname, R_drop, n, 100*vf)
+                # label_h = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$, n=%i' % (R_drop, 100.0 * vf, n)
+                label_h = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$' % (R_drop, 100.0 * vf)
+                label_h = label_h.replace('_', '\_')
+
+            if not multiset:
+                try:
+                    c_h = mpl.cm.jet(int(256.0 *(float(i_d) / (len(dirs) - 1.0))))
+                except StopIteration:
+                    pass
+            else:
+                c_h = c
+            if 14.0 < R_drop < 18.0:
+                ax_hist.errorbar(Rs / R_drop, rhos / rho_0, yerr=rhos_err / rho_0, label=label_h, c=c_h)
+
+        if multiset:
+            ax_hist.plot([], [], label=label, c=c)
+
+        n_peaks = np.array(n_peaks, dtype=np.float)
+        n_tots = np.array(n_tots, dtype=np.float)
+        R_peaks = np.array(R_peaks)
+        R_drops = np.array(R_drops)
+
+        V_drops = geom.sphere_volume(R_drops, dim)
+        if dana_dat: V_drops /= 2.0
+
+        rho_0s = n_tots / V_drops
+        rho_0s_err = n_tots_err / V_drops
+
+        V_bulks = geom.sphere_volume(R_peaks, dim)
+        if dana_dat: V_bulks /= 2.0
+        V_peaks = V_drops - V_bulks
+        n_peaks_err = n_peaks * (n_tots_err / n_tots)
+        f_peaks = n_peaks / n_tots
+        f_peaks_err = f_peaks * np.sqrt((n_tots_err / n_tots) ** 2 + (n_peaks_err / n_peaks) ** 2)
+        rho_peaks = (n_peaks / V_peaks) / rho_0s
+        rho_peaks_err = rho_peaks * np.sqrt((n_peaks_err / n_peaks) ** 2 + (rho_0s_err / rho_0s) ** 2)
+
+        ax_peak.errorbar(vps, rho_peaks, yerr=rho_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none')
+        ax_nf.errorbar(vps, f_peaks, yerr=f_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none')
+        ax_mean.errorbar(vps, r_means, yerr=r_means_err, xerr=vps_err, c=c, marker=m, label=label, ls='none')
+        ax_var.errorbar(vps, r_vars, yerr=r_vars_err, xerr=vps_err, c=c, marker=m, label=label, ls='none')
+
+        for a in [n_tots, n_tots_err, R_drops, R_peaks, n_peaks, n_peaks_err, r_means, r_means_err, r_vars, r_vars_err]:
+            print(len(a))
+        np.savetxt('{0}_{1}.csv'.format(args.out, i_ds), zip(n_tots, n_tots_err, R_drops, R_peaks, n_peaks, n_peaks_err, r_means, r_means_err, r_vars, r_vars_err), header='n n_err R R_peak n_peak n_peak_err r_mean, r_mean_err, r_var, r_var_err')
+
+    ax_hist.set_ylim(0.0, None)
+    ax_hist.set_ylim(0.0, 3.5)
+    ax_hist.set_xlabel(r'$r / \mathrm{R}$')
+    ax_hist.set_ylabel(r'$\rho(r) / \rho_0$')
+    ax_hist.legend(loc='upper left')
+
+    ax_peak.axhline(1.0, lw=2, c='cyan', ls='--', label='Uniform')
+    # ax_peak.plot([], [], lw=2, c='red', ls='--', label='Complete accumulation')
+    ax_peak.set_xscale('log')
+    ax_peak.set_xlabel(r'Volume fraction $\theta$ \. (\%)')
+    ax_peak.set_ylabel(r'$\rho_\mathrm{peak} / \rho_0$')
+    ax_peak.legend(loc='lower left')
+
+    ax_nf.axhline(1.0, lw=2, c='magenta', ls='--', label='Complete accumulation')
+    # ax_nf.plot([], [], lw=2, c='blue', ls='--', label='Uniform')
+    ax_nf.set_xscale('log')
+    ax_nf.set_xlabel(r'Volume fraction $\theta$ \. (\%)')
+    ax_nf.set_ylabel(r'$\mathrm{n_{peak} / n}$')
+    ax_nf.legend(loc='lower left')
+
+    ax_mean.axhline(dim / (dim + 1.0), lw=2, c='cyan', ls='--', label='Uniform')
+    ax_mean.axhline(1.0, lw=2, c='magenta', ls='--', label='Complete accumulation')
+    ax_mean.set_xscale('log')
+    ax_mean.set_xlabel(r'Volume fraction $\theta$ \. (\%)')
+    ax_mean.set_ylabel(r'$\langle r \rangle / \mathrm{R}$')
+    ax_mean.legend(loc='lower left')
+
+    ax_var.axhline(dim * (1.0 / (dim + 2.0) - dim / (dim + 1.0) ** 2), label='Uniform', lw=2, c='cyan', ls='--')
+    ax_var.axhline(0.0, lw=2, c='magenta', ls='--', label='Complete accumulation')
+    ax_var.set_xscale('log')
+    ax_var.set_xlabel(r'Volume fraction $\theta$ \. (\%)')
+    ax_var.set_ylabel(r'$\mathrm{Var} \left[ r \right] / R^2$')
+    ax_var.legend(loc='upper left')
+
+    pp.show()
