@@ -9,79 +9,48 @@ import potentials
 import geom
 
 class Particles(object):
-    def __init__(self, L, dim, dt, obstructs, n=None, density=None, **kwargs):
-
-        def parse_args():
-            self.R_comm = 0.0
-
-            self.diff_flag = False
-            if 'diff_args' in kwargs:
-                self.diff_flag = True
-                self.D = kwargs['diff_args']['D']
-
-            self.collide_flag = False
-            if 'collide_args' in kwargs:
-                self.collide_flag = True
-                self.R = kwargs['collide_args']['R']
-                self.lu = kwargs['collide_args']['lu']
-                self.ld = kwargs['collide_args']['ld']
-                if self.R == 0.0:
-                    logging.info('Turning off collisions because radius is zero')
-                    self.collide_flag = False
-                self.R_comm = max(self.R_comm, self.R + 2.0 * max(self.lu, self.ld))
-            else:
-                self.R = 0.0
-
-            self.motile_flag = False
-            if 'motile_args' in kwargs:
-                self.motile_flag = True
-                motile_args = kwargs['motile_args']
-                self.v_0 = motile_args['v_0']
-
-                D_rot_0_eff = 0.0
-
-                self.rot_diff_flag = False
-                if 'rot_diff_args' in motile_args:
-                    self.rot_diff_flag = True
-                    self.D_rot_0 = motile_args['rot_diff_args']['D_rot_0']
-                    D_rot_0_eff += self.D_rot_0
-                    if self.D_rot_0 * self.dt > 0.1:
-                        raise Exception('Time-step too large for D_rot_0')
-
-            if self.R_comm > obstructs.d:
-                raise Exception('Cannot have inter-obstruction particle communication')
-
-        def initialise():
-            self.r = np.random.uniform(-self.L_half, self.L_half, [self.n, self.dim])
-            self.u = utils.sphere_pick(self.dim, self.n)
-            # self.r = np.zeros([self.n, self.dim])
-            # self.u = np.zeros_like(self.r)
-
-            for i in range(self.n):
-                while True:
-                    self.r[i] = np.random.uniform(-self.L_half, self.L_half, self.dim)
-                    self.u[i] = utils.sphere_pick(self.dim)
-                    if obstructs.is_obstructed(np.array([self.r[i]]), np.array([self.u[i]]), self.lu, self.ld, self.R): continue
-                    if self.collide_flag and i > 0:
-                        if np.any(self.collisions(self.r[:i + 1], self.u[:i + 1])):
-                            continue
-                    break
-            assert not np.any(self.collisions(self.r, self.u))
-            assert not np.any(obstructs.is_obstructed(self.r, self.u, self.lu, self.ld, self.R))
-
-            # Count number of times wrapped around and initial positions for displacement calculations
-            self.wrapping_number = np.zeros([self.n, self.dim], dtype=np.int)
-            self.r_0 = self.r.copy()
-
+    def __init__(self, L, dim, dt, n, D, R, lu, ld, v_0, D_rot_0, obstructs):
         self.L = L
         self.L_half = self.L / 2.0
         self.dim = dim
         self.dt = dt
-        if n is not None: self.n = n
-        else: self.n = int(round(obstructs.A_free() * density))
+        self.D = D
+        self.R = R
+        self.lu = lu
+        self.ld = ld
+        self.v_0 = v_0
+        self.D_rot_0 = D_rot_0
+        self.n = n
 
-        parse_args()
-        initialise()
+        self.R_comm = 0.0
+        self.R_comm = max(self.R_comm, self.R + 2.0 * max(self.lu, self.ld))
+        if self.R_comm > obstructs.d:
+            raise Exception('Cannot have inter-obstruction particle communication')
+
+        D_rot_0_eff = 0.0
+        D_rot_0_eff += self.D_rot_0
+        if self.D_rot_0 * self.dt > 0.1:
+            raise Exception('Time-step too large for D_rot_0')
+
+        self.r = np.random.uniform(-self.L_half, self.L_half, [self.n, self.dim])
+        self.u = utils.sphere_pick(self.dim, self.n)
+        # self.r = np.zeros([self.n, self.dim])
+        # self.u = np.zeros_like(self.r)
+
+        for i in range(self.n):
+            while True:
+                self.r[i] = np.random.uniform(-self.L_half, self.L_half, self.dim)
+                self.u[i] = utils.sphere_pick(self.dim)
+                if obstructs.is_obstructed(np.array([self.r[i]]), np.array([self.u[i]]), self.lu, self.ld, self.R): continue
+                if i > 0 and np.any(self.collisions(self.r[:i + 1], self.u[:i + 1])):
+                    continue
+                break
+        assert not np.any(self.collisions(self.r, self.u))
+        assert not np.any(obstructs.is_obstructed(self.r, self.u, self.lu, self.ld, self.R))
+
+        # Count number of times wrapped around and initial positions for displacement calculations
+        self.wrapping_number = np.zeros([self.n, self.dim], dtype=np.int)
+        self.r_0 = self.r.copy()
 
     # def displace(self, r_new, u_new, obstructs):
     #     wraps = np.abs(r_new) > self.L_half
@@ -119,64 +88,51 @@ class Particles(object):
     #         erks += 1
     #     if erks > 2: logging.warning('Particle erks: %i' % erks)
 
-    #     # assert not np.any(self.collisions(self.r, self.u))
+        # assert not np.any(self.collisions(self.r, self.u))
+
+    def fold(self, r, final=False):
+        wraps = np.abs(r) > self.L_half
+        r[wraps] -= np.sign(r[wraps]) * self.L
+        if final:
+            self.wrapping_number[wraps] += np.sign(r[wraps])
 
     def displace(self, r_new, u_new, obstructs):
-        wraps = np.abs(r_new) > self.L_half
-        r_new[wraps] -= np.sign(r_new[wraps]) * self.L
-
         self.r, self.u = obstructs.obstruct(r_new, u_new, self.lu, self.ld, self.R)
-        wraps = np.abs(self.r) > self.L_half
-        self.r[wraps] -= np.sign(self.r[wraps]) * self.L
+        self.fold(self.r, final=True)
 
     def seps(self, r, u):
-        if not self.collide_flag:
+        if self.R == 0.0:
             seps = np.ones_like(r) * np.inf
         else:
             seps = geom.caps_sep_intro(r, u, self.lu, self.ld, self.R, self.L)
-            # seps = np.ones_like(r) * np.inf
         return seps
 
     def collisions(self, r, u):
-        collisions = utils.vector_mag(self.seps(r, u)) < 2.0 * self.R
-        if self.lu + self.ld == 0.0 and self.R > 0.0:
+        if self.R == 0.0:
+            collisions = np.zeros([len(r)], dtype=np.bool)
+        elif self.lu + self.ld == 0.0:
             import scipy.spatial
             d = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(r, 'sqeuclidean'))
             d[d == 0.0] = np.inf
-            collisions2 = np.min(d, axis=-1) < (2.0 * self.R) ** 2
-            assert np.array_equal(collisions, collisions2), (collisions.shape, collisions2.shape, r, collisions - collisions2)
-
-        # collisions = geom.caps_intersect_intro(r, u, self.lu, self.ld, self.R, self.L)
-
-        # collisions_check = np.zeros(len(r), dtype=np.bool)
-        # inters, intersi = cl_intro.get_inters(r, self.L, 2.0 * (self.R + max(self.lu, self.ld)))
-        # for i in range(len(inters)):
-        #     for i2 in inters[i, :intersi[i]]:
-        #         if geom.caps_intersect(
-        #                 r[i] - u[i] * self.ld, 
-        #                 r[i] + u[i] * self.lu, self.R, 
-        #                 r[i2] - u[i2] * self.ld, 
-        #                 r[i2] + u[i2] * self.lu, self.R):
-        #             collisions_check[i] = True
-        #             break
-        # if not np.array_equal(collisions, collisions_check):
-        #     print(np.equal(collisions, collisions_check))
-        #     raise Exception
-
+            collisions = np.min(d, axis=-1) < (2.0 * self.R) ** 2
+        else:
+            collisions = utils.vector_mag(self.seps(r, u)) < 2.0 * self.R
         return collisions
 
     def iterate(self, obstructs, c=None):
         r_new = self.r.copy()
         u_new = self.u.copy()
-        if self.motile_flag: r_new = self.r + self.v_0 * self.u * self.dt
-        if self.diff_flag: r_new = utils.diff(r_new, self.D, self.dt)
-        if self.rot_diff_flag: u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
+        if self.v_0 > 0.0: r_new = self.r + self.v_0 * self.u * self.dt
+        if self.D > 0.0: r_new = utils.diff(r_new, self.D, self.dt)
+        if self.D_rot_0 > 0.0: u_new = utils.rot_diff(u_new, self.D_rot_0, self.dt)
+        self.fold(r_new)
 
         # # randomise u if collided
-        colls = self.collisions(r_new, u_new)
-        u_new[colls] = utils.sphere_pick(self.dim, colls.sum())
-        # D_rot_coll = 1.0
-        # u_new[colls] = utils.rot_diff(u_new[colls], D_rot_coll, self.dt)
+        if self.R > 0.0:
+            colls = self.collisions(r_new, u_new)
+            u_new[colls] = utils.sphere_pick(self.dim, colls.sum())
+            # D_rot_coll = 1.0
+            # u_new[colls] = utils.rot_diff(u_new[colls], D_rot_coll, self.dt)
 
         self.displace(r_new, u_new, obstructs)
 

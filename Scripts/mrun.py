@@ -2,60 +2,138 @@
 
 from __future__ import print_function
 import argparse
-import os
-import sys
 import pickle
 import datetime
 import logging
-import yaml
+import csv
 import numpy as np
 import utils
-import obstructions
 import environment
 
-parser = argparse.ArgumentParser(description='Run a particle simulation')
-parser.add_argument('f',
-    help='either a YAML file containing system parameters or an existing output data directory')
-parser.add_argument('-d', '--dir', default='mrun_dat',
-    help='output directory')
-parser.add_argument('-t', '--runtime', type=float, default=float('inf'),
-    help='how long to run')
-parser.add_argument('-e', '--every', type=int, default=1,
-    help='how many iterations should elapse between outputs')
-parser.add_argument('-c', '--cp', type=int, default=10,
-    help='how many data outputs should elapse between checkpoints, negative means never')
-parser.add_argument('-l', '--latest', default=False, action='store_true',
-    help='only keep output of latest system configuration')
 
-args = parser.parse_args()
+class ArgumentParser(argparse.ArgumentParser):
+    def convert_arg_line_to_args(self, arg_line):
+        '''
+        From http://docs.python.org/dev/library/argparse.html
+        '''
+        for arg in arg_line.split():
+            if not arg.strip():
+                continue
+            if arg.startswith('#'):
+                break
+            yield arg
 
-resume = os.path.isdir(args.f)
 
-# if resuming, output dir is the input dir
-if resume: 
-    args.dir = args.f
-else:
+parser = ArgumentParser(description='Run a particle simulation',
+                        fromfile_prefix_chars='@')
+
+subparsers = parser.add_subparsers(dest='cmd')
+
+parser_new = subparsers.add_parser('new')
+
+parser_new.add_argument('dir',
+                        help='data directory')
+parser_new.add_argument('-e', '--every', type=int, default=1,
+                        help='how many iterations should elapse between outputs')
+parser_new.add_argument('-c', '--cp', type=int, default=10,
+                        help='how many data outputs should elapse between checkpoints, negative means never')
+parser_new.add_argument('-t', '--runtime', type=float, default=float('inf'),
+                        help='how long to run')
+
+env_parser = parser_new.add_argument_group('environment')
+env_parser.add_argument('-s', '--seed', type=int, default=None,
+                        help='Random number generator seed')
+env_parser.add_argument('-L', type=float, required=True,
+                        help='System length')
+env_parser.add_argument('--dim', type=int, required=True,
+                        help='Dimension')
+env_parser.add_argument('-dt', type=float, required=True,
+                        help='Time-step')
+env_parser.add_argument('-dx', type=float, default=None,
+                        help='Space-step')
+
+particle_parser = parser_new.add_argument_group('particles')
+particle_parser.add_argument('-n', type=int, required=True,
+                             help='Number of particles')
+particle_parser.add_argument('-v', type=float, required=True,
+                             help='Particle base speed')
+particle_parser.add_argument('-pD', type=float, default=0.0,
+                             help='Particle translational diffusion constant')
+particle_parser.add_argument('-pR', type=float, default=0.0,
+                             help='Particle radius')
+particle_parser.add_argument('-lu', type=float, default=0.0,
+                             help='Particle upper segment length')
+particle_parser.add_argument('-ld', type=float, default=0.0,
+                             help='Particle lower segment length')
+particle_parser.add_argument('-Dr', type=float, default=0.0,
+                             help='Particle base rotational diffusion constant')
+
+obstruct_parser = parser_new.add_argument_group('obstructions')
+obstruct_parser.add_argument('--drop_R', type=float, default=None,
+                             help='Droplet radius')
+
+food_parser = parser_new.add_argument_group('obstructions')
+food_parser.add_argument('-f0', type=float, default=None,
+                         help='Food field initial value')
+food_parser.add_argument('-fD', type=float, default=None,
+                         help='Food field diffusion constant')
+food_parser.add_argument('-fdown', type=float, default=None,
+                         help='Food field sink rate')
+
+chemo_parser = parser_new.add_argument_group('obstructions')
+chemo_parser.add_argument('-c0', type=float, default=None,
+                          help='Chemo field initial value')
+chemo_parser.add_argument('-cD', type=float, default=None,
+                          help='Chemo field diffusion constant')
+chemo_parser.add_argument('-cup', type=float, default=None,
+                          help='Chemo field source rate')
+chemo_parser.add_argument('-cdown', type=float, default=None,
+                          help='Chemo field sink rate')
+
+parser_resume = subparsers.add_parser('resume')
+
+parser_resume.add_argument('dir',
+                           help='data directory')
+parser_resume.add_argument('-e', '--every', type=int, default=1,
+                           help='Number of iterations between outputs')
+parser_resume.add_argument('-c', '--cp', type=int, default=10,
+                           help='Number of data outputs between checkpoints, negative means never')
+parser_resume.add_argument('-t', '--runtime', type=float, default=float('inf'),
+                           help='how long to run')
+
+args = parser.parse_args()  
+
+if args.cmd == 'new':
     utils.makedirs_safe(args.dir)
-    utils.makedirs_soft('%s/dyn' % args.dir)
-
-yaml_path = '%s/params.yaml' % args.dir if resume else args.f
-yaml_args = yaml.safe_load(open(yaml_path, 'r'))
+    # Clear log file
+    with open('%s/run.log' % args.dir, 'w'):
+        pass
 
 logging.basicConfig(filename='%s/run.log' % args.dir, level=logging.DEBUG)
-
 logging.info('Git commit hash: %s' % utils.get_git_hash())
 
-if not resume:
+if args.cmd == 'new':
+    utils.makedirs_soft('%s/dyn' % args.dir)
     logging.info('Simulation started on %s' % datetime.datetime.now())
-    logging.info('Copying yaml file...')
-    yaml.dump(yaml_args, open('%s/params.yaml' % args.dir, 'w'), default_flow_style=False)
-else:
-    logging.info('Simulation restarted on %s' % datetime.datetime.now())
+    logging.info('Parameters:')
+    for arg, value in args.__dict__.items():
+        if arg in ('dir', 'cmd'): continue
+        logging.info('{0}: {1}'.format(arg, value))
 
-if not resume: 
+    # f = open('%s/params.yaml' % args.dir, 'w')
+    # w = csv.writer(f, delimiter=' ')
+    # w.writerows(env_args.items())
+    # f.close()
+
     logging.info('Initialising system...')
-    env = environment.Environment(**yaml_args)
-else: 
+    env = environment.Environment(args.seed, args.L, args.dim, args.dt, args.dx,
+                                  args.drop_R,
+                                  args.n, args.pD, args.pR, args.lu, args.ld, args.v, args.Dr,
+                                  args.f0, args.fD, args.fdown,
+                                  args.c0, args.cD, args.cup, args.cdown)
+
+elif args.cmd == 'resume':
+    logging.info('Simulation restarted on %s' % datetime.datetime.now())
     logging.info('Resuming system...')
     env = pickle.load(open('%s/cp.pkl' % args.dir, 'rb'))
 
@@ -63,7 +141,7 @@ logging.info('Iterating system...')
 while env.t < args.runtime:
     if not env.i % args.every:
         logging.info('t:%010g i:%08i...' % (env.t, env.i))
-        out_fname = 'latest' if args.latest else '%010f' % env.t
+        out_fname = '%010f' % env.t
         env.output('%s/dyn/%s' % (args.dir, out_fname))
         i_dat = env.i // args.every
         if i_dat == 0 or (args.cp > 0 and not i_dat % args.cp):
