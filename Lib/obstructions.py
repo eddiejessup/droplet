@@ -36,45 +36,6 @@ class Obstruction(fields.Space):
     def A_free(self):
         return self.A() - self.A_obstructed()
 
-class Porous(Obstruction):
-    def __init__(self, L, dim, R, porosity):
-        Obstruction.__init__(self, L, dim)
-        self.r, self.R = pack.random(1.0 - porosity, self.dim, R / self.L)
-        self.r, self.R = self.r * self.L, self.R * self.L
-        self.m = len(self.r)
-        self.porosity = 1.0 - self.A_obstructed() / self.A()
-        self.d = self.R
-        print('True porosity: %f, sphere radius: %f' % (self.porosity, self.R))
-
-    def to_field(self, dx):
-        M = int(self.L / dx)
-        dx = self.L / M
-        field = np.zeros(self.dim * [M], dtype=np.uint8)
-        axes = [i + 1 for i in range(self.dim)] + [0]
-        inds = np.transpose(np.indices(self.dim * [M]), axes=axes)
-        rs = -self.L_half + (inds + 0.5) * dx
-        for m in range(self.m):
-            r_rels_mag_sq = utils.vector_mag_sq(rs - self.r[np.newaxis, np.newaxis, m])
-            field += r_rels_mag_sq < self.R ** 2.0
-        return field
-
-    def is_obstructed(self, r, u, lu, ld, R):
-        cs = np.zeros([len(r)], dtype=np.bool)
-        for i in range(self.m):
-            cs += geom.cap_sphere_intersect(r - u * ld, r + u * lu, R, self.r[i], self.R[i])
-        return cs
-
-    def obstruct(self, r, u, lu, ld, R):
-       r_new = r.copy()
-       u_new = u.copy()
-
-       u_new[self.is_obstructed(r, u, lu, ld, R)] *= -1
-
-       return r_new, u_new
-
-    def A_obstructed(self):
-        return self.m * utils.sphere_volume(self.R, self.dim)
-
 class Droplet(Obstruction):
     buff = 1e-3
     offset = 1.0 + buff
@@ -116,6 +77,7 @@ class Droplet(Obstruction):
             u_seps = utils.vector_unit_nonull(seps[c])
             r_new[c] -= self.offset * u_seps * over_mag[c][:, np.newaxis]
 
+            # Alignment
             u_dot_u_seps = np.sum(u_new[c] * u_seps, axis=-1)
             u_new[c] = utils.vector_unit_nonull(u_new[c] - u_seps * u_dot_u_seps[:, np.newaxis])
 
