@@ -9,3 +9,7 @@ README~
 *.yaml
 build/
 *.pyo
+*.csv
+*.ps
+*.pdf
+*.png
