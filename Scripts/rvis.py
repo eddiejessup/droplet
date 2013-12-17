@@ -7,6 +7,7 @@ import time
 import numpy as np
 import vtk
 from vtk.util import numpy_support
+import utils
 import butils
 
 def pad_to_3d(a):
@@ -19,6 +20,8 @@ parser.add_argument('dyns', nargs='*',
     help='npz files containing dynamic states')
 parser.add_argument('-s', '--save', default=False, action='store_true',
     help='Save plot')
+parser.add_argument('-c', '--cross', type=float, default=1.0,
+    help='Cross section fraction')
 args = parser.parse_args()
 
 multis = len(args.dyns) > 1
@@ -40,16 +43,8 @@ if args.save:
     winImFilt = vtk.vtkWindowToImageFilter()
     winImFilt.SetInput(renWin)
 
-    if multis:
-        writer = vtk.vtkOggTheoraWriter()
-        writer.SetFileName('out.ogv')
-        writer.SetRate(1.0 / dt)
-        writer.SetQuality(0)
-    else:
-        writer = vtk.vtkPNGWriter()
+    writer = vtk.vtkPNGWriter()
     writer.SetInputConnection(winImFilt.GetOutputPort())
-    if multis:
-        writer.Start()
 else:
     # create a renderwindowinteractor
     iren = vtk.vtkRenderWindowInteractor()
@@ -145,9 +140,9 @@ except NameError:
     pass
 else:
     envActor.SetMapper(envMapper)
-    envActor.GetProperty().SetColor(1, 0, 0)
-    envActor.GetProperty().SetOpacity(0.2)
+    envActor.GetProperty().SetColor(0, 1, 0)
     envActor.GetProperty().SetRepresentationToWireframe()
+    # envActor.GetProperty().SetOpacity(0.5)
     ren.AddActor(envActor)
 
 particleCPoints = vtk.vtkPoints()
@@ -170,7 +165,6 @@ particlesCMapper = vtk.vtkPolyDataMapper()
 particlesCMapper.SetInputConnection(particlesC.GetOutputPort())
 particlesCActor = vtk.vtkActor()
 particlesCActor.SetMapper(particlesCMapper)
-# particlesCActor.GetProperty().SetColor(0, 1, 0)
 ren.AddActor(particlesCActor)
 
 particleESource = vtk.vtkSphereSource()
@@ -195,26 +189,28 @@ particleE2Points = vtk.vtkPoints()
 particleE2Polys = vtk.vtkPolyData()
 particleE2Polys.SetPoints(particleE2Points)
 particlesE2 = vtk.vtkGlyph3D()
-# particleE2Source = vtk.vtkSphereSource()
-# particleE2Source.SetRadius(R)
 particlesE2.SetSourceConnection(particleESource.GetOutputPort())
 particlesE2.SetInputData(particleE2Polys)
 particlesE2Mapper = vtk.vtkPolyDataMapper()
 particlesE2Mapper.SetInputConnection(particlesE2.GetOutputPort())
 particlesE2Actor = vtk.vtkActor()
 particlesE2Actor.SetMapper(particlesE2Mapper)
-# particlesE2Actor.GetProperty().SetColor(0, 0, 1)
 ren.AddActor(particlesE2Actor)
 
 first = True
 for fname in args.dyns:
     dyn = np.load(fname.strip())
+
     try:
         r = pad_to_3d(dyn['r'])
         u = pad_to_3d(dyn['u'])
     except KeyError:
         print('Invalid dyn file %s' % fname)
         continue
+    else:
+        in_slice = np.abs(r[:, -1]) / R_drop < args.cross
+        r = r[in_slice]
+        u = u[in_slice]
 
     particleCPoints.SetData(numpy_support.numpy_to_vtk(r))
     particleCPolys.GetPointData().SetVectors(numpy_support.numpy_to_vtk(u))
@@ -231,19 +227,13 @@ for fname in args.dyns:
     renWin.SetWindowName(fname)
 
     if first:
-        ren.GetActiveCamera().Azimuth(20.0)
-        # ren.GetActiveCamera().Yaw(1.0)
-        # ren.GetActiveCamera().Pitch(1.0)
         ren.GetActiveCamera().Zoom(1.5)
         first = False
-    # ren.GetActiveCamera().Azimuth(0.5)
-    # ren.GetActiveCamera().Zoom(1.01)
     if args.save:
         print(fname)
         fname = os.path.splitext(os.path.basename(fname))[0]
         winImFilt.Modified()
-        if not multis:
-            writer.SetFileName('%s.png' % fname)
+        writer.SetFileName('%s.png' % fname)
         writer.Write()
     elif multis:
         time.sleep(dt)
