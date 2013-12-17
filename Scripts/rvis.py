@@ -208,9 +208,10 @@ for fname in args.dyns:
         print('Invalid dyn file %s' % fname)
         continue
     else:
-        in_slice = np.abs(r[:, -1]) / R_drop < args.cross
-        r = r[in_slice]
-        u = u[in_slice]
+        if 'R' in stat:
+            in_slice = np.abs(r[:, -1]) / R_drop < args.cross
+            r = r[in_slice]
+            u = u[in_slice]
 
     particleCPoints.SetData(numpy_support.numpy_to_vtk(r))
     particleCPolys.GetPointData().SetVectors(numpy_support.numpy_to_vtk(u))
@@ -227,7 +228,7 @@ for fname in args.dyns:
     renWin.SetWindowName(fname)
 
     if first:
-        ren.GetActiveCamera().Zoom(1.5)
+        # ren.GetActiveCamera().Zoom(1.5)
         first = False
     if args.save:
         print(fname)

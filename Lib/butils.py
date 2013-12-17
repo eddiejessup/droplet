@@ -15,12 +15,10 @@ def get_stat(dirname):
         env = get_env(dirname)
         stat = {'L': env.o.L,
                 'r_0': env.p.r_0}
+
         # if isinstance(env.o, obstructions.Walls):
         #     stat['o'] = env.o.a
         if isinstance(env.o, obstructions.Droplet):
-            stat['R'] = env.o.R
-        elif isinstance(env.o, obstructions.Porous):
-            stat['r'] = env.o.r
             stat['R'] = env.o.R
         return stat
     else:

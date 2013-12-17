@@ -52,12 +52,12 @@ class Droplet(Obstruction):
     def to_field(self, dx):
         M = int(self.L / dx)
         dx = self.L / M
-        field = np.zeros(self.dim * [M], dtype=np.uint8)
+        of = np.zeros(self.dim * [M], dtype=np.uint8)
         axes = [i + 1 for i in range(self.dim)] + [0]
         inds = np.transpose(np.indices(self.dim * [M]), axes=axes)
         rs = -self.L_half + (inds + 0.5) * dx
-        field[...] = np.logical_not(utils.vector_mag_sq(rs) < self.R ** 2)
-        return fields
+        of[...] = np.logical_not(utils.vector_mag_sq(rs) < self.R ** 2)
+        return of
 
     def is_obstructed(self, r, u, lu, ld, R):
         return geom.cap_insphere_intersect(r - u * ld, r + u * lu, R, self.r, self.R)
