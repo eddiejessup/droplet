@@ -18,6 +18,8 @@ parser.add_argument('-s', '--save', default=False, action='store_true',
                     help='Save plot')
 parser.add_argument('-f', '--format', default='png',
                     help='Save file format')
+parser.add_argument('--rho', default=False, action='store_true',
+                    help='Plot bacterial density histogram')
 args = parser.parse_args()
 
 multis = len(args.dyns) > 1
@@ -49,27 +51,19 @@ tp = ax.text(0.0, 1.1 * L / (2.0 * z), '0.0', ha='center')
 # Obstructions
 if 'o' in stat:
     o = stat['o']
-    dx = L / o.shape[0]
-    if np.any(o):
-        o_plot = np.logical_not(o).T
-        ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=lims,
-                  origin='lower', interpolation='nearest', cmap='gray_r')
-else:
-    o_plot = np.zeros_like(c)
+elif 'c' in stat:
+    o = np.zeros_like(stat['c'])
+
+ax.imshow(o.T, extent=lims,
+          origin='lower', interpolation='nearest', cmap='gray_r')
 
 # Particles
 # rp = ax.quiver([], [], [], [], scale=2000.0)
 rp = ax.scatter([], [], s=1)
 
 # Chemo
-if 'c' in stat:
-    # cp = ax.imshow(np.ma.array(o_plot, mask=o_plot), extent=lims,
-    #                origin='lower', interpolation='nearest')
-    cp = ax.imshow([[]], extent=lims,
-                   origin='lower', interpolation='nearest')
-
-# density
-# rhop = ax.imshow([[1]], extent=lims, origin='lower', interpolation='nearest')
+if args.rho or 'c' in stat:
+    cp = ax.imshow([[1]], extent=lims, origin='lower', interpolation='nearest')
 
 for fname in args.dyns:
     # Get state
@@ -90,15 +84,12 @@ for fname in args.dyns:
     rp.set_offsets(r)
     # rp.set_UVC(v[:, 0], v[:, 1])
 
-    # rho, xedge, yedge = np.histogram2d(r[:, 0], r[:, 1], bins=30)
-    # rhop.set_data(rho.T)
-    # rhop.autoscale()
-
-    try:
-        cp.set_data(np.ma.array(np.log(c).T, mask=1-o_plot))
-        cp.autoscale()
-    except AttributeError:
-        pass
+    if args.rho:
+        rho, xedge, yedge = np.histogram2d(r[:, 0], r[:, 1], bins=10)
+        cp.set_data(rho.T)
+    else:
+        cp.set_data(np.ma.array(np.log(c).T, mask=o.T))
+    cp.autoscale()
 
     tp.set_text(str(butils.t(fname)))
 
