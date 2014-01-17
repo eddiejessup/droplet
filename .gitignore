@@ -1,4 +1,6 @@
+Exp_data/
 Data/
+Params/
 *.o
 *.so
 *.pyc
