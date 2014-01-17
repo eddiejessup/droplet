@@ -59,16 +59,16 @@ class Droplet(Obstruction):
         of[...] = np.logical_not(utils.vector_mag_sq(rs) < self.R ** 2)
         return of
 
-    def is_obstructed(self, r, u, lu, ld, R):
-        return geom.cap_insphere_intersect(r - u * ld, r + u * lu, R, self.r, self.R)
+    def is_obstructed(self, r, u, l, R):
+        return geom.cap_insphere_intersect(r - u * l / 2.0, r + u * l / 2.0, R, self.r, self.R)
 
-    def obstruct(self, r, u, lu, ld, R, *args, **kwargs):
+    def obstruct(self, r, u, l, R, *args, **kwargs):
         r_new = r.copy()
         u_new = u.copy()
 
         erks = 0
         while True:
-            seps = geom.cap_insphere_sep(r_new - u_new * ld, r_new + u_new * lu, R, self.r, self.R)
+            seps = geom.cap_insphere_sep(r_new - u_new * l / 2.0, r_new + u_new * l / 2.0, R, self.r, self.R)
             over_mag = utils.vector_mag(seps) + R - self.R
             # Greater than because we're checking for capsules going _outside_ the sphere
             c = over_mag > 0.0
@@ -84,7 +84,7 @@ class Droplet(Obstruction):
             erks += 1
         if erks > 2: logging.warn('Obstruction erks: %i' % erks)
 
-        assert not np.any(self.is_obstructed(r_new, u_new, lu, ld, R))
+        assert not np.any(self.is_obstructed(r_new, u_new, l, R))
         return r_new, u_new
 
     def A_obstructed(self):
@@ -108,7 +108,10 @@ class Walls(Obstruction, fields.Field):
     def is_obstructed(self, r, *args, **kwargs):
         return self.a[tuple(self.r_to_i(r).T)]
 
-    def obstruct(self, r, u, lu, ld, R, r_old):
+    def obstruct(self, r, u, l, R, r_old):
+        if l > 0.0 or R > 0.0:
+            raise Exception('Walls obstructions only works for spherical particles')
+
         r_new, u_new = r.copy(), u.copy()
 
         obstructeds = self.is_obstructed(r)
