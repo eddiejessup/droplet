@@ -25,11 +25,13 @@ def stderr(d):
 def find_peak(Rs, rhos, gamma, R_drop, rho_0):
     i_half = len(Rs) // 2
     in_outer_half = Rs > Rs[i_half]
-    in_peak = rhos > 2.0 * rho_0
+    in_peak = rhos / rho_0 > 2.0
+    in_peak = Rs / R_drop > 0.8
 
     try:
         i_peak_0 = np.where(np.logical_and(in_outer_half, in_peak))[0][0]
     except IndexError:
+        print('skip')
         i_peak_0 = np.nan
     return i_peak_0
 
@@ -40,7 +42,7 @@ def parse_dir(dirname, s=0):
     dyns = sorted(glob.glob('%s/dyn/*.npz' % dirname), key=butils.t)[::-1]
 
     if s == 0: pass
-    elif s > len(dyns): 
+    elif s > len(dyns):
         # raise Exception('Requested %i samples but only %i available' % (s, len(dyns)))
         print('Requested %i samples but only %i available' % (s, len(dyns)))
         s = len(dyns)
@@ -61,7 +63,7 @@ def code_to_R_drop(fname):
     while True:
         row = r.next()
         # print(row[0], fname.replace('.csv', ''))
-        if row[0] == fname.replace('.csv', ''): 
+        if row[0] == fname.replace('.csv', ''):
             f.close()
             return float(row[1])
 
@@ -84,8 +86,8 @@ def make_hist(rs, R_drop, bins=None, res=None):
     n_err = np.std(ns, axis=0) / np.sqrt(len(ns) - 1)
     return R_edges, n, n_err
 
-def analyse(rs, R_drop, bins, dim, dana_dat):
-    Rs_edge, ns, ns_err = make_hist(rs, R_drop, bins)
+def analyse(rs, R_drop, bins, res, dim, dana_dat):
+    Rs_edge, ns, ns_err = make_hist(rs, R_drop, bins, res)
 
     n_raw = np.sum(np.isfinite(rs), axis=1)
     n = np.mean(n_raw)
@@ -117,7 +119,13 @@ def analyse(rs, R_drop, bins, dim, dana_dat):
         n_peak = ns[i_peak:].sum()
     n_peak_err = n_peak * (n_err / n)
 
-    return n, n_err, R_drop, R_peak, n_peak, n_peak_err, r_mean, r_mean_err, r_var, r_var_err
+    R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
+    A_bug = np.pi * R_bug ** 2
+    A_drop = 4.0 * np.pi * R_drop ** 2
+    eta = (n_peak * A_bug) / A_drop
+    eta_0 = (n * A_bug) / A_drop
+
+    return n, n_err, R_drop, R_peak, n_peak, n_peak_err, r_mean, r_mean_err, r_var, r_var_err, eta_0, eta, dana_dat
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Analyse droplet distributions')
@@ -125,16 +133,18 @@ if __name__ == '__main__':
         help='Data directories')
     parser.add_argument('-s', '--samples', type=int, default=0,
         help='Number of samples to use')
-    parser.add_argument('-b', '--bins', type=int, default=20,
+    parser.add_argument('-b', '--bins', type=int, default=None,
         help='Number of bins to use')
-    parser.add_argument('--dim', default=3, 
+    parser.add_argument('-r', '--res', type=float, default=None,
+        help='Bin resolution in micrometres')
+    parser.add_argument('--dim', default=3,
         help='Spatial dimension')
     parser.add_argument('-t', default=False, action='store_true',
         help='Print data header')
     args = parser.parse_args()
 
     if args.t:
-        fields = ('n', 'n_err', 'R_drop', 'R_peak', 'n_peak', 'n_peak_err', 'r_mean', 'r_mean_err', 'r_var', 'r_var_err')
+        fields = ('n', 'n_err', 'R_drop', 'R_peak', 'n_peak', 'n_peak_err', 'r_mean', 'r_mean_err', 'r_var', 'r_var_err', 'eta_0', 'eta', 'hemisphere')
         print(' '.join(fields))
     for dirname in args.dirnames:
         dana_dat = dirname.endswith('.csv')
@@ -142,4 +152,4 @@ if __name__ == '__main__':
             rs, R_drop = parse_csv(dirname)
         else:
             rs, R_drop = parse_dir(dirname, args.samples)
-        print(*analyse(rs, R_drop, args.bins, args.dim, dana_dat))
+        print(*analyse(rs, R_drop, args.bins, args.res, args.dim, dana_dat))

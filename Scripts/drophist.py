@@ -27,7 +27,8 @@ def stderr(d):
 def find_peak(Rs, rhos, gamma, R_drop, rho_0):
     i_half = len(Rs) // 2
     in_outer_half = Rs > Rs[i_half]
-    in_peak = rhos > 2*rho_0
+    in_peak = rhos / rho_0 > 2.0
+    in_peak = Rs / R_drop > 0.8
 
     try:
         i_peak_0 = np.where(np.logical_and(in_outer_half, in_peak))[0][0]
@@ -43,7 +44,7 @@ def parse_dir(dirname, s=0):
     dyns = sorted(glob.glob('%s/dyn/*.npz' % dirname), key=butils.t)[::-1]
 
     if s == 0: pass
-    elif s > len(dyns): 
+    elif s > len(dyns):
         # raise Exception('Requested %i samples but only %i available' % (s, len(dyns)))
         print('Requested %i samples but only %i available' % (s, len(dyns)))
         s = len(dyns)
@@ -64,7 +65,7 @@ def code_to_R_drop(fname):
     while True:
         row = r.next()
         # print(row[0], fname.replace('.csv', ''))
-        if row[0] == fname.replace('.csv', ''): 
+        if row[0] == fname.replace('.csv', ''):
             f.close()
             return float(row[1])
 
@@ -93,13 +94,15 @@ if __name__ == '__main__':
         help='Data directories')
     parser.add_argument('-s', '--samples', type=int, default=0,
         help='Number of samples to use')
-    parser.add_argument('-b', '--bins', type=int, default=20,
+    parser.add_argument('-b', '--bins', type=int, default=None,
         help='Number of bins to use')
+    parser.add_argument('-r', '--res', type=float, default=None,
+        help='Bin resolution in micrometres')
     parser.add_argument('-i', '--interactive', default=False, action='store_true',
         help='Show plot interactively')
-    parser.add_argument('-o', '--out', default='out', 
+    parser.add_argument('-o', '--out', default='out',
         help='Output file prefix')
-    parser.add_argument('--dim', default=3, 
+    parser.add_argument('--dim', default=3,
         help='Spatial dimension')
     args = parser.parse_args()
 
@@ -107,7 +110,7 @@ if __name__ == '__main__':
 
     import ejm_rcparams
 
-    if not args.interactive: 
+    if not args.interactive:
         figsize = ejm_rcparams.get_figsize(width=452, factor=0.7)
     else:
         figsize = None
@@ -155,15 +158,15 @@ if __name__ == '__main__':
             # label = label.replace('_', '\_')
             if label == 'Dc_inf': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$'
             elif label == 'Dc_0': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = 0$'
-            else: 
+            else:
                 print(label)
                 label = 'Simulation'
 
-        # if i_ds == 0: 
+        # if i_ds == 0:
         #     c = 'blue'
         #     m = 's'
         #     label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$, $l=\SI{1}{\micro\metre}$'
-        # elif i_ds == 1: 
+        # elif i_ds == 1:
         #     c = 'purple'
         #     m = '*'
         #     label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$, $l=\SI{0}{\micro\metre}$'
@@ -190,7 +193,7 @@ if __name__ == '__main__':
 
             # R_drop *= 1.1
             if not len(rs): continue
-            Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins)
+            Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins, args.res)
 
             n_raw = np.sum(np.isfinite(rs), axis=1)
             n = np.mean(n_raw)
@@ -238,26 +241,27 @@ if __name__ == '__main__':
             n_tots_err.append(n_err)
             R_drops.append(R_drop)
 
-            if multiset: 
+            if multiset:
                 label_h = None
+                label_h = label + r', ' + r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$' % (R_drop, 100.0 * vf)
             else:
                 # label_h = r'Dir: %s, R=%.2g\si{\micro\metre}, n=%i, $\theta$=%.2g$\%%$' % (dirname, R_drop, n, 100*vf)
                 # label_h = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$, n=%i' % (R_drop, 100.0 * vf, n)
                 label_h = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$' % (R_drop, 100.0 * vf)
                 label_h = label_h.replace('_', '\_')
 
-            if not multiset:
+            if not multiset and len(dirs) > 1:
                 try:
-                    c_h = mpl.cm.jet(int(256.0 *(float(i_d) / (len(dirs) - 1.0))))
+                    c_h = mpl.cm.jet(int(256.0 * (float(i_d) / (len(dirs) - 1.0))))
                 except StopIteration:
                     pass
             else:
                 c_h = c
-            if 14.0 < R_drop < 18.0:
-                ax_hist.errorbar(Rs / R_drop, rhos / rho_0, yerr=rhos_err / rho_0, label=label_h, c=c_h)
+            # if 20 < R_drop < 28.0:
+            ax_hist.errorbar(Rs / R_drop, rhos / rho_0, yerr=rhos_err / rho_0, label=label_h, c=c_h)
 
-        if multiset:
-            ax_hist.plot([], [], label=label, c=c)
+        # if multiset:
+        #     ax_hist.plot([], [], label=label, c=c)
 
         n_peaks = np.array(n_peaks, dtype=np.float)
         n_tots = np.array(n_tots, dtype=np.float)
@@ -284,12 +288,10 @@ if __name__ == '__main__':
         ax_mean.errorbar(vps, r_means, yerr=r_means_err, xerr=vps_err, c=c, marker=m, label=label, ls='none')
         ax_var.errorbar(vps, r_vars, yerr=r_vars_err, xerr=vps_err, c=c, marker=m, label=label, ls='none')
 
-        for a in [n_tots, n_tots_err, R_drops, R_peaks, n_peaks, n_peaks_err, r_means, r_means_err, r_vars, r_vars_err]:
-            print(len(a))
         np.savetxt('{0}_{1}.csv'.format(args.out, i_ds), zip(n_tots, n_tots_err, R_drops, R_peaks, n_peaks, n_peaks_err, r_means, r_means_err, r_vars, r_vars_err), header='n n_err R R_peak n_peak n_peak_err r_mean, r_mean_err, r_var, r_var_err')
 
     ax_hist.set_ylim(0.0, None)
-    ax_hist.set_ylim(0.0, 3.5)
+    ax_hist.set_ylim(0.0, 6.0)
     ax_hist.set_xlabel(r'$r / \mathrm{R}$')
     ax_hist.set_ylabel(r'$\rho(r) / \rho_0$')
     ax_hist.legend(loc='upper left')

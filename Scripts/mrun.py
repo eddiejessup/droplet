@@ -26,18 +26,18 @@ class ArgumentParser(argparse.ArgumentParser):
 parser = ArgumentParser(description='Run a particle simulation',
                         fromfile_prefix_chars='@')
 
+parser.add_argument('-e', '--every', type=int, default=100,
+                    help='Number of iterations between outputs')
+parser.add_argument('-c', '--cp', type=int, default=30,
+                    help='Number of data outputs between checkpoints, negative means never')
+parser.add_argument('-t', '--runtime', type=float, default=float('inf'),
+                    help='how long to run')
+parser.add_argument('dir',
+                    help='data directory')
+
 subparsers = parser.add_subparsers(dest='cmd')
 
 parser_new = subparsers.add_parser('new')
-
-parser_new.add_argument('dir',
-                        help='data directory')
-parser_new.add_argument('-e', '--every', type=int, default=1,
-                        help='how many iterations should elapse between outputs')
-parser_new.add_argument('-c', '--cp', type=int, default=10,
-                        help='how many data outputs should elapse between checkpoints, negative means never')
-parser_new.add_argument('-t', '--runtime', type=float, default=float('inf'),
-                        help='how long to run')
 
 env_parser = parser_new.add_argument_group('environment')
 env_parser.add_argument('-s', '--seed', type=int,
@@ -117,14 +117,6 @@ chemo_parser.add_argument('-cdown', type=float,
 
 parser_resume = subparsers.add_parser('resume')
 
-parser_resume.add_argument('dir',
-                           help='data directory')
-parser_resume.add_argument('-e', '--every', type=int, default=1,
-                           help='Number of iterations between outputs')
-parser_resume.add_argument('-c', '--cp', type=int, default=10,
-                           help='Number of data outputs between checkpoints, negative means never')
-parser_resume.add_argument('-t', '--runtime', type=float, default=float('inf'),
-                           help='how long to run')
 
 args = parser.parse_args()
 log_fname = '%s/run.log' % args.dir
