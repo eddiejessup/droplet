@@ -67,6 +67,16 @@ particle_parser.add_argument('-Dr', type=float,
 particle_parser.add_argument('-p0', type=float,
                              help='Particle base tumble rate')
 
+taxis_parser = parser_new.add_argument_group('taxis')
+taxis_parser.add_argument('--taxis_chi', type=float,
+                             help='Chemotactic sensitivity')
+taxis_parser.add_argument('--taxis_onesided', default=False, action='store_true',
+                             help='Chemotactic one-sidedness')
+taxis_parser.add_argument('--taxis_alg', choices=['g', 'm'],
+                             help='Chemotactic fitness algorithm')
+taxis_parser.add_argument('--taxis_t_mem', type=float,
+                             help='Chemotactic memory length')
+
 obstruct_parser = parser_new.add_argument_group('obstructions')
 obstruct_parser.add_argument('--drop_R', type=float,
                              help='Droplet radius')
@@ -140,6 +150,7 @@ if args.cmd == 'new':
                                   args.trap_n, args.trap_d, args.trap_w, args.trap_s,
                                   args.maze_d, args.maze_seed,
                                   args.n, args.pD, args.pR, args.l, args.v, args.Dr, args.p0,
+                                  args.taxis_chi, args.taxis_onesided, args.taxis_alg, args.taxis_t_mem,
                                   args.f0, args.fD, args.fdown,
                                   args.c0, args.cD, args.cup, args.cdown)
 

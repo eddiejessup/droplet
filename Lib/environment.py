@@ -16,6 +16,7 @@ class Environment(object):
                  trap_n, trap_d, trap_w, trap_s,
                  maze_d, maze_seed,
                  n, p_D, p_R, l, v_0, D_rot_0, p0,
+                 taxis_chi, taxis_onesided, taxis_alg, taxis_t_mem,
                  f_0, D_f, f_sink,
                  c_0, D_c, c_source, c_sink):
         np.random.seed(seed)
@@ -50,7 +51,8 @@ class Environment(object):
         else:
             self.c = None
 
-        self.p = particles.Particles(L, dim, dt, n, p_D, p_R, l, v_0, D_rot_0, p0, self.o)
+        self.p = particles.Particles(L, dim, dt, n, p_D, p_R, l, v_0, D_rot_0, p0, self.o,
+                                     taxis_chi, taxis_onesided, taxis_alg, taxis_t_mem)
 
     def iterate(self):
         self.p.iterate(self.o, self.c)
