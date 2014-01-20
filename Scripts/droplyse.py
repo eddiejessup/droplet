@@ -23,8 +23,7 @@ A_bug = np.pi * R_bug ** 2
 params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
 
 def stderr(d):
-    if d.ndim != 1: raise Exception
-    return np.std(d) / np.sqrt(len(d) - 1)
+    return np.std(d, axis=0) / np.sqrt(len(d))
 
 def find_peak(Rs, rhos, gamma, R_drop, rho_0):
     i_half = len(Rs) // 2
@@ -94,7 +93,7 @@ def make_hist(rs, R_drop, bins=None, res=None):
         ns.append(n)
     ns = np.array(ns)
     n = np.mean(ns, axis=0)
-    n_err = np.std(ns, axis=0) / np.sqrt(len(ns) - 1)
+    n_err = stderr(ns)
     return R_edges, n, n_err
 
 def parse(dirname, samples):
