@@ -4,11 +4,8 @@ from __future__ import print_function
 import os
 import argparse
 import numpy as np
-import yaml
-import glob
 import utils
 import geom
-import scipy.ndimage.filters as filters
 import scipy.stats as st
 import butils
 
@@ -24,29 +21,6 @@ params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
 
 def stderr(d):
     return np.std(d, axis=0) / np.sqrt(len(d))
-
-def find_peak(Rs, rhos, gamma, R_drop, rho_0, alg):
-    i_half = len(Rs) // 2
-    in_outer_half = Rs > Rs[i_half]
-
-    if alg == 1:
-        rho_max = max(rhos)
-        in_peak = (rhos - rho_0) / (rho_max - rho_0) > 0.2
-    if alg == 4:
-        rho_max = max(rhos)
-        in_peak = (rhos - rho_0) / (rho_max - rho_0) > 0.0
-    elif alg == 2:
-        in_peak = rhos / rho_0 > 2.0
-    elif alg == 3:
-        in_peak = Rs / R_drop > 0.8
-    else:
-        raise Exception
-
-    try:
-        i_peak_0 = np.where(np.logical_and(in_outer_half, in_peak))[0][0]
-    except IndexError:
-        i_peak_0 = np.nan
-    return i_peak_0
 
 def parse_dir(dirname, s=0):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
@@ -131,16 +105,32 @@ def n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere):
     rhos_err = ns_err / dVs
     return rhos, rhos_err
 
-def hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere):
+def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere):
     rhos, rhos_err = n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere)
 
     V_drop = geom.sphere_volume(R_drop, dim)
     rho_0 = n / V_drop
 
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
-    i_peak = find_peak(Rs, rhos, 0.5, R_drop, rho_0, alg)
-    if np.isnan(i_peak):
-        R_peak = n_peak = np.nan
+
+    i_half = len(Rs) // 2
+    in_outer_half = Rs > Rs[i_half]
+
+    if alg == 1:
+        in_peak = (rhos - rho_0) / (rhos.max() - rho_0) > 0.2
+    elif alg == 4:
+        in_peak = (rhos - rho_0) / (rhos.max() - rho_0) > 0.0
+    elif alg == 2:
+        in_peak = rhos / rho_0 > 2.0
+    elif alg == 3:
+        in_peak = Rs / R_drop > 0.8
+    else:
+        raise Exception(alg, type(alg))
+
+    try:
+        i_peak = np.where(np.logical_and(in_outer_half, in_peak))[0][0]
+    except IndexError:
+        i_peak = R_peak = n_peak = np.nan
     else:
         R_peak = Rs[i_peak]
         n_peak = ns[i_peak:].sum()
@@ -149,8 +139,8 @@ def hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere):
     A_drop = 4.0 * np.pi * R_drop ** 2
     eta_factor = A_bug / A_drop
     eta = n_peak * eta_factor
-    eta_0 = n * eta_factor
     eta_err = n_peak_err * eta_factor
+    eta_0 = n * eta_factor
     eta_0_err = n_err * eta_factor
 
     return R_peak, n_peak, n_peak_err, eta_0, eta_0_err, eta, eta_err
@@ -186,7 +176,7 @@ if __name__ == '__main__':
         Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins, args.res)
         row = analyse(rs, R_drop, args.dim, hemisphere)
         n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err = row
-        row += hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, args.alg, args.dim, hemisphere)
+        row += peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, args.alg, args.dim, hemisphere)
         row += str(float(hemisphere)),
 
         print(*row)

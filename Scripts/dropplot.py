@@ -7,7 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as pp
 import geom
 import ejm_rcparams
-import drophist
+import droplyse
 
 dim = 3
 
@@ -67,8 +67,8 @@ if __name__ == '__main__':
         rho_peaks = (n_peaks / V_peaks) / rho_0s
         rho_peaks_err = rho_peaks * np.sqrt((n_peaks_err / n_peaks) ** 2 + (rho_0s_err / rho_0s) ** 2)
 
-        vfs = ns * drophist.V_particle / V_drops
-        vfs_err = ns_err * drophist.V_particle / V_drops
+        vfs = ns * droplyse.V_particle / V_drops
+        vfs_err = ns_err * droplyse.V_particle / V_drops
         vps = 100.0 * vfs
         vps_err = 100.0 * vfs_err
 
