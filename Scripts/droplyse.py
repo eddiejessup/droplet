@@ -25,19 +25,22 @@ params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
 def stderr(d):
     return np.std(d, axis=0) / np.sqrt(len(d))
 
-def find_peak(Rs, rhos, gamma, R_drop, rho_0):
+def find_peak(Rs, rhos, gamma, R_drop, rho_0, alg):
     i_half = len(Rs) // 2
     in_outer_half = Rs > Rs[i_half]
 
-    # 1
-    # rho_max = max(rhos)
-    # in_peak = (rhos - rho_0) / (rho_max - rho_0) > 0.2
-
-    # 2
-    # in_peak = rhos / rho_0 > 2.0
-    
-    # 3
-    in_peak = Rs / R_drop > 0.8
+    if alg == 1:
+        rho_max = max(rhos)
+        in_peak = (rhos - rho_0) / (rho_max - rho_0) > 0.2
+    if alg == 4:
+        rho_max = max(rhos)
+        in_peak = (rhos - rho_0) / (rho_max - rho_0) > 0.0
+    elif alg == 2:
+        in_peak = rhos / rho_0 > 2.0
+    elif alg == 3:
+        in_peak = Rs / R_drop > 0.8
+    else:
+        raise Exception
 
     try:
         i_peak_0 = np.where(np.logical_and(in_outer_half, in_peak))[0][0]
@@ -128,14 +131,14 @@ def n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere):
     rhos_err = ns_err / dVs
     return rhos, rhos_err
 
-def hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, dim, hemisphere):
+def hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere):
     rhos, rhos_err = n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere)
 
     V_drop = geom.sphere_volume(R_drop, dim)
     rho_0 = n / V_drop
 
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
-    i_peak = find_peak(Rs, rhos, 0.5, R_drop, rho_0)
+    i_peak = find_peak(Rs, rhos, 0.5, R_drop, rho_0, alg)
     if np.isnan(i_peak):
         R_peak = n_peak = np.nan
     else:
@@ -159,6 +162,8 @@ if __name__ == '__main__':
         help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float, default=None,
         help='Bin resolution in micrometres')
+    parser.add_argument('-a', '--alg', type=int,
+        help='Peak finding algorithm')
     parser.add_argument('--dim', default=3,
         help='Spatial dimension')
     parser.add_argument('-t', default=False, action='store_true',
@@ -174,7 +179,7 @@ if __name__ == '__main__':
         Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins, args.res)
         row = analyse(rs, R_drop, args.dim, hemisphere)
         n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err = row
-        row += hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, args.dim, hemisphere)
+        row += hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, args.alg, args.dim, hemisphere)
         row += str(float(hemisphere)),
 
         print(*row)
