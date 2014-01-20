@@ -13,6 +13,12 @@ dim = 3
 
 figsize = (7.5, 5.5)
 
+def f(xs, b):
+    '''
+    Function to match Alex's model, taking the negative sign in the quadratic equation.
+    '''
+    return np.array([np.roots([1 - b, -(1 + x), x])[1] for x in xs])
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot droplet analysis files')
     parser.add_argument('datnames', nargs='+',
@@ -66,15 +72,33 @@ if __name__ == '__main__':
         vps = 100.0 * vfs
         vps_err = 100.0 * vfs_err
 
-        label = ls[i]
+        import scipy.optimize as opt
+        ws = etas_err / etas
+        ws = None
+
+        popt, pcov = opt.curve_fit(f, etas_0, etas, p0=[0.0], sigma=ws)
+        b = popt[0]
+        b_err = np.sqrt(pcov[0,0])
+
+        # print(b, b_err)
+        etas_0_th = np.linspace(etas_0.min(), etas_0.max(), 100.0)
+        etas_th = f(etas_0_th, b)
+
+        m, c, label = ps[i]
         # label=datname
         # label = None
-        print(np.polyfit(etas_0, etas, 2))
-        ax_peak.errorbar(vps, rho_peaks, yerr=rho_peaks_err, xerr=vps_err, c=cs[i], marker=ms[i], label=label, ls='none', ms=5)
-        ax_nf.errorbar(vps, f_peaks, yerr=f_peaks_err, xerr=vps_err, c=cs[i], marker=ms[i], label=label, ls='none', ms=5)
-        ax_mean.errorbar(vps, r_means, yerr=r_means_err, xerr=vps_err, c=cs[i], marker=ms[i], label=label, ls='none', ms=5)
-        ax_var.errorbar(vps, r_vars, yerr=r_vars_err, xerr=vps_err, c=cs[i], marker=ms[i], label=label, ls='none', ms=5)
-        ax_eta.scatter(etas_0, etas, marker=ms[i], label=label, c=cs[i], s=25)
+
+        alex_res = np.sum(np.square(f(etas_0, b=6) - etas))
+        my_res = np.sum(np.square(f(etas_0, b=b) - etas))
+        # print(alex_res, my_res)
+
+        ax_peak.errorbar(vps, rho_peaks, yerr=rho_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
+        ax_nf.errorbar(vps, f_peaks, yerr=f_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
+        ax_mean.errorbar(vps, r_means, yerr=r_means_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
+        ax_var.errorbar(vps, r_vars, yerr=r_vars_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
+        # ax_eta.plot(etas_0_th, etas_th, c=c)
+        ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label + r', $b=%.2g\pm%.2g$' % (b, b_err), c=c, ls='none', ms=5)
+        # ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label, c=c, ls='none', ms=5)
 
     ax_peak.axhline(1.0, lw=2, c='cyan', ls='--', label='Uniform')
     # ax_peak.plot([], [], lw=2, c='red', ls='--', label='Complete accumulation')
@@ -90,9 +114,32 @@ if __name__ == '__main__':
     ax_nf.set_ylabel(r'$\mathrm{n_{peak} / n}$')
     ax_nf.legend(loc='lower left')
 
-    eta_0_old, eta_old = np.loadtxt('old.txt', delimiter=' ', unpack=True)
-    ax_eta.scatter(eta_0_old, eta_old, marker='x', c='purple', label='Old analysis')
-    # ax_eta.set_xscale('log')
+    # dat_d1 = np.recfromcsv('exp_d1.csv', delimiter=' ')
+    # etas_0_d1, etas_d1 = dat_d1['eta_0'], dat_d1['eta']
+    # b, = opt.curve_fit(f, etas_0_d1, etas_d1, p0=[0.99])[0]
+    # c, m, label = 'purple', 'x', r'Old analysis' + r', $b=%.1g$' % b
+    # # print(b)
+    # etas_0_th = np.linspace(etas_0_d1.min(), etas_0_d1.max(), 100.0)
+    # ax_eta.scatter(etas_0_d1, etas_d1, marker=m, c=c, label=label)
+    # # ax_eta.scatter(etas_0_d1, etas_d1, marker='x', c='purple', label=r'Old analysis, $\gamma=0?$')
+    # ax_eta.plot(etas_0_th, etas_th, c=c)
+
+    dat_d2 = np.recfromcsv('exp_d2.csv', delimiter=' ')
+    etas_0_d2, etas_d2 = dat_d2['eta_0'], dat_d2['eta']
+    b, = opt.curve_fit(f, etas_0_d2, etas_d2, p0=[0.99])[0]
+    c, m, label = 'black', 'v', r'Dana''\'s analysis' + r', $b=%.1g$' % b
+    # print(b)
+    etas_0_th = np.linspace(etas_0_d2.min(), etas_0_d2.max(), 100.0)
+    ax_eta.scatter(etas_0_d2, etas_d2, marker='x', c=c, label=label)
+    # ax_eta.scatter(etas_0_d2, etas_d2, marker='x', c='purple', label=r'Old analysis, $\gamma=0?$')
+    ax_eta.plot(etas_0_th, etas_th, c='purple')
+
+    etas_th = f(etas_0_th, b)
+    etas_alex = f(etas_0_th, b=6)
+    # fit_res = np.sum(np.square(f(etas_0_d1, b=6) - etas_d1))
+    ax_eta.plot(etas_0_th, etas_alex, c='cyan', label=r'Alex''\'s fit, $b=6$')
+
+    ax_eta.set_xscale('log')
     ax_eta.set_xlabel(r'$\eta_0$')
     ax_eta.set_ylabel(r'$\eta$')
     ax_eta.legend(loc='upper left')
