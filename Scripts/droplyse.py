@@ -19,9 +19,6 @@ A_bug = np.pi * R_bug ** 2
 
 params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
 
-def stderr(d):
-    return np.std(d, axis=0) / np.sqrt(len(d))
-
 def parse_dir(dirname, s=0):
     yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
     R_drop = yaml_args['obstruction_args']['droplet_args']['R']
@@ -70,7 +67,7 @@ def make_hist(rs, R_drop, bins=None, res=None):
         ns.append(n)
     ns = np.array(ns)
     n = np.mean(ns, axis=0)
-    n_err = stderr(ns)
+    n_err = st.sem(ns, axis=0)
     return R_edges, n, n_err
 
 def parse(dirname, samples):
@@ -84,14 +81,14 @@ def parse(dirname, samples):
 def analyse(rs, R_drop, dim, hemisphere):
     n_raw = np.sum(np.isfinite(rs), axis=1)
     n = np.mean(n_raw)
-    n_err = stderr(n_raw)
+    n_err = st.sem(n_raw)
 
     r_mean_raw = np.nanmean(rs / R_drop, axis=1)
     r_mean = np.mean(r_mean_raw)
-    r_mean_err = stderr(r_mean_raw)
+    r_mean_err = st.sem(r_mean_raw)
     r_var_raw = np.nanvar(rs / R_drop, axis=1, dtype=np.float64)
     r_var = np.mean(r_var_raw)
-    r_var_err = stderr(r_var_raw)
+    r_var_err = st.sem(r_var_raw)
 
     V_drop = geom.sphere_volume(R_drop, dim)
     if hemisphere: V_drop /= 2.0
