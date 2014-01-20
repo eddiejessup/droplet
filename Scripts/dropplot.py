@@ -30,17 +30,16 @@ if __name__ == '__main__':
     fig_eta = pp.figure(figsize=figsize)
     ax_eta = fig_eta.gca()
 
-    ms = ['o', '^', 's', 'x', '*', '+']
-    cs = ['red', 'blue', 'green', 'cyan']
-    ls = ['Experiment', r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$', r'Simulation, $\mathrm{D}_\mathrm{r,c} = 0$']
-    ls = [r'Analysis 1, $\gamma=0.2$',
-          r'Analysis 2, $\beta=2$',
-          r'Analysis 3, $\alpha=0.8$',
-          ]
+    ps = [('o', 'red', r'Analysis 1, $\gamma=0.2$'),
+          ('o', 'yellow', r'Analysis 1, $\gamma=0.0$'),
+          ('^', 'blue', r'Analysis 2, $\beta=2$'),
+          ('s', 'green', r'Analysis 3, $\alpha=0.8$')]
 
     for i, datname in enumerate(args.datnames):
         dat = np.loadtxt(datname, unpack=True, delimiter=' ')
-        ns, ns_err, R_drops, r_means, r_means_err, r_vars, r_vars_err, R_peaks, n_peaks, n_peaks_err, etas_0, etas, hemispheres = dat
+        (ns, ns_err, R_drops, r_means, r_means_err, r_vars, r_vars_err, 
+            R_peaks, n_peaks, n_peaks_err, etas_0, etas_0_err, etas, 
+            etas_err, hemispheres) = dat
 
         assert np.all(hemispheres == 1.0) or np.all(hemispheres == 0.0)
         hemisphere = hemispheres[0]

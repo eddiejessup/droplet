@@ -147,10 +147,13 @@ def hist_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere):
     n_peak_err = n_peak * (n_err / n)
 
     A_drop = 4.0 * np.pi * R_drop ** 2
-    eta = (n_peak * A_bug) / A_drop
-    eta_0 = (n * A_bug) / A_drop
+    eta_factor = A_bug / A_drop
+    eta = n_peak * eta_factor
+    eta_0 = n * eta_factor
+    eta_err = n_peak_err * eta_factor
+    eta_0_err = n_err * eta_factor
 
-    return R_peak, n_peak, n_peak_err, eta_0, eta
+    return R_peak, n_peak, n_peak_err, eta_0, eta_0_err, eta, eta_err
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Analyse droplet distributions')
@@ -171,7 +174,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.t:
-        fields = ('n', 'n_err', 'R_drop', 'r_mean', 'r_mean_err', 'r_var', 'r_var_err', 'R_peak', 'n_peak', 'n_peak_err', 'eta_0', 'eta', 'hemisphere')
+        fields = (
+            'n', 'n_err', 'R_drop', 'r_mean', 'r_mean_err', 
+            'r_var', 'r_var_err', 'R_peak', 'n_peak', 'n_peak_err', 
+            'eta_0', 'eta_0_err', 'eta', 'eta_err', 'hemisphere'
+            )
         print('# ' + ' '.join(fields))
     for dirname in args.dirnames:
         rs, R_drop, hemisphere = parse(dirname, args.samples)
