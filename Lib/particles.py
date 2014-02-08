@@ -175,7 +175,11 @@ class Particles(object):
 
         # # randomise u if collided
         colls = self.collisions(r_new, u_new)
+
+        self.colls = colls
+
         u_new[colls] = utils.sphere_pick(self.dim, colls.sum())
+        # print(sum(colls))
         # D_rot_coll = 1.0
         # u_new[colls] = utils.rot_diff(u_new[colls], D_rot_coll, self.dt)
 

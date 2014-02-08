@@ -1,9 +1,10 @@
+from __future__ import print_function
 import numpy as np
 import obstructions
 import walled_fields
 import particles
 import pickle
-
+import utils
 
 def any_not_nones(a):
     return a.count(None) < len(a)
@@ -54,12 +55,34 @@ class Environment(object):
         self.p = particles.Particles(L, dim, dt, n, p_D, p_R, l, v_0, D_rot_0, p0, self.o,
                                      taxis_chi, taxis_onesided, taxis_alg, taxis_t_mem)
 
+        self.t_scat = np.ones([self.p.n]) * np.inf
+        self.r_scat = self.p.r_0.copy()
+        self.t_relax = 1.0 * self.o.R / self.p.v_0
+
     def iterate(self):
         self.p.iterate(self.o, self.c)
         if isinstance(self.f, walled_fields.Food):
             self.f.iterate(self.p.get_density_field(self.dx))
         if isinstance(self.c, walled_fields.Secretion):
             self.c.iterate(self.p.get_density_field(self.dx), self.f)
+
+        # for i in range(self.p.n):
+        #     # if tracking finished
+        #     if self.t_scat[i] < self.t:
+        #         print(self.t, utils.vector_mag(self.r_scat[i]), utils.vector_mag(self.p.r[i]))
+        #         # reset tracking
+        #         self.t_scat[i] = np.inf
+        #     # if not already tracking, and collision happens
+        # for i in range(self.p.n):
+        #     if self.p.colls[i]:
+        #         # print(self.t_scat[i] - self.t)
+        #         if self.t_scat[i] == np.inf:
+        #             # start tracking
+        #             self.t_scat[i] = self.t + self.t_relax
+        #             self.r_scat[i] = self.p.r[i].copy()
+        #         # else:
+        #         #     print('warning')
+
         self.t += self.dt
         self.i += 1
 
