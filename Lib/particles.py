@@ -38,7 +38,7 @@ class Particles(object):
         self.n = n
         self.D = D
         self.R = R
-        self.l = l
+        self.l = 0.0 if l is None else l
         self.v_0 = v_0
         self.D_rot_0 = D_rot_0
         self.p_0 = p_0
