@@ -48,8 +48,12 @@ else:
 
 stat = butils.get_stat(datdir)
 sysenv = butils.get_env(datdir)
-lu = sysenv.p.lu
-ld = sysenv.p.ld
+try:
+    lu = sysenv.p.lu
+    ld = sysenv.p.ld
+except AttributeError:
+    lu = sysenv.p.l / 2.0
+    ld = sysenv.p.l / 2.0
 R = sysenv.p.R
 
 # System bounds
