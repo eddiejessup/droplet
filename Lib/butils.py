@@ -4,6 +4,11 @@ import numpy as np
 import scipy
 import obstructions
 
+def pad_to_3d(a):
+    a_pad = np.zeros([len(a), 3], dtype=a.dtype)
+    a_pad[:, :a.shape[-1]] = a
+    return a_pad
+    
 def get_stat(dirname):
     '''
     Compatibility function for numpy dict
