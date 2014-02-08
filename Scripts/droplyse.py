@@ -4,10 +4,13 @@ from __future__ import print_function
 import os
 import argparse
 import numpy as np
+import pandas as pd
 import utils
 import geom
 import scipy.stats as st
 import butils
+import yaml
+import glob
 
 buff = 1.2
 
@@ -17,11 +20,20 @@ R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
 R_bug = 1.1
 A_bug = np.pi * R_bug ** 2
 
-params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
+exp_params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
+sim_params_fname = '/Users/ejm/Desktop/Bannock/Data/drop/end_of_2013/nocoll/align/Dc_inf/params.csv'
+
+gamma = 0.0
+beta = 1.0
 
 def parse_dir(dirname, s=0):
-    yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
-    R_drop = yaml_args['obstruction_args']['droplet_args']['R']
+    try:
+        yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
+    except IOError:
+        env = butils.get_env(dirname)
+        R_drop = env.o.R
+    else:
+        R_drop = yaml_args['obstruction_args']['droplet_args']['R']
 
     dyns = sorted(glob.glob('%s/dyn/*.npz' % dirname), key=butils.t)[::-1]
 
@@ -40,22 +52,29 @@ def parse_dir(dirname, s=0):
         rs.append(utils.vector_mag(r_head))
     return np.array(rs), R_drop
 
-def code_to_R_drop(fname):
-    import pandas as pd
-    f = open(params_fname, 'r')
-    r = pd.io.parsers.csv.reader(f)
-    while True:
-        row = r.next()
-        # print(row[0], fname.replace('.csv', ''))
-        if row[0] == fname.replace('.csv', ''):
-            f.close()
-            return float(row[1])
+def code_to_param(fname, exp, param='R_drop'):
+    # print(os.path.basename(fname))
+    code = os.path.splitext(os.path.basename(fname))[0]
+    if exp:
+        params_fname = exp_params_fname
+    else:
+        params_fname = sim_params_fname
+    with open(params_fname, 'r') as f:
+        reader = pd.io.parsers.csv.reader(f, delimiter='\t')
+        fields = reader.next()
+        code_i = fields.index('Code')
+        param_i = fields.index(param)
+        for row in reader:
+            # print(row[code_i])
+            if row[code_i] == code:
+                # print(param, param_i, float(row[param_i]))
+                return float(row[param_i])
+        else:
+            raise Exception('Code %s not found in params file' % code)
 
 def parse_csv(fname, *args, **kwargs):
-    if fname == params_fname:
-        return [], np.nan
     rs = np.genfromtxt(fname, delimiter=',', unpack=True)
-    R_drop = code_to_R_drop(os.path.basename(fname))
+    R_drop = code_to_param(os.path.basename(fname), exp=True)
     return rs, R_drop
 
 def make_hist(rs, R_drop, bins=None, res=None):
@@ -102,10 +121,11 @@ def n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere):
     rhos_err = ns_err / dVs
     return rhos, rhos_err
 
-def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere):
+def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere, fname):
     rhos, rhos_err = n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere)
 
     V_drop = geom.sphere_volume(R_drop, dim)
+    if hemisphere: V_drop /= 2.0
     rho_0 = n / V_drop
 
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
@@ -113,19 +133,27 @@ def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere):
     i_half = len(Rs) // 2
     in_outer_half = Rs > Rs[i_half]
 
-    if alg == 1:
-        in_peak = (rhos - rho_0) / (rhos.max() - rho_0) > 0.2
-    elif alg == 4:
-        in_peak = (rhos - rho_0) / (rhos.max() - rho_0) > 0.0
-    elif alg == 2:
-        in_peak = rhos / rho_0 > 2.0
-    elif alg == 3:
-        in_peak = Rs / R_drop > 0.8
+    if alg == '1':
+        in_peak = (rhos - rho_0) / (rhos.max() - rho_0) > gamma
+    elif alg == '2':
+        in_peak = rhos / rho_0 > beta
+    elif alg == 'ell_eye':
+        # from elliot's eye
+        R_peak = code_to_param(fname, exp=hemisphere, param='ell_R_peak_subj')
+        in_peak = Rs > R_peak
+    elif alg == 'dana_eye':
+        # from dana's eye
+        R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak')
+        in_peak = Rs > R_peak
+    elif alg == 'ell_base':
+        # from elliot's eye, alg 1, gamma=0.0
+        R_peak = code_to_param(fname, exp=hemisphere, param='ell_R_peak_base')
+        in_peak = Rs > R_peak
     else:
         raise Exception(alg, type(alg))
 
     try:
-        i_peak = np.where(np.logical_and(in_outer_half, in_peak))[0][0]
+        i_peak = np.where(in_peak)[0][0]
     except IndexError:
         i_peak = R_peak = n_peak = np.nan
     else:
@@ -152,7 +180,7 @@ if __name__ == '__main__':
         help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float, default=None,
         help='Bin resolution in micrometres')
-    parser.add_argument('-a', '--alg', type=int,
+    parser.add_argument('-a', '--alg',
         help='Peak finding algorithm')
     parser.add_argument('--dim', default=3,
         help='Spatial dimension')
@@ -173,7 +201,7 @@ if __name__ == '__main__':
         Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins, args.res)
         row = analyse(rs, R_drop, args.dim, hemisphere)
         n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err = row
-        row += peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, args.alg, args.dim, hemisphere)
+        row += peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, args.alg, args.dim, hemisphere, dirname)
         row += str(float(hemisphere)),
 
         print(*row)
