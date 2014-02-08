@@ -10,11 +10,6 @@ from vtk.util import numpy_support
 import utils
 import butils
 
-def pad_to_3d(a):
-    a_pad = np.zeros([len(a), 3], dtype=a.dtype)
-    a_pad[:, :a.shape[-1]] = a
-    return a_pad
-
 parser = argparse.ArgumentParser(description='Visualise system states using VTK')
 parser.add_argument('dyns', nargs='*',
     help='npz files containing dynamic states')
@@ -92,7 +87,7 @@ if 'o' in stat:
         if o[tuple(ind)]:
             ors.append(ind)
     ors = np.array(ors) * dx - L / 2.0
-    ors = pad_to_3d(ors)
+    ors = butils.pad_to_3d(ors)
 
     points = vtk.vtkPoints()
     points.SetData(numpy_support.numpy_to_vtk(ors))
@@ -202,8 +197,8 @@ for fname in args.dyns:
     dyn = np.load(fname.strip())
 
     try:
-        r = pad_to_3d(dyn['r'])
-        u = pad_to_3d(dyn['u'])
+        r = butils.pad_to_3d(dyn['r'])
+        u = butils.pad_to_3d(dyn['u'])
     except KeyError:
         print('Invalid dyn file %s' % fname)
         continue
