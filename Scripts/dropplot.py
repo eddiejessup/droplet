@@ -3,6 +3,7 @@
 from __future__ import print_function
 import argparse
 import numpy as np
+import scipy.optimize as opt
 import matplotlib as mpl
 import matplotlib.pyplot as pp
 import geom
@@ -42,10 +43,6 @@ if __name__ == '__main__':
           ('s', 'green', r'Analysis 3, $\alpha=0.8$'),
           ('v', 'cyan', r''),
           ]
-    # ps = [('o', 'red', r'By eye, Elliot'),
-    #       ('o', 'yellow', r'By eye, Dana'),
-    #       ('o', 'blue', r'Algorithm 1, $\gamma=0.2$'),
-    #       ]
 
     for i, datname in enumerate(args.datnames):
         dat = np.loadtxt(datname, unpack=True, delimiter=' ')
@@ -79,90 +76,52 @@ if __name__ == '__main__':
         vps = 100.0 * vfs
         vps_err = 100.0 * vfs_err
 
-        import scipy.optimize as opt
-        ws = etas_err / etas
+        ws = 1.0 / (etas_err / etas)
         ws = None
 
         etas_0_s, etas_s, etas_err_s = [np.array(l) for l in zip(*sorted(zip(etas_0, etas, etas_err)))]
-        for ib in range(2, len(etas_0)+1):
-            ws_s = 1.0 / etas_err_s[:ib]
+        for ib in range(2, len(etas_0) + 1):
+            ws_s = 1.0 / (etas_err_s[:ib] / etas_s[:ib])
             ws_s = None
-            popt, pcov = opt.curve_fit(f, etas_0_s[:ib], etas_s[:ib], p0=[0.5], sigma=ws_s)
-            # print(ws_s)
-            b = popt[0]
             try:
-                b_err = np.sqrt(pcov[0,0])
-            except TypeError:
-                b_err = np.inf
-            # b_err = 0.0
+                popt, pcov = opt.curve_fit(f, etas_0_s[:ib], etas_s[:ib], p0=[0.5], sigma=ws_s)
+            except Exception:
+                b, b_err = np.nan, np.nan
+            else:
+                b = popt[0]
+                try:
+                    b_err = np.sqrt(pcov[0,0])
+                except TypeError:
+                    b_err = np.inf
             print(etas_0_s[ib-1], b, b_err)
 
-        # print(etas_0)
-
-        popt, pcov = opt.curve_fit(f, etas_0, etas, p0=[0.5], sigma=ws)
-        b = popt[0]
-        b_err = np.sqrt(pcov[0,0])
-        # b_err = 0.0
-
-        # print(b, b_err)
-        etas_0_th = np.linspace(etas_0.min(), etas_0.max(), 100.0)
-        etas_th = f(etas_0_th, b)
+        # etas_0_th = np.linspace(etas_0.min(), etas_0.max(), 100.0)
+        # etas_th = f(etas_0_th, b)
 
         m, c, label = ps[i]
-        label=datname
+        label = datname
         label = label.replace('_', '\_')
         # label = None
-
-        alex_res = np.sum(np.square(f(etas_0, b=6) - etas))
-        my_res = np.sum(np.square(f(etas_0, b=b) - etas))
-        # print(alex_res, my_res)
 
         ax_peak.errorbar(vps, rho_peaks, yerr=rho_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
         ax_nf.errorbar(vps, f_peaks, yerr=f_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
         ax_mean.errorbar(vps, r_means, yerr=r_means_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
         ax_var.errorbar(vps, r_vars, yerr=r_vars_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
-        ax_eta.plot(etas_0_th, etas_th, c=c)
-        ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label + r', $b=%.2g\pm%.2g$' % (b, b_err), c=c, ls='none', ms=5)
-        # ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label, c=c, ls='none', ms=5)
+        # ax_eta.plot(etas_0_th, etas_th, c=c)
+        # ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label + r', $b=%.2g\pm%.2g$' % (b, b_err), c=c, ls='none', ms=5)
+        ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label, c=c, ls='none', ms=5)
 
     ax_peak.axhline(1.0, lw=2, c='cyan', ls='--', label='Uniform')
-    # ax_peak.plot([], [], lw=2, c='red', ls='--', label='Complete accumulation')
     ax_peak.set_xscale('log')
     ax_peak.set_xlabel(r'Volume fraction $\theta$ \. (\%)')
     ax_peak.set_ylabel(r'$\rho_\mathrm{peak} / \rho_0$')
     ax_peak.legend(loc='lower left')
 
     ax_nf.axhline(1.0, lw=2, c='magenta', ls='--', label='Complete accumulation')
-    # ax_nf.plot([], [], lw=2, c='blue', ls='--', label='Uniform')
     ax_nf.set_xscale('log')
     ax_nf.set_xlabel(r'Volume fraction $\theta$ \. (\%)')
     ax_nf.set_ylabel(r'$\mathrm{n_{peak} / n}$')
     ax_nf.legend(loc='lower left')
-
-    # dat_d1 = np.recfromcsv('exp_d1.csv', delimiter=' ')
-    # etas_0_d1, etas_d1 = dat_d1['eta_0'], dat_d1['eta']
-    # b, = opt.curve_fit(f, etas_0_d1, etas_d1, p0=[0.99])[0]
-    # c, m, label = 'purple', 'x', r'Old analysis' + r', $b=%.1g$' % b
-    # # print(b)
-    # etas_0_th = np.linspace(etas_0_d1.min(), etas_0_d1.max(), 100.0)
-    # ax_eta.scatter(etas_0_d1, etas_d1, marker=m, c=c, label=label)
-    # # ax_eta.scatter(etas_0_d1, etas_d1, marker='x', c='purple', label=r'Old analysis, $\gamma=0?$')
-    # ax_eta.plot(etas_0_th, etas_th, c=c)
-
-    # dat_d2 = np.recfromcsv('exp_d2.csv', delimiter=' ')
-    # etas_0_d2, etas_d2 = dat_d2['eta_0'], dat_d2['eta']
-    # b, = opt.curve_fit(f, etas_0_d2, etas_d2, p0=[0.5])[0]
-    # c, m, label = 'black', 'v', r'Dana''\'s analysis' + r', $b=%.1g$' % b
-    # # print(b)
-    # etas_0_th = np.linspace(etas_0_d2.min(), etas_0_d2.max(), 100.0)
-    # # ax_eta.scatter(etas_0_d2, etas_d2, marker='x', c=c, label=label)
-    # # ax_eta.scatter(etas_0_d2, etas_d2, marker='x', c='purple', label=r'Old analysis, $\gamma=0?$')
-    # # ax_eta.plot(etas_0_th, etas_th, c='purple')
-
-    etas_th = f(etas_0_th, b)
-    etas_alex = f(etas_0_th, b=6)
-    # fit_res = np.sum(np.square(f(etas_0_d1, b=6) - etas_d1))
-    # ax_eta.plot(etas_0_th, etas_alex, c='cyan', label=r'Alex''\'s fit, $b=6$')
 
     ax_eta.set_xscale('log')
     ax_eta.set_xlabel(r'$\eta_0$')
@@ -183,4 +142,4 @@ if __name__ == '__main__':
     ax_var.set_ylabel(r'$\mathrm{Var} \left[ r \right] / R^2$')
     ax_var.legend(loc='upper left')
 
-    pp.show()
+    # pp.show()

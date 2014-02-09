@@ -146,8 +146,16 @@ def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere, fn
         R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak')
         in_peak = Rs > R_peak
     elif alg == 'ell_base':
-        # from elliot's eye, alg 1, gamma=0.0
+        # from elliot's eye, alg 1, gamma=0.0, base=rho_0
         R_peak = code_to_param(fname, exp=hemisphere, param='ell_R_peak_base')
+        in_peak = Rs > R_peak
+    elif alg == 'dana_median':
+        # from dana's eye, alg 1, gamma=0.0, base=rho_media
+        R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak_median')
+        in_peak = Rs > R_peak
+    elif alg == 'dana_mean':
+        # from dana's eye, alg 1, gamma=0.0, base=rho_mean
+        R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak_mean')
         in_peak = Rs > R_peak
     else:
         raise Exception(alg, type(alg))
