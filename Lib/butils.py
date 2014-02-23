@@ -16,7 +16,6 @@ def get_stat(dirname):
     or static numpy dict.
     '''
     if os.path.exists('%s/cp.pkl' % dirname):
-
         env = get_env(dirname)
         stat = {'L': env.o.L,
                 'r_0': env.p.r_0}
@@ -42,11 +41,30 @@ def get_stat(dirname):
     else:
         return np.load('%s/static.npz' % dirname)
 
+class PartDuck(object):
+    pass
+
+class ObsDuck(object):
+    pass
+
+class EnvDuck(object):
+    def __init__(self):
+        self.p = PartDuck()
+        self.o = ObsDuck()
+
 def get_env(dirname):
     '''
     environment instance from data directory pickle.
     '''
-    return pickle.load(open('%s/cp.pkl' % dirname, 'rb'))
+    try:
+        env = pickle.load(open('%s/cp.pkl' % dirname, 'rb'))
+    except IOError:
+        stat = get_stat(dirname)
+        env = EnvDuck()
+        env.p.R = stat['R']
+        env.p.l = stat['l']
+        env.o.R = stat['R_d']
+    return env
 
 def get_pos(state, skiprows=1):
     '''
