@@ -1,4 +1,6 @@
+Exp_data/
 Data/
+Params/
 *.o
 *.so
 *.pyc
@@ -9,3 +11,9 @@ README~
 *.yaml
 build/
 *.pyo
+*.csv
+*.ps
+*.pdf
+*.png
+*.avi
+*.ogv
