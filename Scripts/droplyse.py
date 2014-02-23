@@ -12,7 +12,7 @@ import butils
 import yaml
 import glob
 
-buff = 1.2
+buff = 1.1
 
 V_particle = 0.7
 
@@ -23,7 +23,6 @@ A_bug = np.pi * R_bug ** 2
 exp_params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
 sim_params_fname = '/Users/ejm/Desktop/Bannock/Data/drop/end_of_2013/nocoll/align/Dc_inf/params.csv'
 
-gamma = 0.0
 beta = 1.0
 
 def parse_dir(dirname, s=0):
@@ -35,11 +34,10 @@ def parse_dir(dirname, s=0):
     else:
         R_drop = yaml_args['obstruction_args']['droplet_args']['R']
 
-    dyns = sorted(glob.glob('%s/dyn/*.npz' % dirname), key=butils.t)[::-1]
+    dyns = sorted(glob.glob(os.path.join(dirname, 'dyn', '*.npz')), key=butils.t)[::-1]
 
     if s == 0: pass
     elif s > len(dyns):
-        # raise Exception('Requested %i samples but only %i available' % (s, len(dyns)))
         print('Requested %i samples but only %i available' % (s, len(dyns)))
         s = len(dyns)
     else: dyns = dyns[:s]
@@ -134,9 +132,11 @@ def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere, fn
     in_outer_half = Rs > Rs[i_half]
 
     if alg == '1':
-        in_peak = (rhos - rho_0) / (rhos.max() - rho_0) > gamma
-    elif alg == '2':
-        in_peak = rhos / rho_0 > beta
+        in_peak = (rhos - rhos_err) > rho_0
+    elif alg == 'mean':
+        in_peak = (rhos - rhos_err) > np.mean(rhos)
+    elif alg == 'median':
+        in_peak = (rhos - rhos_err) > np.median(rhos)
     elif alg == 'ell_eye':
         # from elliot's eye
         R_peak = code_to_param(fname, exp=hemisphere, param='ell_R_peak_subj')
