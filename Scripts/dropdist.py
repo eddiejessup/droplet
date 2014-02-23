@@ -12,8 +12,6 @@ import ejm_rcparams
 import droplyse
 import scipy.interpolate as si
 
-figsize = (7.5, 5.5)
-
 cs = ['red', 'blue', 'green', 'cyan', 'magenta', 'yellow']
 
 if __name__ == '__main__':
@@ -33,22 +31,21 @@ if __name__ == '__main__':
     dim = args.dim
     multiset = len(args.dirs) > 1
 
-    # pp.ion()
-    # pp.show()
-
     for i_ds, dirs in enumerate(args.dirs):
 
-        # # Sort by increasing volume fraction
-        # vfs = []
-        # for dirname in dirs:
-        #     rs, R_drop, hemisphere = droplyse.parse(dirname, args.samples)
-        #     n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err = droplyse.analyse(rs, R_drop, dim, hemisphere)
-        #     V_drop = geom.sphere_volume(R_drop, dim)
-        #     vf = n * droplyse.V_particle / V_drop
-        #     vfs.append(vf)
-        # dirs = [dirname for vf, dirname in sorted(zip(vfs, dirs))]
+        # Sort by increasing volume fraction
+        vfs = []
+        dirs_filt = []
+        for dirname in dirs:
+            rs, R_drop, hemisphere = droplyse.parse(dirname, args.samples)
+            n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err = droplyse.analyse(rs, R_drop, dim, hemisphere)
+            V_drop = geom.sphere_volume(R_drop, dim)
+            vf = n * droplyse.V_particle / V_drop
+            vfs.append(vf)
+            dirs_filt.append(dirname)
+        dirs_sort = [dirname for vf, dirname in sorted(zip(vfs, dirs_filt))]
 
-        for i_d, dirname in enumerate(reversed(dirs)):
+        for i_d, dirname in enumerate(dirs_sort):
             rs, R_drop, hemisphere = droplyse.parse(dirname, args.samples)
             n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err = droplyse.analyse(rs, R_drop, dim, hemisphere)
 
@@ -56,7 +53,8 @@ if __name__ == '__main__':
             rhos, rhos_err = droplyse.n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere)
 
             V_drop = geom.sphere_volume(R_drop, dim)
-            if hemisphere: V_drop /= 2.0
+            if hemisphere:
+                V_drop /= 2.0
             vf = n * droplyse.V_particle / V_drop
             Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
             rho_0 = n / V_drop
@@ -66,48 +64,23 @@ if __name__ == '__main__':
                 label_h = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$' % (R_drop, 100.0 * vf)
                 c_h = cs[i_ds]
             else:
-                c_h = mpl.cm.jet(int(256.0 * (float(i_d) / (len(dirs) - 1.0))))
+                c_h = mpl.cm.jet(int(256.0 * (float(i_d) / (len(dirs_sort) - 1.0))))
                 label_h = r'R=%.2g\si{\micro\metre}, $\theta$=%.2g$\%%$' % (R_drop, 100.0 * vf)
                 label_h = label_h.replace('_', '\_')
-            c_h = 'black'
-            # label_h = None
 
-            R_peak = droplyse.peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, 'ell_base', args.dim, hemisphere, dirname)[0]
-            print(R_peak)
-            pp.axvline(R_peak, c='green', label='rho0')
-            R_peak = droplyse.peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, 'ell_eye', args.dim, hemisphere, dirname)[0]
-            print(R_peak)
-            pp.axvline(R_peak, c='yellow', label='elleye')
-            R_peak = droplyse.peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, 'dana_eye', args.dim, hemisphere, dirname)[0]
-            print(R_peak)
-            pp.axvline(R_peak, c='purple', label='danaeye')
-            R_peak = droplyse.peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, '1', args.dim, hemisphere, dirname)[0]
-            print(R_peak)
-            pp.axvline(R_peak, c='cyan', label='rho0alg')
+            pp.errorbar(Rs / R_drop, rhos / rho_0, yerr=rhos_err / rho_0, label=label_h, c=c_h)
 
-            # if 12 < R_drop < 20.0:
-            pp.errorbar(Rs, rhos / rho_0, yerr=rhos_err / rho_0, label=label_h, c=c_h)
-            # pp.axhline(1.0, c='red')
+        if multiset and len(dirs) > 1:
+            label = os.path.commonprefix(list(dirs)).split('/')[-2].strip()
+            label = label.replace('_', '\_')
+            if label == 'Dc_inf': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$'
+            elif label == 'Dc_0': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = 0$'
+            c = cs[i_ds]
+            pp.plot([], [], label=label, c=c)
 
-            # outer_half = Rs > 0.5 * R_drop
-            # pp.ylim(0.0, 1.2 * (rhos / rho_0)[outer_half].max())
-            # pp.xlim()
-            # pp.draw()
-            # raw_input(dirname)
-            # pp.cla()
-
-    if multiset:
-        label = os.path.commonprefix(list(dirs)).split('/')[-2].strip()
-        label = label.replace('_', '\_')
-        if label == 'Dc_inf': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = \infty$'
-        elif label == 'Dc_0': label = r'Simulation, $\mathrm{D}_\mathrm{r,c} = 0$'
-        c = cs[i_ds]
-        pp.plot([], [], label=label, c=c)
-
-    # pp.ylim(0.0, None)
-    # pp.ylim(0.0, 6.0)
+    pp.xlim(0.0, 1.1)
+    pp.ylim(0.0, None)
     pp.xlabel(r'$r / \mathrm{R}$')
     pp.ylabel(r'$\rho(r) / \rho_0$')
     pp.legend(loc='upper left')
-
     pp.show()
