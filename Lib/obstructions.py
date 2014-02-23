@@ -8,10 +8,6 @@ import fields
 import maze
 import geom
 
-def factory(key, **kwargs):
-    keys = {'droplet_args': Droplet
-            }
-    return keys[key](**kwargs)
 
 class Obstruction(fields.Space):
     def __init__(self, L, dim):
@@ -35,6 +31,7 @@ class Obstruction(fields.Space):
 
     def A_free(self):
         return self.A() - self.A_obstructed()
+
 
 class Droplet(Obstruction):
     buff = 1e-3
@@ -89,6 +86,7 @@ class Droplet(Obstruction):
 
     def A_obstructed(self):
         return self.A() - utils.sphere_volume(self.R, self.dim)
+
 
 class Walls(Obstruction, fields.Field):
     def __init__(self, L, dim, dx):
