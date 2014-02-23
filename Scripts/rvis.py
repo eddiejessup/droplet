@@ -141,7 +141,7 @@ else:
     envActor.SetMapper(envMapper)
     envActor.GetProperty().SetColor(0, 1, 0)
     envActor.GetProperty().SetRepresentationToWireframe()
-    # envActor.GetProperty().SetOpacity(0.5)
+    envActor.GetProperty().SetOpacity(0.5)
     ren.AddActor(envActor)
 
 particleCPoints = vtk.vtkPoints()
@@ -227,7 +227,7 @@ for fname in args.dyns:
     renWin.SetWindowName(fname)
 
     if first:
-        # ren.GetActiveCamera().Zoom(1.5)
+        ren.GetActiveCamera().Zoom(1.5)
         first = False
     if args.save:
         print(fname)
