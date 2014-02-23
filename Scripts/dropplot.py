@@ -14,12 +14,6 @@ dim = 3
 
 figsize = (7.5, 5.5)
 
-def f(xs, b):
-    '''
-    Function to match Alex's model, taking the negative sign in the quadratic equation.
-    '''
-    return np.array([np.roots([1 - b, -(1 + x), x])[1] for x in xs])
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot droplet analysis files')
     parser.add_argument('datnames', nargs='+',
@@ -37,12 +31,13 @@ if __name__ == '__main__':
     fig_eta = pp.figure(figsize=figsize)
     ax_eta = fig_eta.gca()
 
-    ps = [('o', 'red', r'Analysis 1, $\gamma=0.2$'),
-          ('o', 'yellow', r'Analysis 1, $\gamma=0.0$'),
-          ('^', 'blue', r'Analysis 2, $\beta=2$'),
-          ('s', 'green', r'Analysis 3, $\alpha=0.8$'),
-          ('v', 'cyan', r''),
+    ps = [('o', 'red', r'Experiment'),
+          ('x', 'blue', r'Simulation, $D_c=\infty$'),
           ]
+    # ps = [('o', 'red', r'Algorithm'),
+    #       ('^', 'green', r'Subjective 1'),
+    #       ('v', 'purple', r'Subjective 2'),
+    #       ]
 
     for i, datname in enumerate(args.datnames):
         dat = np.loadtxt(datname, unpack=True, delimiter=' ')
@@ -79,37 +74,15 @@ if __name__ == '__main__':
         ws = 1.0 / (etas_err / etas)
         ws = None
 
-        etas_0_s, etas_s, etas_err_s = [np.array(l) for l in zip(*sorted(zip(etas_0, etas, etas_err)))]
-        for ib in range(2, len(etas_0) + 1):
-            ws_s = 1.0 / (etas_err_s[:ib] / etas_s[:ib])
-            ws_s = None
-            try:
-                popt, pcov = opt.curve_fit(f, etas_0_s[:ib], etas_s[:ib], p0=[0.5], sigma=ws_s)
-            except Exception:
-                b, b_err = np.nan, np.nan
-            else:
-                b = popt[0]
-                try:
-                    b_err = np.sqrt(pcov[0,0])
-                except TypeError:
-                    b_err = np.inf
-            print(etas_0_s[ib-1], b, b_err)
-
-        # etas_0_th = np.linspace(etas_0.min(), etas_0.max(), 100.0)
-        # etas_th = f(etas_0_th, b)
-
         m, c, label = ps[i]
-        label = datname
+        # label = datname
         label = label.replace('_', '\_')
-        # label = None
 
         ax_peak.errorbar(vps, rho_peaks, yerr=rho_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
         ax_nf.errorbar(vps, f_peaks, yerr=f_peaks_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
+        ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label, c=c, ls='none', ms=5)
         ax_mean.errorbar(vps, r_means, yerr=r_means_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
         ax_var.errorbar(vps, r_vars, yerr=r_vars_err, xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
-        # ax_eta.plot(etas_0_th, etas_th, c=c)
-        # ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label + r', $b=%.2g\pm%.2g$' % (b, b_err), c=c, ls='none', ms=5)
-        ax_eta.errorbar(etas_0, etas, yerr=etas_err, xerr=etas_0_err, marker=m, label=label, c=c, ls='none', ms=5)
 
     ax_peak.axhline(1.0, lw=2, c='cyan', ls='--', label='Uniform')
     ax_peak.set_xscale('log')
@@ -123,7 +96,10 @@ if __name__ == '__main__':
     ax_nf.set_ylabel(r'$\mathrm{n_{peak} / n}$')
     ax_nf.legend(loc='lower left')
 
+    x = np.logspace(-3, 1, 10)
+    ax_eta.plot(x, x, lw=2, c='magenta', ls='--', label='Complete accumulation')
     ax_eta.set_xscale('log')
+    ax_eta.set_yscale('log')
     ax_eta.set_xlabel(r'$\eta_0$')
     ax_eta.set_ylabel(r'$\eta$')
     ax_eta.legend(loc='upper left')
@@ -142,4 +118,4 @@ if __name__ == '__main__':
     ax_var.set_ylabel(r'$\mathrm{Var} \left[ r \right] / R^2$')
     ax_var.legend(loc='upper left')
 
-    # pp.show()
+    pp.show()
