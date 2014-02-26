@@ -78,7 +78,7 @@ def parse_csv(fname, *args, **kwargs):
 def make_hist(rs, R_drop, bins=None, res=None):
     ns = []
     if res is not None:
-        bins = (buff * R_drop) / res
+        bins = int(round((buff * R_drop) / res))
     for r in rs:
         n, R_edges = np.histogram(r, bins=bins, range=[0.0, buff * R_drop])
         ns.append(n)
@@ -108,28 +108,30 @@ def analyse(rs, R_drop, dim, hemisphere):
     r_var_err = st.sem(r_var_raw)
 
     V_drop = geom.sphere_volume(R_drop, dim)
-    if hemisphere: V_drop /= 2.0
+    if hemisphere:
+        V_drop /= 2.0
     return n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err
+
 
 def n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere):
     Vs_edge = geom.sphere_volume(Rs_edge, dim)
-    if hemisphere: Vs_edge /= 2.0
+    if hemisphere:
+        Vs_edge /= 2.0
     dVs = Vs_edge[1:] - Vs_edge[:-1]
     rhos = ns / dVs
     rhos_err = ns_err / dVs
     return rhos, rhos_err
 
+
 def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere, fname):
     rhos, rhos_err = n_to_rhos(Rs_edge, ns, ns_err, dim, hemisphere)
 
     V_drop = geom.sphere_volume(R_drop, dim)
-    if hemisphere: V_drop /= 2.0
+    if hemisphere:
+        V_drop /= 2.0
     rho_0 = n / V_drop
 
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
-
-    i_half = len(Rs) // 2
-    in_outer_half = Rs > Rs[i_half]
 
     if alg == '1':
         in_peak = (rhos - rhos_err) > rho_0
@@ -151,7 +153,8 @@ def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere, fn
         in_peak = Rs > R_peak
     elif alg == 'dana_median':
         # from dana's eye, alg 1, gamma=0.0, base=rho_media
-        R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak_median')
+        R_peak = code_to_param(
+            fname, exp=hemisphere, param='dana_R_peak_median')
         in_peak = Rs > R_peak
     elif alg == 'dana_mean':
         # from dana's eye, alg 1, gamma=0.0, base=rho_mean
@@ -179,29 +182,30 @@ def peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, alg, dim, hemisphere, fn
     return R_peak, n_peak, n_peak_err, eta_0, eta_0_err, eta, eta_err
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Analyse droplet distributions')
+    parser = argparse.ArgumentParser(
+        description='Analyse droplet distributions')
     parser.add_argument('dirnames', nargs='+',
-        help='Data directories')
+                        help='Data directories')
     parser.add_argument('-s', '--samples', type=int, default=0,
-        help='Number of samples to use')
+                        help='Number of samples to use')
     parser.add_argument('-b', '--bins', type=int, default=None,
-        help='Number of bins to use')
+                        help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float, default=None,
-        help='Bin resolution in micrometres')
+                        help='Bin resolution in micrometres')
     parser.add_argument('-a', '--alg',
-        help='Peak finding algorithm')
+                        help='Peak finding algorithm')
     parser.add_argument('--dim', default=3,
-        help='Spatial dimension')
+                        help='Spatial dimension')
     parser.add_argument('-t', default=False, action='store_true',
-        help='Print data header')
+                        help='Print data header')
     args = parser.parse_args()
 
     if args.t:
         fields = (
-            'n', 'n_err', 'R_drop', 'r_mean', 'r_mean_err', 
-            'r_var', 'r_var_err', 'R_peak', 'n_peak', 'n_peak_err', 
+            'n', 'n_err', 'R_drop', 'r_mean', 'r_mean_err',
+            'r_var', 'r_var_err', 'R_peak', 'n_peak', 'n_peak_err',
             'eta_0', 'eta_0_err', 'eta', 'eta_err', 'hemisphere'
-            )
+        )
         print('# ' + ' '.join(fields))
     for dirname in args.dirnames:
         rs, R_drop, hemisphere = parse(dirname, args.samples)
@@ -209,7 +213,8 @@ if __name__ == '__main__':
         Rs_edge, ns, ns_err = make_hist(rs, R_drop, args.bins, args.res)
         row = analyse(rs, R_drop, args.dim, hemisphere)
         n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err = row
-        row += peak_analyse(Rs_edge, ns, ns_err, n, n_err, R_drop, args.alg, args.dim, hemisphere, dirname)
+        row += peak_analyse(Rs_edge, ns, ns_err, n, n_err,
+                            R_drop, args.alg, args.dim, hemisphere, dirname)
         row += str(float(hemisphere)),
 
         print(*row)
