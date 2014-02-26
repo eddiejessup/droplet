@@ -48,14 +48,13 @@ else:
 
 stat = butils.get_stat(datdir)
 l = stat['l']
-lu, ld = l / 2.0, l /
+lu, ld = l / 2.0, l / 2.0
 R = stat['R']
 R_drop = stat['R_d']
 
 timeActor = vtk.vtkTextActor()
 timeActor.SetInput('init')
-ren.AddActor(timeActo
-    r)
+ren.AddActor(timeActor)
 
 envMapper = vtk.vtkPolyDataMapper()
 envActor = vtk.vtkActor()
