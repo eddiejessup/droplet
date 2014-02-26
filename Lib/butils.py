@@ -66,19 +66,6 @@ def get_env(dirname):
         env.o.R = stat['R_d']
     return env
 
-def get_pos(state, skiprows=1):
-    '''
-    particle positions and directions from state file, either as npz dyn
-    or csv
-    '''
-    try:
-        dyn = np.load(state)
-    except IOError:
-        rs = np.loadtxt(state, skiprows=skiprows)
-        return rs, None
-    else:
-        return dyn['r'], dyn['u']
-
 def t(f):
     '''
     Convert a dyn filename to a time

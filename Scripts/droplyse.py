@@ -25,30 +25,6 @@ sim_params_fname = '/Users/ejm/Desktop/Bannock/Data/drop/end_of_2013/nocoll/alig
 
 beta = 1.0
 
-def parse_dir(dirname, s=0):
-    try:
-        yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
-    except IOError:
-        env = butils.get_env(dirname)
-        R_drop = env.o.R
-    else:
-        R_drop = yaml_args['obstruction_args']['droplet_args']['R']
-
-    dyns = sorted(glob.glob(os.path.join(dirname, 'dyn', '*.npz')), key=butils.t)[::-1]
-
-    if s == 0: pass
-    elif s > len(dyns):
-        print('Requested %i samples but only %i available' % (s, len(dyns)))
-        s = len(dyns)
-    else: dyns = dyns[:s]
-
-    # print('For dirname %s using %i samples' % (dirname, len(dyns)))
-    rs = []
-    for dyn in dyns:
-        dyndat = np.load(dyn)
-        r_head = dyndat['r']
-        rs.append(utils.vector_mag(r_head))
-    return np.array(rs), R_drop
 
 def code_to_param(fname, exp, param='R_drop'):
     # print(os.path.basename(fname))
@@ -70,10 +46,96 @@ def code_to_param(fname, exp, param='R_drop'):
         else:
             raise Exception('Code %s not found in params file' % code)
 
-def parse_csv(fname, *args, **kwargs):
-    rs = np.genfromtxt(fname, delimiter=',', unpack=True)
-    R_drop = code_to_param(os.path.basename(fname), exp=True)
-    return rs, R_drop
+
+def is_csv(dirname):
+    return dirname.endswith('.csv')
+
+def is_xyz_csv(dirname):
+    return is_csv(dirname) and '_' in dirname
+
+def parse_dyn_xyz(fname):
+    return np.load(fname)['r']
+
+
+def parse_csv_xyz(fname, double=False):
+    slices, xs, ys, zs = np.genfromtxt(
+        fname, delimiter=',', unpack=True, skiprows=1)
+    r = np.array([xs, ys, zs]).T
+
+    if double:
+        r_doubled = np.empty([2 * len(r), r.shape[-1]])
+        r_doubled[:len(r)] = r
+        r_doubled[len(r):] = r
+        r_doubled[len(r):, -1] *= -1
+        r = r_doubled
+    return r
+
+
+def parse_xyz(fname, *args, **kwargs):
+    if is_xyz_csv(fname):
+        return parse_csv_xyz(fname, *args, **kwargs)
+    else:
+        return parse_dyn_xyz(fname, *args, **kwargs)
+
+def parse_dyndir_R_drop(dirname):
+    try:
+        yaml_args = yaml.safe_load(open('%s/params.yaml' % dirname, 'r'))
+    except IOError:
+        env = butils.get_env(dirname)
+        return env.o.R
+    else:
+        return yaml_args['obstruction_args']['droplet_args']['R']
+
+
+def parse_csv_R_drop(fname):
+    code = os.path.basename(fname)
+    if is_xyz_csv(fname):
+        code = code.split('_')[0]
+    return code_to_param(code, exp=True)
+
+
+def parse_R_drop(dirname):
+    if is_csv(dirname):
+        return parse_csv_R_drop(dirname)
+    else:
+        return parse_dyndir_R_drop(dirname)
+
+
+def parse_dyndir_xyz(dirname, s=0):
+    dyns = sorted(
+        glob.glob(os.path.join(dirname, 'dyn', '*.npz')), key=butils.t)[::-1]
+
+    if s == 0:
+        pass
+    elif s > len(dyns):
+        print('Requested %i samples but only %i available' % (s, len(dyns)))
+    else:
+        dyns = dyns[:s]
+
+    return np.array([parse_dyn_xyz(dyn) for dyn in dyns])
+
+
+def parse_dyndir_r(dirname, samples):
+    return utils.vector_mag(parse_dyndir_xyz(dirname, samples))
+
+
+def parse_csv_r(fname, *args, **kwargs):
+    if is_xyz_csv(fname):
+        return np.array([utils.vector_mag(parse_csv_xyz(fname))])
+    else:
+        return np.genfromtxt(fname, delimiter=',', unpack=True)
+
+
+def parse_r(dirname, samples=None):
+    if is_csv(dirname):
+        return parse_csv_r(dirname)
+    else:
+        return utils.vector_mag(parse_dyndir_xyz(dirname, samples))
+
+
+def parse(dirname, samples=None):
+    return parse_r(dirname, samples), parse_R_drop(dirname), is_csv(dirname)
+
 
 def make_hist(rs, R_drop, bins=None, res=None):
     ns = []
@@ -87,13 +149,6 @@ def make_hist(rs, R_drop, bins=None, res=None):
     n_err = st.sem(ns, axis=0)
     return R_edges, n, n_err
 
-def parse(dirname, samples):
-    hemisphere = dirname.endswith('.csv')
-    if hemisphere:
-        rs, R_drop = parse_csv(dirname)
-    else:
-        rs, R_drop = parse_dir(dirname, samples)
-    return rs, R_drop, hemisphere
 
 def analyse(rs, R_drop, dim, hemisphere):
     n_raw = np.sum(np.isfinite(rs), axis=1)
