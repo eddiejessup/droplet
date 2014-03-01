@@ -19,8 +19,8 @@ V_particle = 0.7
 R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
 A_bug = np.pi * R_bug ** 2
 
-exp_params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
-sim_params_fname = '/Users/ejm/Desktop/Bannock/Data/drop/end_of_2013/nocoll/align/Dc_inf/params.csv'
+exp_params_fname = '/Users/ejm/Projects/Bannock/Scripts/dat_exp/r/params.csv'
+sim_params_fname = '/Users/ejm/Projects/Bannock/Data/drop/sim/end_of_2013/nocoll/align/Dc_inf/params.csv'
 
 beta = 1.0
 
