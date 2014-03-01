@@ -5,11 +5,8 @@ import argparse
 import numpy as np
 import scipy.optimize as opt
 
-def f(xs, b):
-    '''
-    Function to match Alex's model, taking the negative sign in the quadratic equation.
-    '''
-    return np.array([np.roots([1 - b, -(1 + x), x])[1] for x in xs])
+def f(ys, b, c):
+    return (ys / (1.0 - ys)) * (1.0 + c + ys * (b - 1.0))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot droplet analysis files')
@@ -33,14 +30,12 @@ if __name__ == '__main__':
         ws_s = 1.0 / (etas_err_s / etas_s)
 
     for ib in range(2, len(etas_0) + 1):
+        popt, pcov = opt.curve_fit(f, etas_s[:ib], etas_0_s[:ib], p0=[0.5, 0.1], sigma=ws_s[:ib])
+        b, c = popt
         try:
-            popt, pcov = opt.curve_fit(f, etas_0_s[:ib], etas_s[:ib], p0=[0.5], sigma=ws_s[:ib])
-        except Exception:
-            b, b_err = np.nan, np.nan
-        else:
-            b = popt[0]
-            try:
-                b_err = np.sqrt(pcov[0, 0])
-            except TypeError:
-                b_err = np.inf
-        print(etas_0_s[ib - 1], b, b_err)
+            b_err = np.sqrt(pcov[0, 0])
+            c_err = np.sqrt(pcov[1, 1])
+        except TypeError:
+            b_err = np.inf
+            c_err = np.inf
+        print(etas_0_s[ib - 1], b, b_err, c, c_err)
