@@ -65,7 +65,9 @@ def parse_dyn_xyz(fname, *args, **kwargs):
 def parse_csv_xyz(fname, double=False):
     slices, xs, ys, zs = np.genfromtxt(
         fname, delimiter=',', unpack=True, skiprows=1)
-    r = np.array([xs, ys, zs]).T
+    e = slices % 2 == 0
+    o = slices % 2 == 1
+    r = np.array([xs[e], ys[e], zs[e]]).T
 
     if double:
         r_doubled = np.empty([2 * len(r), r.shape[-1]])
