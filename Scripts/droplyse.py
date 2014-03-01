@@ -47,12 +47,18 @@ def code_to_param(fname, exp, param='R_drop'):
 
 
 def is_csv(dirname):
-    return dirname.endswith('.csv')
+    return os.path.splitext(dirname)[1] == '.csv'
 
 def is_xyz_csv(dirname):
-    return is_csv(dirname) and '_' in dirname
+    return is_csv(dirname) and '_' in os.path.basename(dirname)
 
-def parse_dyn_xyz(fname):
+def is_dyndir(dirname):
+    return os.path.isdir(os.path.join(dirname, 'dyn'))
+
+def is_dyn(dirname):
+    return os.path.splitext(dirname)[1] == '.npz'
+
+def parse_dyn_xyz(fname, *args, **kwargs):
     return np.load(fname)['r']
 
 
@@ -73,7 +79,9 @@ def parse_csv_xyz(fname, double=False):
 def parse_xyz(fname, *args, **kwargs):
     if is_xyz_csv(fname):
         return parse_csv_xyz(fname, *args, **kwargs)
-    else:
+    elif is_dyndir(fname):
+        return parse_dyndir_xyz(fname, *args, **kwargs)
+    elif is_dyn(fname):
         return parse_dyn_xyz(fname, *args, **kwargs)
 
 def parse_dyndir_R_drop(dirname):
