@@ -17,7 +17,6 @@ buff = 1.1
 V_particle = 0.7
 
 R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
-R_bug = 1.1
 A_bug = np.pi * R_bug ** 2
 
 exp_params_fname = '/Users/ejm/Desktop/Bannock/Exp_data/final/params.csv'
