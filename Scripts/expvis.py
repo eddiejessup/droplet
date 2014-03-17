@@ -25,12 +25,8 @@ renWin.SetSize(600, 600)
 renWin.AddRenderer(ren)
 
 R = 0.551
-r = droplyse.parse_xyz(args.csv)
 
-thetas = np.arccos(r[..., -1] / utils.vector_mag(r))
-r = r[np.abs(thetas) < np.pi/4.0]
-
-R_drop = droplyse.parse_csv_xyz_R_drop(args.csv)
+xyz, n, R_drop, hemisphere = droplyse.parse(args.csv)
 
 envMapper = vtk.vtkPolyDataMapper()
 envActor = vtk.vtkActor()
@@ -62,12 +58,12 @@ particlesActor.SetMapper(particlesMapper)
 particlesActor.GetProperty().SetColor(1, 0, 0)
 ren.AddActor(particlesActor)
 
-in_slice = np.abs(r[:, -1]) / R_drop < args.cross
-r = r[in_slice]
+in_slice = np.abs(xyz[:, -1]) / R_drop < args.cross
+xyz = xyz[in_slice]
 
-r = np.ascontiguousarray(r)
+xyz = np.ascontiguousarray(xyz)
 
-particlePoints.SetData(numpy_support.numpy_to_vtk(r))
+particlePoints.SetData(numpy_support.numpy_to_vtk(xyz))
 
 if args.save:
     renWin.OffScreenRenderingOn()

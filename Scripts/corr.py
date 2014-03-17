@@ -21,7 +21,8 @@ def pdist_angle(rs):
 def corr_angle_hist(fnames, bins, R):
     ps = []
     for f in fnames:
-        r = droplyse.parse_xyz(f, double=True)
+        r = droplyse.parse_xyz(f)
+        r = r[r[:, -1] > 0.0]
         r = r[utils.vector_mag(r) > R]
         p, sigs = np.histogram(
             pdist_angle(r), bins=bins, density=True, range=(0.0, np.pi))
