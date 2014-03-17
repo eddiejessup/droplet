@@ -85,29 +85,6 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every):
                 break
             r_new[c], u_new[c] = r[c], u[c]
 
-        # # # randomise u if collided
-        # colls = collisions(r_new, u_new, l, R, R_d)
-        # r_new[colls] = r[colls]
-        # u_new[colls] = utils.sphere_pick(dim, colls.sum())
-        # # D_rot_coll = 1.0
-        # # u_new[colls] = utils.rot_diff(u_new[colls], D_rot_coll, dt)
-
-        # while True:
-        #     seps = geom.cap_insphere_sep(r_new - u_new * l / 2.0, r_new + u_new * l / 2.0, R, r_d, R_d)
-        #     over_mag = utils.vector_mag(seps) + R - R_d
-
-        #     c = over_mag > 0.0
-        #     if not np.any(c):
-        #         break
-
-        #     # Translation
-        #     u_seps = utils.vector_unit_nonull(seps[c])
-        #     r_new[c] -= offset * u_seps * over_mag[c][:, np.newaxis]
-
-        #     # Alignment
-        #     u_dot_u_seps = np.sum(u_new[c] * u_seps, axis=-1)
-        #     u_new[c] = utils.vector_unit_nonull(u_new[c] - u_seps * u_dot_u_seps[:, np.newaxis])
-
         r, u = r_new.copy(), u_new.copy()
 
         i += 1
