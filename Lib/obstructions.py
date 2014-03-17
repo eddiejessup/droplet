@@ -1,9 +1,7 @@
 from __future__ import print_function
 import logging
 import numpy as np
-import scipy.spatial.distance
 import utils
-import pack
 import fields
 import maze
 import geom

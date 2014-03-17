@@ -2,7 +2,6 @@ import pickle
 import os
 import numpy as np
 import scipy
-import obstructions
 
 def pad_to_3d(a):
     a_pad = np.zeros([len(a), 3], dtype=a.dtype)
