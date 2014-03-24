@@ -3,14 +3,10 @@
 from __future__ import print_function
 import argparse
 import numpy as np
-import scipy.optimize as opt
-import matplotlib as mpl
 import matplotlib.pyplot as pp
-import geom
-import ejm_rcparams
+# import ejm_rcparams
 import droplyse
 
-dim = 3
 
 figsize = (7.5, 5.5)
 
@@ -31,70 +27,60 @@ if __name__ == '__main__':
     fig_eta = pp.figure(figsize=figsize)
     ax_eta = fig_eta.gca()
 
-    ps = [('o', 'red', r'$\theta_\mathrm{max} = \pi / 2$'),
-          ('^', 'green', r'$\theta_\mathrm{max} = \pi / 3$'),
-          ('v', 'purple', r'Subjective 2'),
-          ('v', 'cyan', r'Subjective 2'),
-          # ('v', 'purple', r'Subjective 2'),
-          ]
     ps = [('o', 'red', r'Experiment'),
           ('^', 'green', r'Simulation, $\theta_\mathrm{r}^\mathrm{(c)} = \pi$'),
+          ('x', 'blue', r'Simulation, $\theta_\mathrm{r}^\mathrm{(c)} = 0$'),
           ]
 
     for i, datname in enumerate(args.datnames):
-        (ns, ns_err, R_drops, r_means, r_means_err, r_vars, r_vars_err,
-         R_peaks, R_peaks_err, n_peaks, n_peaks_err, hemispheres) = np.loadtxt(datname, unpack=True, delimiter=' ')
+        (n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err,
+         R_peak, R_peak_err, n_peak, n_peak_err, hemisphere, theta_max) = np.loadtxt(datname, unpack=True, delimiter=' ')
 
-        assert np.all(hemispheres == 1.0) or np.all(hemispheres == 0.0)
-        # hemispheres = hemispheres.reshape([1, 1])
-        hemisphere = hemispheres[0]
+        assert np.all(hemisphere == 1.0) or np.all(hemisphere == 0.0)
+        hemisphere = hemisphere[0]
+        assert np.all(theta_max == theta_max[0])
+        theta_max = theta_max[0]
 
-        V_drops = geom.sphere_volume(R_drops, dim)
-        if hemisphere:
-            V_drops /= 2.0
+        rho_0 = droplyse.n0_to_rho0(n, R_drop, droplyse.dim, hemisphere, theta_max)
+        rho_0_err = droplyse.n0_to_rho0(n_err, R_drop, droplyse.dim, hemisphere, theta_max)
+        vf = rho_0 * droplyse.V_particle
 
-        rho_0s = ns / V_drops
-        rho_0s_err = ns_err / V_drops
+        V_drop = droplyse.V_sector(R_drop, theta_max, hemisphere)
 
-        V_bulks = geom.sphere_volume(R_peaks, dim)
-        if hemisphere:
-            V_bulks /= 2.0
-        V_peaks = V_drops - V_bulks
-        n_peaks_err = n_peaks * (ns_err / ns)
-        f_peaks = n_peaks / ns
-        f_peaks_err = f_peaks * \
-            np.sqrt((ns_err / ns) ** 2 + (n_peaks_err / n_peaks) ** 2)
-        rho_peaks = (n_peaks / V_peaks) / rho_0s
-        rho_peaks_err = rho_peaks * \
-            np.sqrt((n_peaks_err / n_peaks) ** 2 + (rho_0s_err / rho_0s) ** 2)
+        V_peak = V_drop - droplyse.V_sector(R_peak, theta_max, hemisphere)
+        rho_peak = n_peak / V_peak
+        rho_peak_err = n_peak_err / V_peak
 
-        vfs = ns * droplyse.V_particle / V_drops
-        vfs_err = ns_err * droplyse.V_particle / V_drops
-        vps = 100.0 * vfs
-        vps_err = 100.0 * vfs_err
+        f_peak = n_peak / n
+        f_peak_err = f_peak * np.sqrt((n_peak_err / n_peak) ** 2 + (n_err / n) ** 2)
 
-        etas = droplyse.n_to_eta(n_peaks, R_drops)
-        etas_err = droplyse.n_to_eta(n_peaks_err, R_drops)
-        etas_0 = droplyse.n_to_eta(ns, R_drops)
-        etas_0_err = droplyse.n_to_eta(ns_err, R_drops)
+        vf = rho_0 * droplyse.V_particle
+        vf_err = rho_0_err * droplyse.V_particle
+        vp = 100.0 * vf
+        vp_err = 100.0 * vf_err
 
-        ws = 1.0 / (etas_err / etas)
-        ws = None
+        eta = droplyse.n_to_eta(n_peak, R_drop, theta_max, hemisphere)
+        eta_err = droplyse.n_to_eta(n_peak_err, R_drop, theta_max, hemisphere)
+        eta_0 = droplyse.n_to_eta(n, R_drop, theta_max, hemisphere)
+        eta_0_err = droplyse.n_to_eta(n_err, R_drop, theta_max, hemisphere)
 
         m, c, label = ps[i]
         # label = datname
         # label = label.replace('_', '\_')
 
-        ax_peak.errorbar(vps, rho_peaks, yerr=rho_peaks_err,
-                         xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
-        ax_nf.errorbar(vps, f_peaks, yerr=f_peaks_err,
-                       xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
-        ax_eta.errorbar(etas_0, etas, yerr=etas_err,
-                        xerr=etas_0_err, marker=m, label=label, c=c, ls='none', ms=5)
-        ax_mean.errorbar(vps, r_means, yerr=r_means_err,
-                         xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
-        ax_var.errorbar(vps, r_vars, yerr=r_vars_err,
-                        xerr=vps_err, c=c, marker=m, label=label, ls='none', ms=5)
+        for e in zip(n, R_drop, vp, eta_0):
+            print(*e)
+
+        ax_peak.errorbar(vp, rho_peak / rho_0, yerr=rho_peak_err / rho_0,
+                         xerr=vp_err, c=c, marker=m, label=label, ls='none', ms=5)
+        ax_nf.errorbar(vp, f_peak, yerr=f_peak_err,
+                       xerr=vp_err, c=c, marker=m, label=label, ls='none', ms=5)
+        ax_eta.errorbar(eta_0, eta, yerr=eta_err,
+                        xerr=eta_0_err, marker=m, label=label, c=c, ls='none', ms=5)
+        ax_mean.errorbar(vp, r_mean, yerr=r_mean_err,
+                         xerr=vp_err, c=c, marker=m, label=label, ls='none', ms=5)
+        ax_var.errorbar(vp, r_var, yerr=r_var_err,
+                        xerr=vp_err, c=c, marker=m, label=label, ls='none', ms=5)
 
     ax_peak.axhline(1.0, lw=2, c='cyan', ls='--', label='Uniform')
     ax_peak.set_xscale('log')
@@ -119,16 +105,16 @@ if __name__ == '__main__':
     ax_eta.legend(loc='lower right', fontsize=16)
 
     ax_mean.axhline(
-        dim / (dim + 1.0), lw=2, c='cyan', ls='--', label='Uniform')
+        droplyse.dim / (droplyse.dim + 1.0), lw=2, c='cyan', ls='--', label='Uniform')
     ax_mean.axhline(1.0, lw=2, c='magenta',
                     ls='--', label='Complete accumulation')
     ax_mean.set_xscale('log')
     ax_mean.set_ylim(0.73, 1.025)
     ax_mean.set_xlabel(r'Volume fraction $\theta$ \. (\%)', fontsize=20)
     ax_mean.set_ylabel(r'$\langle r \rangle / \mathrm{R}$', fontsize=20)
-    ax_mean.legend(loc='upper right', fontsize=16)
+    ax_mean.legend(loc='lower left', fontsize=16)
 
-    ax_var.axhline(dim * (1.0 / (dim + 2.0) - dim / (dim + 1.0) ** 2),
+    ax_var.axhline(droplyse.dim * (1.0 / (droplyse.dim + 2.0) - droplyse.dim / (droplyse.dim + 1.0) ** 2),
                    label='Uniform', lw=2, c='cyan', ls='--')
     ax_var.axhline(0.0, lw=2, c='magenta',
                    ls='--', label='Complete accumulation')

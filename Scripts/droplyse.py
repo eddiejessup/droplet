@@ -21,14 +21,34 @@ A_bug = np.pi * R_bug ** 2
 exp_params_fname = '/Users/ejm/Projects/Bannock/Scripts/dat_exp/r/params.csv'
 sim_params_fname = '/Users/ejm/Projects/Bannock/Data/drop/sim/end_of_2013/nocoll/align/Dc_inf/params.csv'
 
+dim = 3
 
-def V_sector(R, theta):
+
+def V_sector(R, theta, hemisphere=False):
     '''
-    Volume of a spherical sector with half cone angle theta.
+    Volume of two spherical sectors with half cone angle theta.
+    Two is because we consider two sectors, either side of the sphere's centre.
     See en.wikipedia.org/wiki/Spherical_sector, where its phi == this theta.
     '''
-    return (2.0 / 3.0) * np.pi * R ** 3 * (1.0 - np.cos(theta))
+    if theta > np.pi / 2.0:
+        raise Exception('Require sector half-angle at most pi / 2')
+    V_sector = 2.0 * (2.0 / 3.0) * np.pi * R ** 3 * (1.0 - np.cos(theta))
+    if hemisphere:
+        V_sector /= 2.0
+    return V_sector
 
+def A_sector(R, theta, hemisphere=False):
+    '''
+    Surface area of two spherical sectors with half cone angle theta.
+    Two is because we consider two sectors, either side of the sphere's centre.
+    See en.wikipedia.org/wiki/Spherical_sector, where its phi == this theta.
+    '''
+    if theta > np.pi / 2.0:
+        raise Exception('Require sector half-angle at most pi / 2')
+    A_sector = 2.0 * 2.0 * np.pi * R ** 2 * (1.0 - np.cos(theta))
+    if hemisphere:
+        A_sector /= 2.0
+    return A_sector
 
 def line_intersections_up(x, y, y0):
     xs = []
@@ -39,8 +59,8 @@ def line_intersections_up(x, y, y0):
     return xs
 
 
-def n_to_eta(n, R_drop):
-    A_drop = 4.0 * np.pi * R_drop ** 2
+def n_to_eta(n, R_drop, theta_max, hemisphere):
+    A_drop = A_sector(R_drop, theta_max, hemisphere)
     eta_factor = A_bug / A_drop
     return n * eta_factor
 
@@ -124,36 +144,6 @@ def make_hist(r, R_drop, bins=None, res=None):
     return R_edges, n
 
 
-def make_hist_multi(rs, R_drop, bins=None, res=None):
-    ns = []
-    if res is not None:
-        bins = int(round((buff * R_drop) / res))
-    for r in rs:
-        R_edges, n = make_hist(r, R_drop, bins, res)
-        ns.append(n)
-    ns = np.array(ns)
-    n = np.mean(ns, axis=0)
-    n_err = st.sem(ns, axis=0)
-    return R_edges, n, n_err
-
-
-def analyse_multi(rs, R_drop):
-    ns, r_means, r_vars = [], [], []
-    for r in rs:
-        r = r[np.isfinite(r)]
-        n, n_err, r_mean, r_var = analyse(r, R_drop)
-        ns.append(n)
-        r_means.append(r_mean)
-        r_vars.append(r_var)
-    n = np.mean(ns)
-    n_err = st.sem(ns)
-    r_mean = np.mean(r_means)
-    r_mean_err = st.sem(r_means)
-    r_var = np.var(r_vars)
-    r_var_err = st.sem(r_vars)
-    return n, n_err, r_mean, r_mean_err, r_var, r_var_err
-
-
 def analyse(r, R_drop):
     r_mean = np.mean(r / R_drop)
     r_var = np.var(r / R_drop, dtype=np.float64)
@@ -162,9 +152,7 @@ def analyse(r, R_drop):
 
 def n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max):
     Vs_edge = geom.sphere_volume(Rs_edge, dim)
-    Vs_edge = V_sector(Rs_edge, theta_max)
-    if hemisphere:
-        Vs_edge /= 2.0
+    Vs_edge = V_sector(Rs_edge, theta_max, hemisphere)
     dVs = np.diff(Vs_edge)
     rhos = ns / dVs
     return Vs_edge, rhos
@@ -173,9 +161,7 @@ def n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max):
 def n0_to_rho0(n, R_drop, dim, hemisphere, theta_max):
     if dim != 3:
         raise Exception
-    V = V_sector(R_drop, theta_max)
-    if hemisphere:
-        V /= 2.0
+    V = V_sector(R_drop, theta_max, hemisphere)
     return n / V
 
 
@@ -224,7 +210,7 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, theta_max):
 
     return R_peak, n_peak
 
-theta_max = np.pi / 1.0
+theta_max = np.pi / 3.0
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -239,8 +225,6 @@ if __name__ == '__main__':
                         help='Bin resolution in micrometres')
     parser.add_argument('-a', '--alg', required=True,
                         help='Peak finding algorithm')
-    parser.add_argument('--dim', default=3,
-                        help='Spatial dimension')
     parser.add_argument('-t', default=False, action='store_true',
                         help='Print data header')
     args = parser.parse_args()
@@ -257,30 +241,32 @@ if __name__ == '__main__':
             'R_peak', 'R_peak_err',
             'n_peak', 'n_peak_err',
             'hemisphere',
+            'theta_max',
         )
         print('# ' + ' '.join(fields))
 
-    # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz_filt/D*_1_e.csv')
-    # bdns = [bdn[:-7] for bdn in bdns]
-    # ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
-    # for bdn in bdns[:]:
-    #     for ignore in ignores:
-    #         if ignore in bdn:
-    # print('removing ', bdn)
-    #             bdns.remove(bdn)
-    # for bigdirname in bdns:
-    #     n_s, ns_s = [], []
-    #     r_means, r_vars = [], []
-    #     for dirname in glob.glob('{}*'.format(bigdirname)):
-
-    # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/n_*')
-    # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/rotdiff/nodiff/n*')
-    bdns = glob.glob(
-        '/Users/ejm/Projects/Bannock/Scripts/dat_sim/rotdiff/transdiff/n*')
+    bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz_filt/D*_1_e.csv')
+    bdns = [bdn[:-7] for bdn in bdns]
+    ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
+    for bdn in bdns[:]:
+        for ignore in ignores:
+            if ignore in bdn:
+                # print('removing ', bdn)
+                bdns.remove(bdn)
     for bigdirname in bdns:
         n_s, ns_s = [], []
         r_means, r_vars = [], []
-        for dirname in glob.glob('{}/dyn/*.npz'.format(bigdirname)):
+        for dirname in glob.glob('{}*'.format(bigdirname)):
+
+    # bdns = glob.glob(
+    #     # '/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/n_*')
+    #     # '/Users/ejm/Projects/Bannock/Scripts/dat_sim/rotdiff/transdiff/n*')
+    #     # '/Users/ejm/Projects/Bannock/Scripts/dat_sim/rotdiff/nodiff/n*')
+    #     # '/Users/ejm/Projects/Bannock/Scripts/noscat/n*')
+    # for bigdirname in bdns:
+    #     n_s, ns_s = [], []
+    #     r_means, r_vars = [], []
+    #     for dirname in glob.glob('{}/dyn/*.npz'.format(bigdirname)):
 
             xyz, R_drop, hemisphere = parse(dirname, theta_max)
             n = len(xyz)
@@ -303,17 +289,10 @@ if __name__ == '__main__':
         r_var = np.mean(r_vars)
         r_var_err = st.sem(r_vars)
         R_peak, n_peak = peak_analyse(
-            Rs_edge, ns, n, R_drop, args.alg, args.dim, bigdirname, theta_max)
+            Rs_edge, ns, n, R_drop, args.alg, dim, bigdirname, theta_max)
         n_peak_err = (n_peak / float(n)) * n_err
         R_peak_err = 0.0
-        # if n_peak / float(n) < 0.4:
-        #     print(bigdirname, R_peak / R_drop)
-        #     rho_0 = n0_to_rho0(n, R_drop, args.dim, hemisphere, theta_max)
-        #     Vs_edge, rhos = n_to_rho(Rs_edge, ns, args.dim, hemisphere, theta_max)
-        #     import matplotlib.pyplot as pp
-        #     pp.plot(Rs_edge[1:], rhos / rho_0)
-        #     pp.show()
 
         print(
             n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err, R_peak, R_peak_err, n_peak,
-            n_peak_err, str(float(hemisphere)))
+            n_peak_err, str(float(hemisphere)), theta_max)
