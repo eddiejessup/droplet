@@ -14,6 +14,7 @@ import scipy.stats
 cs = ['red', 'blue', 'green', 'cyan', 'magenta', 'black', 'orange', 'brown']
 fs = 20
 
+
 def valid(R_drop):
     return 14.0 < R_drop < 18.0
 
@@ -42,11 +43,13 @@ if __name__ == '__main__':
             n = len(xyz)
             r = utils.vector_mag(xyz)
 
-            rho_0 = droplyse.n0_to_rho0(n, R_drop, droplyse.dim, hemisphere, theta_max)
+            rho_0 = droplyse.n0_to_rho0(
+                n, R_drop, droplyse.dim, hemisphere, theta_max)
 
             Rs_edge, ns = droplyse.make_hist(r, R_drop, args.bins, args.res)
 
-            Vs_edge, rhos = droplyse.n_to_rho(Rs_edge, ns, droplyse.dim, hemisphere, theta_max)
+            Vs_edge, rhos = droplyse.n_to_rho(
+                Rs_edge, ns, droplyse.dim, hemisphere, theta_max)
             Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
 
             Rss.append(Rs)
@@ -62,11 +65,13 @@ if __name__ == '__main__':
         rhos_err = scipy.stats.sem(rhoss, axis=0)
         rho_0 = np.mean(rho_0s)
         vf = rho_0 * droplyse.V_particle
-        label = r'R=%.2g\si{\micro\metre}, $\phi$=%.2g$\%%$, $\theta_\mathrm{max}=%.2g$' % (R_drop, 100.0 * vf, theta_max)
+        label = r'R=%.2g\si{\micro\metre}, $\phi$=%.2g$\%%$, $\theta_\mathrm{max}=%.2g$' % (
+            R_drop, 100.0 * vf, theta_max)
         pp.errorbar(Rs / R_drop, rhos / rho_0,
                     yerr=rhos_err / rho_0, label=label, c=c)
         ns = np.mean(np.array(ns_s), axis=0)
-        R_peak, n_peak = droplyse.peak_analyse(Rs_edge, ns, n, R_drop, '1', droplyse.dim, dirname, theta_max)
+        R_peak, n_peak = droplyse.peak_analyse(
+            Rs_edge, ns, n, R_drop, '1', droplyse.dim, dirname, hemisphere, theta_max)
         pp.axvline(R_peak / R_drop, c=c)
 
     # pp.title(r'D32, R=%.2g\si{\micro\metre}, $\phi$=%.2g$\%%$' % (R_drop, 100.0 * vf))

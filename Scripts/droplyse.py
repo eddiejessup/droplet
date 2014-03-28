@@ -37,6 +37,7 @@ def V_sector(R, theta, hemisphere=False):
         V_sector /= 2.0
     return V_sector
 
+
 def A_sector(R, theta, hemisphere=False):
     '''
     Surface area of two spherical sectors with half cone angle theta.
@@ -49,6 +50,7 @@ def A_sector(R, theta, hemisphere=False):
     if hemisphere:
         A_sector /= 2.0
     return A_sector
+
 
 def line_intersections_up(x, y, y0):
     xs = []
@@ -66,7 +68,7 @@ def n_to_eta(n, R_drop, theta_max, hemisphere):
 
 
 def code_to_param(fname, exp, param='R_drop'):
-    code = os.path.splitext(os.path.basename(fname))[0]
+    code = os.path.basename(fname).split('_')[0]
     if exp:
         params_fname = exp_params_fname
     else:
@@ -119,8 +121,7 @@ def parse_dyn_R_drop(fname):
 
 
 def parse_csv_R_drop(fname):
-    code = os.path.basename(fname).split('_')[0]
-    return code_to_param(code, exp=True)
+    return code_to_param(fname, exp=True)
 
 
 def parse_R_drop(fname):
@@ -144,12 +145,6 @@ def make_hist(r, R_drop, bins=None, res=None):
     return R_edges, n
 
 
-def analyse(r, R_drop):
-    r_mean = np.mean(r / R_drop)
-    r_var = np.var(r / R_drop, dtype=np.float64)
-    return r_mean, r_var
-
-
 def n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max):
     Vs_edge = geom.sphere_volume(Rs_edge, dim)
     Vs_edge = V_sector(Rs_edge, theta_max, hemisphere)
@@ -165,8 +160,7 @@ def n0_to_rho0(n, R_drop, dim, hemisphere, theta_max):
     return n / V
 
 
-def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, theta_max):
-    hemisphere = is_csv(fname)
+def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max):
     rho_0 = n0_to_rho0(n, R_drop, dim, hemisphere, theta_max)
     Vs_edge, rhos = n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max)
     Vs_edge, rhos_err = n_to_rho(
@@ -273,7 +267,8 @@ if __name__ == '__main__':
             r = utils.vector_mag(xyz)
 
             Rs_edge, ns = make_hist(r, R_drop, args.bins, args.res)
-            r_mean, r_var = analyse(r, R_drop)
+            r_mean = np.mean(r / R_drop)
+            r_var = np.var(r / R_drop, dtype=np.float64)
             n_s.append(n)
             ns_s.append(ns)
             if not np.isnan(r_mean):
@@ -289,7 +284,7 @@ if __name__ == '__main__':
         r_var = np.mean(r_vars)
         r_var_err = st.sem(r_vars)
         R_peak, n_peak = peak_analyse(
-            Rs_edge, ns, n, R_drop, args.alg, dim, bigdirname, theta_max)
+            Rs_edge, ns, n, R_drop, args.alg, dim, fname, hemisphere, theta_max)
         n_peak_err = (n_peak / float(n)) * n_err
         R_peak_err = 0.0
 

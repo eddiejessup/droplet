@@ -41,8 +41,10 @@ if __name__ == '__main__':
         assert np.all(theta_max == theta_max[0])
         theta_max = theta_max[0]
 
-        rho_0 = droplyse.n0_to_rho0(n, R_drop, droplyse.dim, hemisphere, theta_max)
-        rho_0_err = droplyse.n0_to_rho0(n_err, R_drop, droplyse.dim, hemisphere, theta_max)
+        rho_0 = droplyse.n0_to_rho0(
+            n, R_drop, droplyse.dim, hemisphere, theta_max)
+        rho_0_err = droplyse.n0_to_rho0(
+            n_err, R_drop, droplyse.dim, hemisphere, theta_max)
         vf = rho_0 * droplyse.V_particle
 
         V_drop = droplyse.V_sector(R_drop, theta_max, hemisphere)
@@ -52,7 +54,8 @@ if __name__ == '__main__':
         rho_peak_err = n_peak_err / V_peak
 
         f_peak = n_peak / n
-        f_peak_err = f_peak * np.sqrt((n_peak_err / n_peak) ** 2 + (n_err / n) ** 2)
+        f_peak_err = f_peak * \
+            np.sqrt((n_peak_err / n_peak) ** 2 + (n_err / n) ** 2)
 
         vf = rho_0 * droplyse.V_particle
         vf_err = rho_0_err * droplyse.V_particle
@@ -114,8 +117,11 @@ if __name__ == '__main__':
     ax_mean.set_ylabel(r'$\langle r \rangle / \mathrm{R}$', fontsize=20)
     ax_mean.legend(loc='lower left', fontsize=16)
 
-    ax_var.axhline(droplyse.dim * (1.0 / (droplyse.dim + 2.0) - droplyse.dim / (droplyse.dim + 1.0) ** 2),
-                   label='Uniform', lw=2, c='cyan', ls='--')
+    ax_var.axhline(
+        droplyse.dim *
+        (1.0 / (droplyse.dim + 2.0) -
+         droplyse.dim / (droplyse.dim + 1.0) ** 2),
+        label='Uniform', lw=2, c='cyan', ls='--')
     ax_var.axhline(0.0, lw=2, c='magenta',
                    ls='--', label='Complete accumulation')
     ax_var.set_xscale('log')
