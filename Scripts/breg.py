@@ -11,20 +11,24 @@ v = 20.0
 dfix = 0.2
 
 
-def f(eta, eta_0, R, beta, d):
+def f(eta, eta_0, b, c):
+    return (1.0 - eta) * (eta_0 - eta) - c * eta - b * eta ** 2
+
+
+def f1(eta, eta_0, R, beta, d):
     A = 4.0 * np.pi * R ** 2
     k = A * beta / (droplyse.R_bug * v)
     b = k * droplyse.R_bug * R / droplyse.A_bug
     c = d * R / v
-    return (1.0 - eta) * (eta_0 - eta) - c * eta - b * eta ** 2
+    return f(eta, eta_0, b, c)
 
 
 def f_fit(xdat, k, d):
     eta, eta_0, R = xdat
-    return f(eta, eta_0, R, k, d)
+    return f1(eta, eta_0, R, beta, d)
 
 
-def f_fit_dfix(xdat, k):
+def f_fit_fixd(xdat, k):
     eta, eta_0, R = xdat
     return f(eta, eta_0, R, k, dfix)
 
@@ -52,16 +56,17 @@ if __name__ == '__main__':
     xdat = np.array([eta, eta_0, R])
 
     for i in range(3, len(eta_0) + 1):
-        popt, pcov = opt.curve_fit(
-            f_fit, xdat[:, :i], np.zeros([i]), p0=[0.5, 0.5])
-        beta, d = popt
-        beta_err = np.sqrt(pcov[0, 0])
-        d_err = np.sqrt(pcov[1, 1])
-
-        # popt, pcov = opt.curve_fit(f_fit_dfix, xdat[:, :i], np.zeros([i]), p0=[0.5])
-        # beta, = popt
-        # d = dfix
+        # popt, pcov = opt.curve_fit(
+        #     f_fit, xdat[:, :i], np.zeros([i]), p0=[0.5, 0.5])
+        # beta, d = popt
         # beta_err = np.sqrt(pcov[0, 0])
-        # d_err = 0.0
+        # d_err = np.sqrt(pcov[1, 1])
+
+        popt, pcov = opt.curve_fit(
+            f_fit_fixd, xdat[:, :i], np.zeros([i]), p0=[0.5])
+        beta, = popt
+        d = dfix
+        beta_err = np.sqrt(pcov[0, 0])
+        d_err = 0.0
 
         print(eta_0[i - 1], beta, beta_err, d, d_err)
