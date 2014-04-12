@@ -56,7 +56,7 @@ def line_intersections_up(x, y, y0):
     xs = []
     assert len(x) == len(y)
     for i in range(len(x) - 1):
-        if y[i] < y0 and y[i + 1] > y0:
+        if y[i] <= y0 and y[i + 1] > y0:
             xs.append(x[i + 1])
     return xs
 
