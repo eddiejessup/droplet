@@ -110,7 +110,8 @@ def parse_xyz(fname, theta_max=None):
     if theta_max is not None:
         r = utils.vector_mag(xyz)
         theta = np.arccos(xyz[..., -1] / r)
-        valid = np.logical_or(np.abs(theta) < theta_max, np.abs(theta) > (np.pi - theta_max))
+        valid = np.logical_or(
+            np.abs(theta) < theta_max, np.abs(theta) > (np.pi - theta_max))
         xyz = xyz[valid]
     return xyz
 
@@ -205,63 +206,49 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max)
 
     return R_peak, n_peak
 
-theta_max = np.pi / 3.0
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Analyse droplet distributions')
-    parser.add_argument('dirnames', nargs='+',
-                        help='Data directories')
-    parser.add_argument('-s', '--samples', type=int, default=0,
-                        help='Number of samples to use')
     parser.add_argument('-b', '--bins', type=int,
                         help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float,
                         help='Bin resolution in micrometres')
     parser.add_argument('-a', '--alg', required=True,
                         help='Peak finding algorithm')
-    parser.add_argument('-t', default=False, action='store_true',
-                        help='Print data header')
+    parser.add_argument('--exp', default=False, action='store_true',
+                        help='Experimental data')
+    parser.add_argument('--theta_factor', type=float, default=2.0,
+                        help='Solid angle in reciprocal factor of pi')
     args = parser.parse_args()
+
+    theta_max = np.pi / args.theta_factor
 
     if args.bins is None and args.res is None:
         raise Exception('Require either bin number or resolution')
 
-    if args.t:
-        fields = (
-            'n', 'n_err',
-            'R_drop',
-            'r_mean', 'r_mean_err',
-            'r_var', 'r_var_err',
-            'R_peak', 'R_peak_err',
-            'n_peak', 'n_peak_err',
-            'hemisphere',
-            'theta_max',
-        )
-        print('# ' + ' '.join(fields))
+    if args.exp:
+        subexpr = '{}*'
+        bdns = glob.glob(
+            '/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz_filt/D*_1_e.csv')
+        bdns = [bdn[:-7] for bdn in bdns]
+    else:
+        subexpr = '{}/dyn/*.npz'
+        # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/standard/n_*')
+        bdns = glob.glob(
+            '/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/no_scattering/n*')
 
-    bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz_filt/D*_1_e.csv')
-    bdns = [bdn[:-7] for bdn in bdns]
     ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
     for bdn in bdns[:]:
         for ignore in ignores:
             if ignore in bdn:
-                # print('removing ', bdn)
+                # print('Removing {} due to ignore'.format(bdn))
                 bdns.remove(bdn)
+
     for bigdirname in bdns:
         n_s, ns_s = [], []
         r_means, r_vars = [], []
-        for dirname in glob.glob('{}*'.format(bigdirname)):
-
-    # bdns = glob.glob(
-    #     # '/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/n_*')
-    #     # '/Users/ejm/Projects/Bannock/Scripts/dat_sim/rotdiff/transdiff/n*')
-    #     # '/Users/ejm/Projects/Bannock/Scripts/dat_sim/rotdiff/nodiff/n*')
-    #     # '/Users/ejm/Projects/Bannock/Scripts/noscat/n*')
-    # for bigdirname in bdns:
-    #     n_s, ns_s = [], []
-    #     r_means, r_vars = [], []
-    #     for dirname in glob.glob('{}/dyn/*.npz'.format(bigdirname)):
+        for dirname in glob.glob(subexpr.format(bigdirname)):
 
             xyz, R_drop, hemisphere = parse(dirname, theta_max)
             n = len(xyz)
@@ -285,7 +272,7 @@ if __name__ == '__main__':
         r_var = np.mean(r_vars)
         r_var_err = st.sem(r_vars)
         R_peak, n_peak = peak_analyse(
-            Rs_edge, ns, n, R_drop, args.alg, dim, fname, hemisphere, theta_max)
+            Rs_edge, ns, n, R_drop, args.alg, dim, dirname, hemisphere, theta_max)
         n_peak_err = (n_peak / float(n)) * n_err
         R_peak_err = 0.0
 
