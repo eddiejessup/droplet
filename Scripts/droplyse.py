@@ -170,12 +170,16 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max)
 
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
 
-    if alg == '1':
+    if alg == 'mean':
         # in_peak = (rhos - rhos_err) > rho_0
         # in_peak = rhos > rho_0
         # R_peak_1 = Rs[in_peak].min()
 
         Rs_int = line_intersections_up(Rs, rhos, rho_0)
+        R_peak = Rs_int[-1]
+    elif alg == 'median':
+        rho_base = np.median(rhos) + 0.2 * (np.max(rhos) - np.median(rhos))
+        Rs_int = line_intersections_up(Rs, rhos, rho_base)
         R_peak = Rs_int[-1]
     elif alg == 'ell_eye':
         # from elliot's eye
