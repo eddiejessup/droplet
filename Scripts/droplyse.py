@@ -110,7 +110,8 @@ def parse_xyz(fname, theta_max=None):
     if theta_max is not None:
         r = utils.vector_mag(xyz)
         theta = np.arccos(xyz[..., -1] / r)
-        xyz = xyz[np.abs(theta) < theta_max]
+        valid = np.logical_or(np.abs(theta) < theta_max, np.abs(theta) > (np.pi - theta_max))
+        xyz = xyz[valid]
     return xyz
 
 
@@ -192,7 +193,7 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max)
         # from dana's eye, alg 1, gamma=0.0, base=rho_mean
         R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak_mean')
     else:
-        raise Exception(alg, type(alg))
+        raise Exception(alg, fname)
 
     try:
         i_peak = np.where(Rs >= R_peak)[0][0]
