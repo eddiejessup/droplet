@@ -5,30 +5,33 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as pp
 # import ejm_rcparams
+import dropplot
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot droplet analysis files')
     parser.add_argument('dats', nargs='*',
         help='Data file')
     args = parser.parse_args()
-    fig_beta = pp.figure()
-    fig_d = pp.figure()
-    ax_beta = fig_beta.gca()
-    ax_d = fig_d.gca()
+    fig_b = pp.figure()
+    fig_c = pp.figure()
+    ax_b = fig_b.gca()
+    ax_c = fig_c.gca()
 
-    ls = args.dats
-    cs = ('r', 'b')
+    ls = (dropplot.label_exp, dropplot.label_sim_hi, dropplot.label_sim_no)
+    # ls = args.dats
+    cs = ('r', 'b', 'g')
     ms = ('o', 'x')
-    for d, l, c, m in zip(args.dats, ls, cs, ms):
-        eta_0, beta, beta_err, d, d_err = np.loadtxt(d, unpack=True)
-        print(c)
-        ax_beta.errorbar(eta_0, beta, yerr=beta_err, ls='none', label=l, c=c, marker=m)
-        ax_d.errorbar(eta_0, d, yerr=d_err, ls='none', label=l, c=c, marker=m)
+    for i in range(len(args.dats)):
+        eta_0, b, b_err, c, c_err = np.loadtxt(args.dats[i], unpack=True)
+        ax_b.errorbar(eta_0, b, yerr=b_err, ls='none', label=ls[i], marker='o')
+        ax_c.errorbar(eta_0, c, yerr=c_err, ls='none', label=ls[i], marker='o')
 
-    ax_beta.set_xscale('log')
-    ax_d.set_xscale('log')
-    ax_beta.set_xlabel(r'$\eta_0$', fontsize=20)
-    ax_d.set_xlabel(r'$\eta_0$', fontsize=20)
-    ax_beta.set_ylabel(r'$\beta$', fontsize=20)
-    ax_d.set_ylabel(r'$d$', fontsize=20)
+    ax_b.set_xscale('log')
+    ax_c.set_xscale('log')
+    ax_b.set_xlabel(r'$\eta_0$', fontsize=20)
+    ax_c.set_xlabel(r'$\eta_0$', fontsize=20)
+    ax_b.set_ylabel(r'$b$', fontsize=20)
+    ax_c.set_ylabel(r'$c$', fontsize=20)
+    ax_b.legend(fontsize=20)
+    ax_c.legend(fontsize=20)
     pp.show()
