@@ -74,7 +74,7 @@ def code_to_param(fname, exp, param='R_drop'):
     else:
         params_fname = sim_params_fname
     with open(params_fname, 'r') as f:
-        reader = pd.io.parsers.csv.reader(f, delimiter='\t')
+        reader = pd.io.parsers.csv.reader(f, delimiter=',')
         fields = reader.next()
         code_i = fields.index('Code')
         param_i = fields.index(param)
