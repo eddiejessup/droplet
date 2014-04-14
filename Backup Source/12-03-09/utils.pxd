@@ -1,5 +1,0 @@
-cdef inline double square(double f)
-cdef inline double mag_sq(double x, double y)
-cdef inline unsigned int wrap(unsigned int M, unsigned int i)
-cdef inline unsigned int wrap_inc(unsigned int M, unsigned int i)
-cdef inline unsigned int wrap_dec(unsigned int M, unsigned int i)

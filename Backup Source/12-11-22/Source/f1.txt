@@ -1,8 +1,0 @@
-Starting...
-Desired dx: 4.000000
-Maximum dx: 4.000000
-Desired dt: 0.100000
-Maximum dt: 0.100000
-Cause of bottleneck: Memory
-Unaltered kernel pseudo-integral: 0.104088
-Initialisation done!
