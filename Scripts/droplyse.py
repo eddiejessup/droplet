@@ -18,8 +18,7 @@ V_particle = 0.7
 R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
 A_bug = np.pi * R_bug ** 2
 
-exp_params_fname = '/Users/ejm/Projects/Bannock/Scripts/dat_exp/r/params.csv'
-sim_params_fname = '/Users/ejm/Projects/Bannock/Data/drop/sim/end_of_2013/nocoll/align/Dc_inf/params.csv'
+exp_params_fname = '/Users/ejm/Projects/Bannock/Scripts/dat_exp/params.csv'
 
 dim = 3
 
@@ -72,7 +71,7 @@ def code_to_param(fname, exp, param='R_drop'):
     if exp:
         params_fname = exp_params_fname
     else:
-        params_fname = sim_params_fname
+        raise Exception
     with open(params_fname, 'r') as f:
         reader = pd.io.parsers.csv.reader(f, delimiter=',')
         fields = reader.next()
@@ -171,16 +170,19 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max)
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
 
     if alg == 'mean':
-        # in_peak = (rhos - rhos_err) > rho_0
-        # in_peak = rhos > rho_0
-        # R_peak_1 = Rs[in_peak].min()
-
         Rs_int = line_intersections_up(Rs, rhos, rho_0)
-        R_peak = Rs_int[-1]
+        try:
+            R_peak = Rs_int[-1]
+        except IndexError:
+            raise Exception(fname, hemisphere)
     elif alg == 'median':
         rho_base = np.median(rhos) + 0.2 * (np.max(rhos) - np.median(rhos))
         Rs_int = line_intersections_up(Rs, rhos, rho_base)
-        R_peak = Rs_int[-1]
+        try:
+            R_peak = Rs_int[-1]
+        except IndexError:
+            print(fname)
+            R_peak = np.nan
     elif alg == 'ell_eye':
         # from elliot's eye
         R_peak = code_to_param(fname, exp=hemisphere, param='ell_R_peak_subj')
@@ -205,7 +207,6 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max)
     except IndexError:
         i_peak = R_peak = n_peak = np.nan
     else:
-        R_peak = Rs[i_peak]
         n_peak = ns[i_peak:].sum()
 
     return R_peak, n_peak
@@ -232,21 +233,19 @@ if __name__ == '__main__':
         raise Exception('Require either bin number or resolution')
 
     if args.exp:
-        subexpr = '{}*'
+        subexpr = '{}/*.csv'
         bdns = glob.glob(
-            '/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz_filt/D*_1_e.csv')
-        bdns = [bdn[:-7] for bdn in bdns]
+            '/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz/D*')
     else:
         subexpr = '{}/dyn/*.npz'
-        # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/standard/n_*')
-        bdns = glob.glob(
-            '/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/no_scattering/n*')
+        bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/standard/n_*')
+        # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/no_scattering/n_*')
 
     ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
     for bdn in bdns[:]:
         for ignore in ignores:
             if ignore in bdn:
-                # print('Removing {} due to ignore'.format(bdn))
+                print('Removing {} due to ignore'.format(bdn))
                 bdns.remove(bdn)
 
     for bigdirname in bdns:

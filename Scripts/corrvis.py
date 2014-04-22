@@ -17,6 +17,7 @@ def corr_angle_theory(bins=200):
     p /= (p * dsigma).sum()
     return p, sigmas
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('dats', nargs='*',

@@ -7,8 +7,8 @@ import matplotlib.pyplot as pp
 # import ejm_rcparams
 import droplyse
 from droplyse import dim
-import breg
 
+cs = ['red', 'green', 'blue', 'cyan', 'magenta', 'black', 'orange', 'brown']
 
 figsize = (7.5, 5.5)
 
@@ -24,6 +24,19 @@ label_uni = r'Uniform'
 label_sim_hi = r'Simulation, $\theta_\mathrm{r}^\mathrm{(c)} = \pi$'
 label_sim_no = r'Simulation, $\theta_\mathrm{r}^\mathrm{(c)} = 0$'
 label_exp = r'Experiment'
+
+ps = [('o', 'red', label_exp),
+      ('x', 'green', label_sim_hi),
+      ('v', 'blue', label_sim_no),
+      ('^', 'cyan', ''),
+      ('*', 'magenta', ''),
+      ('+', 'black', ''),
+      ('.', 'black', ''),
+      (',', 'orange', ''),
+      ('-', 'brown', ''),
+      ]
+
+psd = {'exp': ps[0], 'hi': ps[1], 'lo': ps[2]}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot droplet analysis files')
@@ -41,15 +54,6 @@ if __name__ == '__main__':
     ax_eta = fig_eta.gca()
     fig_etaf = pp.figure(figsize=figsize)
     ax_etaf = fig_etaf.gca()
-    fig_breg = pp.figure(figsize=figsize)
-    ax_breg = fig_breg.gca()
-
-    ps = [('o', 'red', label_exp),
-          ('^', 'green', label_sim_hi),
-          ('x', 'blue', label_sim_no),
-          ('v', 'yellow', ''),
-          ('+', 'cyan', ''),
-          ]
 
     for i, datname in enumerate(args.datnames):
         (n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err,
@@ -109,9 +113,6 @@ if __name__ == '__main__':
         ax_etaf.errorbar(eta_0, eta_f, yerr=eta_f_err,
                          xerr=eta_0_err, marker=m,
                          label=label, c=c, ls='none', ms=5)
-        dats = breg.fit(datname, err=False, approx=False)
-        ax_breg.errorbar(dats[:, 0], dats[:, 1], yerr=dats[:, 2],
-                         marker=m, label=label, c=c, ls='none', ms=5)
 
     ax_peak.axhline(1.0, lw=2, c='cyan', ls='--', label=label_uni)
     ax_peak.set_xscale('log')
@@ -149,15 +150,5 @@ if __name__ == '__main__':
     ax_etaf.set_xlabel(label_eta_0, fontsize=20)
     ax_etaf.set_ylabel(label_eta_f, fontsize=20)
     ax_etaf.legend(loc='lower left', fontsize=14)
-
-    ax_breg.set_xlabel(label_eta_0, fontsize=20)
-    ax_breg.set_ylabel(r'$\mathrm{b}$', fontsize=20)
-    ax_breg.set_xscale('log')
-    # ax_breg.set_yscale('log')
-    # ax_breg.set_ylim(0.0, 1.4)
-
-    # ax_breg.set_xlim(0.0075,  0.6)
-    # ax_etaf.set_xlim(0.0075,  0.6)
-    # ax_eta.set_xlim(0.0075,  0.6)
 
     pp.show()

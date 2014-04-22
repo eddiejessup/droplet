@@ -43,7 +43,3 @@ if __name__ == '__main__':
 
         datname = os.path.splitext(os.path.basename(fname))[0]
         print(datname, p_pb, p_pb_err)
-
-        # for p, p_err in zip(ps, ps_err):
-        #     print(datname, p, p_err)
-        #     break
