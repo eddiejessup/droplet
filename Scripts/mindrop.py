@@ -39,11 +39,12 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every):
                 continue
             break
 
-    np.savez(os.path.join(out, 'static'), l=l, R=R, R_d=R_d)
+    if out is not None:
+        np.savez(os.path.join(out, 'static'), l=l, R=R, R_d=R_d)
 
     t_scat = np.ones([n]) * np.inf
     r_scat = r.copy()
-    t_relax = 0.8
+    t_relax = 1.8
 
     i = 0
     t = 0
@@ -90,7 +91,7 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every):
         i += 1
         t += dt
 
-        if not i % every:
+        if args.out is not None and not i % every:
             out_fname = '%010f' % t
             np.savez(os.path.join(out, 'dyn', out_fname), r=r, u=u)
 
@@ -114,7 +115,7 @@ parser.add_argument('-e', '--every', type=int, default=100,
                     help='Number of iterations between outputs')
 parser.add_argument('-t', '--tmax', type=float, default=float('inf'),
                     help='how long to run')
-parser.add_argument('dir',
+parser.add_argument('-o', '--out',
                     help='data directory')
 parser.add_argument('--dim', type=int,
                         help='Dimension')
@@ -136,9 +137,10 @@ parser.add_argument('-Rd', type=float,
                              help='Droplet radius')
 args = parser.parse_args()
 
-utils.makedirs_safe(args.dir)
-utils.makedirs_soft('%s/dyn' % args.dir)
+if args.out is not None:
+    utils.makedirs_safe(args.out)
+    utils.makedirs_soft('%s/dyn' % args.out)
 
 dropsim(args.n, args.v, args.l, args.R, args.D, args.Dr, 
         args.Rd, 
-        args.dim, args.tmax, args.dt, args.dir, args.every)
+        args.dim, args.tmax, args.dt, args.out, args.every)
