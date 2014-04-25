@@ -4,7 +4,7 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import matplotlib.pyplot as pp
-# import ejm_rcparams
+import ejm_rcparams
 import droplyse
 from droplyse import dim
 
@@ -15,7 +15,7 @@ figsize = (7.5, 5.5)
 label_eta = r'$\eta$'
 label_eta_0 = r'$\eta_0$'
 label_eta_f = r'$\eta / \eta_0$'
-label_vf = r'Volume fraction $\theta$ \. (\%)'
+label_vf = r'Volume fraction $\phi (\si{\percent})$'
 label_rho = r'$\rho_\mathrm{p} / \rho_0$'
 
 label_acc = r'Complete accumulation'
@@ -90,29 +90,39 @@ if __name__ == '__main__':
         eta_err = droplyse.n_to_eta(n_peak_err, R_drop, theta_max, hemisphere)
         eta_0 = droplyse.n_to_eta(n, R_drop, theta_max, hemisphere)
         eta_0_err = droplyse.n_to_eta(n_err, R_drop, theta_max, hemisphere)
-        print(eta_0.max())
 
-        m, c, label = ps[i]
+        if i == 0:
+            m, clr, l = psd['exp']
+        if i == 1:
+            m, clr, l = psd['hi']
+        if i == 2:
+            m, clr, l = psd['lo']
+
+        # if i == 0:
+        #     m, c, label = psd['exp']
+        #     label = r'Experimental, method 1'
+        # elif i == 1:
+        #     m, c, label = '*', 'cyan', r'Experimental, method 2'
 
         eta_f = eta / eta_0
         eta_f_err = eta_f * \
             np.sqrt((eta_err / eta) ** 2 + (eta_0_err / eta_0) ** 2)
 
         ax_peak.errorbar(eta_0, rho_peak / rho_0, yerr=rho_peak_err / rho_0,
-                         xerr=eta_0_err, c=c, marker=m,
-                         label=label, ls='none', ms=5)
-        ax_mean.errorbar(eta_0, r_mean, yerr=r_mean_err,
-                         xerr=eta_0_err, c=c, marker=m,
-                         label=label, ls='none', ms=5)
+                         xerr=eta_0_err, c=clr, marker=m,
+                         label=l, ls='none', ms=5)
+        ax_mean.errorbar(vp, r_mean, yerr=r_mean_err,
+                         xerr=eta_0_err, c=clr, marker=m,
+                         label=l, ls='none', ms=5)
         ax_var.errorbar(eta_0, r_var, yerr=r_var_err,
-                        xerr=eta_0_err, c=c, marker=m,
-                        label=label, ls='none', ms=5)
+                        xerr=eta_0_err, c=clr, marker=m,
+                        label=l, ls='none', ms=5)
         ax_eta.errorbar(eta_0, eta, yerr=eta_err,
                         xerr=eta_0_err, marker=m,
-                        label=label, c=c, ls='none', ms=5)
+                        label=l, c=clr, ls='none', ms=5)
         ax_etaf.errorbar(eta_0, eta_f, yerr=eta_f_err,
                          xerr=eta_0_err, marker=m,
-                         label=label, c=c, ls='none', ms=5)
+                         label=l, c=clr, ls='none', ms=5)
 
     ax_peak.axhline(1.0, lw=2, c='cyan', ls='--', label=label_uni)
     ax_peak.set_xscale('log')
@@ -145,10 +155,18 @@ if __name__ == '__main__':
     ax_eta.set_ylabel(label_eta, fontsize=20)
     ax_eta.legend(loc='lower right', fontsize=14)
 
+    # ax_etaf.set_ylim(0.57, 1.15)
+    # ax_etaf.set_xlim(0.007, 0.5)
+    ax_etaf.set_ylim(0.205, 1.15)
+    ax_etaf.set_xlim(0.001, 0.6)
     ax_etaf.axhline(1.0, lw=2, c='magenta', ls='--', label=label_acc)
     ax_etaf.set_xscale('log')
     ax_etaf.set_xlabel(label_eta_0, fontsize=20)
     ax_etaf.set_ylabel(label_eta_f, fontsize=20)
     ax_etaf.legend(loc='lower left', fontsize=14)
+    # ax_etaf.legend(loc='upper right', fontsize=14)
+    # fig_etaf.savefig('etaf.pdf', bbox_inches='tight')
 
-    pp.show()
+    fig_mean.savefig('mean.pdf', bbox_inches='tight')
+
+    # pp.show()
