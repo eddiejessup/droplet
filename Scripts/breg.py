@@ -30,28 +30,32 @@ def make_f(c_fix=None, approx=False):
 
 
 def fit(datname, approx=False, c_fix=0.15):
-    dat = np.loadtxt(datname, delimiter=' ')
-    peakies = np.logical_not(np.any(np.isnan(dat), axis=1))
-    dat = dat[peakies].T
+    try:
+        dat = np.loadtxt(datname, delimiter=' ')
+    except ValueError:
+        dat = np.loadtxt(datname, delimiter=',')
+        eta_0, eta_0_err, eta_f, eta_f_err = dat.T
+    else:
+        peakies = np.logical_not(np.any(np.isnan(dat), axis=1))
+        dat = dat[peakies].T
 
-    (n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err,
-     R_peak, R_peak_err, n_peak, n_peak_err, hemisphere,
-     theta_max) = dat
+        (n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err,
+         R_peak, R_peak_err, n_peak, n_peak_err, hemisphere,
+         theta_max) = dat
 
-    hemisphere = hemisphere[0]
-    theta_max = theta_max[0]
+        hemisphere = hemisphere[0]
+        theta_max = theta_max[0]
 
-    eta = droplyse.n_to_eta(n_peak, R_drop, theta_max, hemisphere)
-    eta_0 = droplyse.n_to_eta(n, R_drop, theta_max, hemisphere)
+        eta = droplyse.n_to_eta(n_peak, R_drop, theta_max, hemisphere)
+        eta_0 = droplyse.n_to_eta(n, R_drop, theta_max, hemisphere)
+
+        eta_f = eta / eta_0
 
     f = make_f(c_fix, approx)
-
-    eta_f = eta / eta_0
 
     i_sort = np.argsort(eta_0)
     eta_0 = eta_0[i_sort]
     eta_f = eta_f[i_sort]
-    eta = eta[i_sort]
 
     p0 = [0.5] if c_fix is not None else [0.5, 0.5]
 
@@ -83,8 +87,8 @@ def fit(datname, approx=False, c_fix=0.15):
 
         pp.plot(x, y)
         # pp.xscale('log')
-        pp.scatter(eta_0[:i], (eta/eta_0)[:i], c='red')
-        pp.scatter(eta_0[i:], (eta/eta_0)[i:], c='blue')
+        pp.scatter(eta_0[:i], eta_f[:i], c='red')
+        pp.scatter(eta_0[i:], eta_f[i:], c='blue')
         pp.ylim(0.0, 1.0)
         # pp.show()
 

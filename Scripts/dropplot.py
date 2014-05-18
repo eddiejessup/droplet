@@ -91,18 +91,28 @@ if __name__ == '__main__':
         eta_0 = droplyse.n_to_eta(n, R_drop, theta_max, hemisphere)
         eta_0_err = droplyse.n_to_eta(n_err, R_drop, theta_max, hemisphere)
 
+        import breg
+        # if i == 0:
+        #     m, clr, l = psd['exp']
+        #     eta_0_fit = np.linspace(0.004, 0.5, 200)
+        #     eta_fit = breg.f_approx(eta_0_fit, 0.7, 0.14)
+        #     ax_etaf.plot(eta_0_fit, eta_fit, c=clr)
+        # if i == 1:
+        #     m, clr, l = psd['hi']
+        # if i == 2:
+        #     m, clr, l = psd['lo']
+
         if i == 0:
             m, clr, l = psd['exp']
-        if i == 1:
-            m, clr, l = psd['hi']
-        if i == 2:
-            m, clr, l = psd['lo']
-
-        # if i == 0:
-        #     m, c, label = psd['exp']
-        #     label = r'Experimental, method 1'
-        # elif i == 1:
-        #     m, c, label = '*', 'cyan', r'Experimental, method 2'
+            l = r'Experimental, method 1'
+            eta_0_fit = np.linspace(0.004, 0.5, 200)
+            eta_fit = breg.f_approx(eta_0_fit, 0.7, 0.14)
+            ax_etaf.plot(eta_0_fit, eta_fit, c=clr)
+        elif i == 1:
+            m, clr, l = '*', 'cyan', r'Experimental, method 2'
+            eta_0_fit = np.linspace(0.004, 0.5, 200)
+            eta_fit = breg.f_approx(eta_0_fit, 0.24, 0.11)
+            ax_etaf.plot(eta_0_fit, eta_fit, c=clr)
 
         eta_f = eta / eta_0
         eta_f_err = eta_f * \
@@ -148,25 +158,27 @@ if __name__ == '__main__':
     ax_var.legend(loc='upper left', fontsize=14)
 
     x = np.logspace(-3, 1, 2)
-    ax_eta.plot(x, x, lw=2, c='magenta', ls='--', label=label_acc)
+    # ax_eta.plot(x, x, lw=2, c='magenta', ls='--', label=label_acc)
     ax_eta.set_xscale('log')
     ax_eta.set_yscale('log')
-    ax_eta.set_xlabel(label_eta_0, fontsize=20)
-    ax_eta.set_ylabel(label_eta, fontsize=20)
-    ax_eta.legend(loc='lower right', fontsize=14)
+    ax_eta.set_xlim(0.007, 0.5)
+    ax_eta.set_ylim(0.007, 0.5)
+    ax_eta.set_xlabel(label_eta_0, fontsize=50, labelpad=-5)
+    ax_eta.set_ylabel(label_eta, fontsize=50, labelpad=-5)
+    # ax_eta.legend(loc='lower right', fontsize=14)
 
-    # ax_etaf.set_ylim(0.57, 1.15)
-    # ax_etaf.set_xlim(0.007, 0.5)
-    ax_etaf.set_ylim(0.205, 1.15)
-    ax_etaf.set_xlim(0.001, 0.6)
+    ax_etaf.set_ylim(0.57, 1.15)
+    ax_etaf.set_xlim(0.007, 0.48)
+    # ax_etaf.set_ylim(0.205, 1.15)
+    # ax_etaf.set_xlim(0.001, 0.6)
     ax_etaf.axhline(1.0, lw=2, c='magenta', ls='--', label=label_acc)
     ax_etaf.set_xscale('log')
     ax_etaf.set_xlabel(label_eta_0, fontsize=20)
     ax_etaf.set_ylabel(label_eta_f, fontsize=20)
-    ax_etaf.legend(loc='lower left', fontsize=14)
-    # ax_etaf.legend(loc='upper right', fontsize=14)
-    # fig_etaf.savefig('etaf.pdf', bbox_inches='tight')
+    # ax_etaf.legend(loc='lower left', fontsize=14)
+    ax_etaf.legend(loc='upper right', fontsize=14)
 
-    fig_mean.savefig('mean.pdf', bbox_inches='tight')
+    fig_etaf.savefig('etaf.pdf', bbox_inches='tight', transparent=True)
+    # fig_eta.savefig('eta2.pdf', bbox_inches='tight', transparent=True)
 
     # pp.show()
