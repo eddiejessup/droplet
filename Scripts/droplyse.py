@@ -20,8 +20,6 @@ V_particle = 0.7
 R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
 A_bug = np.pi * R_bug ** 2
 
-exp_params_fname = '/Users/ejm/Projects/Bannock/Scripts/dat_exp/params.csv'
-
 dim = 3
 
 
@@ -72,45 +70,16 @@ def n_to_eta(n, R_drop, theta_max, hemisphere):
     return n * eta_factor
 
 
-def code_to_param(fname, exp, param='R_drop'):
-    code = os.path.basename(fname).split('_')[0]
-    if exp:
-        params_fname = exp_params_fname
-    else:
-        raise Exception
-    with open(params_fname, 'r') as f:
-        reader = pd.io.parsers.csv.reader(f, delimiter=',')
-        fields = reader.next()
-        code_i = fields.index('Code')
-        param_i = fields.index(param)
-        for row in reader:
-            if row[code_i] == code:
-                return float(row[param_i])
-        else:
-            raise Exception('Code %s not found in params file' % code)
-
-
-def is_csv(dirname):
-    return os.path.splitext(dirname)[1] == '.csv'
-
-
-def is_dyn(dirname):
-    return os.path.splitext(dirname)[1] == '.npz'
-
-
-def parse_dyn_xyz(fname):
-    return np.load(fname)['r']
-
-
-def parse_csv_xyz(fname):
-    return np.loadtxt(fname)
+def is_hemisphere(fname):
+    dirname = os.path.join(os.path.dirname(fname), '..')
+    stat = butils.get_stat(dirname)
+    if 'hemisphere' in stat:
+        return True
+    return False
 
 
 def parse_xyz(fname, theta_max=None):
-    if is_csv(fname):
-        xyz = parse_csv_xyz(fname)
-    elif is_dyn(fname):
-        xyz = parse_dyn_xyz(fname)
+    xyz = np.load(fname)['r']
 
     if theta_max is not None:
         r = utils.vector_mag(xyz)
@@ -121,25 +90,14 @@ def parse_xyz(fname, theta_max=None):
     return xyz
 
 
-def parse_dyn_R_drop(fname):
+def parse_R_drop(fname):
     dirname = os.path.join(os.path.dirname(fname), '..')
     env = butils.get_env(dirname)
     return env.o.R
 
 
-def parse_csv_R_drop(fname):
-    return code_to_param(fname, exp=True)
-
-
-def parse_R_drop(fname):
-    if is_csv(fname):
-        return parse_csv_R_drop(fname)
-    elif is_dyn(fname):
-        return parse_dyn_R_drop(fname)
-
-
 def parse(fname, *args, **kwargs):
-    hemisphere = is_csv(fname)
+    hemisphere = is_hemisphere(fname)
     xyz = parse_xyz(fname, *args, **kwargs)
     R_drop = parse_R_drop(fname)
     return xyz, R_drop, hemisphere
@@ -202,6 +160,24 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max):
     return R_peak, n_peak
 
 
+def peak_over_many(dirnames, R_drop=16.0, res=0.5, alg='median', dim=3, hemisphere=False, theta_max=np.pi / 3.0):
+    n_s, ns_s = [], []
+    for dirname in dirnames:
+        xyz, R_drop, hemisphere = parse(dirname, theta_max)
+        n = len(xyz)
+        r = utils.vector_mag(xyz)
+
+        Rs_edge, ns = make_hist(r, R_drop, bins=None, res=res)
+        n_s.append(n)
+        ns_s.append(ns)
+
+    ns = np.mean(np.array(ns_s), axis=0)
+    n = np.mean(n_s)
+    R_peak, n_peak = peak_analyse(
+        Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max)
+    return R_peak, n_peak, n
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Analyse droplet distributions')
@@ -212,8 +188,6 @@ if __name__ == '__main__':
                         help='Bin resolution in micrometres')
     parser.add_argument('-a', '--alg', required=True,
                         help='Peak finding algorithm')
-    parser.add_argument('--exp', default=False, action='store_true',
-                        help='Experimental data')
     parser.add_argument('--theta_factor', type=float, default=2.0,
                         help='Solid angle in reciprocal factor of pi')
     args = parser.parse_args()
@@ -223,22 +197,9 @@ if __name__ == '__main__':
     if args.bins is None and args.res is None:
         raise Exception('Require either bin number or resolution')
 
-    if args.exp:
-        subexpr = '{}/*.csv'
-    else:
-        subexpr = '{}/dyn/*.npz'
+    subexpr = '{}/dyn/*.npz'
 
-    if not args.bdns:
-        if args.exp:
-            bdns = glob.glob(
-                '/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz/D*')
-        else:
-            # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/standard/n_*')
-            # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/no_scattering/n_*')
-            bdns = glob.glob(
-                '/Users/ejm/Projects/Bannock/Scripts/fitting/n_*_v_13.5_D_0.25_Dr_0.1_th_0.0005')
-    else:
-        bdns = args.bdns
+    bdns = args.bdns
 
     ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
     for bdn in bdns[:]:
@@ -279,6 +240,7 @@ if __name__ == '__main__':
         n_peak_err = (n_peak / float(n)) * n_err
         R_peak_err = 0.0
 
+        print(n_peak/n)
         print(
             n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err, R_peak, R_peak_err, n_peak,
             n_peak_err, str(float(hemisphere)), theta_max)

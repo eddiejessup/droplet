@@ -60,9 +60,12 @@ def get_env(dirname):
     except IOError:
         stat = get_stat(dirname)
         env = EnvDuck()
-        env.p.R = stat['R']
-        env.p.l = stat['l']
-        env.o.R = stat['R_d']
+        if 'R' in stat:
+            env.p.R = stat['R']
+        if 'l' in stat:
+            env.p.l = stat['l']
+        if 'R_d' in stat:
+            env.o.R = stat['R_d']
     return env
 
 def t(f):
