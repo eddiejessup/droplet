@@ -10,6 +10,8 @@ import geom
 import scipy.stats as st
 import butils
 import glob
+import sys
+
 
 buff = 1.1
 
@@ -21,6 +23,10 @@ A_bug = np.pi * R_bug ** 2
 exp_params_fname = '/Users/ejm/Projects/Bannock/Scripts/dat_exp/params.csv'
 
 dim = 3
+
+
+def warning(*objs):
+    print("WARNING: ", *objs, file=sys.stderr)
 
 
 def V_sector(R, theta, hemisphere=False):
