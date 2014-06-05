@@ -78,7 +78,11 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every):
             reverts += c
             r_new[c], u_new[c] = r[c], u[c]
 
-        u_new[reverts] = utils.sphere_pick(dim, reverts.sum())
+        # u_new[reverts] = utils.sphere_pick(dim, reverts.sum())
+
+        theta_disp = 0.0005 * np.pi
+        thetas = np.sqrt(2.0 * theta_disp) * np.random.standard_normal((sum(reverts), 3))
+        u_new[reverts] = utils.rotate(u_new[reverts], thetas)
 
         while True:
             c = collisions(r_new, u_new, l, R, R_d)
@@ -141,6 +145,6 @@ if args.out is not None:
     utils.makedirs_safe(args.out)
     utils.makedirs_soft('%s/dyn' % args.out)
 
-dropsim(args.n, args.v, args.l, args.R, args.D, args.Dr, 
-        args.Rd, 
+dropsim(args.n, args.v, args.l, args.R, args.D, args.Dr,
+        args.Rd,
         args.dim, args.tmax, args.dt, args.out, args.every)
