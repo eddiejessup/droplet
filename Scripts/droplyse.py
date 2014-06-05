@@ -167,7 +167,7 @@ def n0_to_rho0(n, R_drop, dim, hemisphere, theta_max):
     return n / V
 
 
-def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max):
+def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max):
     rho_0 = n0_to_rho0(n, R_drop, dim, hemisphere, theta_max)
     Vs_edge, rhos = n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max)
     Vs_edge, rhos_err = n_to_rho(
@@ -176,37 +176,21 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, fname, hemisphere, theta_max)
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
 
     if alg == 'mean':
-        Rs_int = line_intersections_up(Rs, rhos, rho_0)
+        rho_base = rho_0
+        Rs_int = line_intersections_up(Rs, rhos, rho_base)
         try:
             R_peak = Rs_int[-1]
         except IndexError:
-            raise Exception(fname, hemisphere)
+            raise Exception(hemisphere)
     elif alg == 'median':
         rho_base = np.median(rhos) + 0.2 * (np.max(rhos) - np.median(rhos))
         Rs_int = line_intersections_up(Rs, rhos, rho_base)
         try:
             R_peak = Rs_int[-1]
         except IndexError:
-            print(fname)
             R_peak = np.nan
-    elif alg == 'ell_eye':
-        # from elliot's eye
-        R_peak = code_to_param(fname, exp=hemisphere, param='ell_R_peak_subj')
-    elif alg == 'dana_eye':
-        # from dana's eye
-        R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak')
-    elif alg == 'ell_base':
-        # from elliot's eye, alg 1, gamma=0.0, base=rho_0
-        R_peak = code_to_param(fname, exp=hemisphere, param='ell_R_peak_base')
-    elif alg == 'dana_median':
-        # from dana's eye, alg 1, gamma=0.0, base=rho_media
-        R_peak = code_to_param(
-            fname, exp=hemisphere, param='dana_R_peak_median')
-    elif alg == 'dana_mean':
-        # from dana's eye, alg 1, gamma=0.0, base=rho_mean
-        R_peak = code_to_param(fname, exp=hemisphere, param='dana_R_peak_mean')
     else:
-        raise Exception(alg, fname)
+        raise Exception(alg)
 
     try:
         i_peak = np.where(Rs >= R_peak)[0][0]
@@ -281,7 +265,7 @@ if __name__ == '__main__':
         r_var = np.mean(r_vars)
         r_var_err = st.sem(r_vars)
         R_peak, n_peak = peak_analyse(
-            Rs_edge, ns, n, R_drop, args.alg, dim, dirname, hemisphere, theta_max)
+            Rs_edge, ns, n, R_drop, args.alg, dim, hemisphere, theta_max)
         n_peak_err = (n_peak / float(n)) * n_err
         R_peak_err = 0.0
 
