@@ -235,10 +235,11 @@ if __name__ == '__main__':
     for bdn in bdns[:]:
         for ignore in ignores:
             if ignore in bdn:
-                print('Removing {} due to ignore'.format(bdn))
+                warning('Removing {} due to ignore'.format(bdn))
                 bdns.remove(bdn)
 
     for bigdirname in bdns:
+        warning(bigdirname)
         n_s, ns_s = [], []
         r_means, r_vars = [], []
         for dirname in glob.glob(subexpr.format(bigdirname)):
