@@ -57,7 +57,7 @@ def plot(dirs, bins, res, theta_max):
         Vs_edge, rhos_err = droplyse.n_to_rho(Rs_edge, ns_err, droplyse.dim, hemisphere, theta_max)
         rho_0 = droplyse.n0_to_rho0(n, R_drop, droplyse.dim, hemisphere, theta_max)
         vf = rho_0 * droplyse.V_particle
-        R_peak, n_peak = droplyse.peak_analyse(Rs_edge, ns, n, R_drop, 'mean', droplyse.dim, fname, hemisphere, theta_max)
+        R_peak, n_peak = droplyse.peak_analyse(Rs_edge, ns, n, R_drop, 'mean', droplyse.dim, hemisphere, theta_max)
 
         Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
 
@@ -77,7 +77,7 @@ def plot(dirs, bins, res, theta_max):
         pp.errorbar(Rs / R_drop, rhos / rho_0,
                     yerr=rhos_err / rho_0, label=label, c=c)
         pp.axvline(R_peak / R_drop, c=c)
-        pp.axhline(1.rho_0, c=c)
+        pp.axhline(1.0, c=c)
 
         pp.ylim(0.0, 4.5)
         pp.xlim(0.0, droplyse.buff)
