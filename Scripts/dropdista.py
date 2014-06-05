@@ -53,7 +53,7 @@ def rdf(dirname, bins, res, theta_max):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Analyse droplet distributions')
-    parser.add_argument('-d', '--dir',
+    parser.add_argument('dir',
                         help='Data directory')
     parser.add_argument('-b', '--bins', type=int,
                         help='Number of bins to use')
@@ -65,6 +65,9 @@ if __name__ == '__main__':
                         help='Output file')
 
     args = parser.parse_args()
+
+    if args.out is None:
+        args.out = args.dir + '_rdf.txt'
 
     theta_max = np.pi / args.theta_factor
     Rs_norm, rhos_norm, rhos_norm_err = rdf(args.dir, args.bins, args.res, theta_max)
