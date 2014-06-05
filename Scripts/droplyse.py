@@ -205,6 +205,7 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Analyse droplet distributions')
+    parser.add_argument('bdns', nargs='*')
     parser.add_argument('-b', '--bins', type=int,
                         help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float,
@@ -224,12 +225,20 @@ if __name__ == '__main__':
 
     if args.exp:
         subexpr = '{}/*.csv'
-        bdns = glob.glob(
-            '/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz/D*')
     else:
         subexpr = '{}/dyn/*.npz'
-        bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/standard/n_*')
-        # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/no_scattering/n_*')
+
+    if not args.bdns:
+        if args.exp:
+            bdns = glob.glob(
+                '/Users/ejm/Projects/Bannock/Scripts/dat_exp/xyz/D*')
+        else:
+            # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/standard/n_*')
+            # bdns = glob.glob('/Users/ejm/Projects/Bannock/Scripts/dat_sim/runs/excluded/no_scattering/n_*')
+            bdns = glob.glob(
+                '/Users/ejm/Projects/Bannock/Scripts/fitting/n_*_v_13.5_D_0.25_Dr_0.1_th_0.0005')
+    else:
+        bdns = args.bdns
 
     ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
     for bdn in bdns[:]:
