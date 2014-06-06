@@ -4,13 +4,11 @@ from __future__ import print_function
 import os
 import argparse
 import numpy as np
-import pandas as pd
 import utils
 import geom
 import scipy.stats as st
 import butils
 import glob
-import sys
 
 
 buff = 1.1
@@ -21,10 +19,6 @@ R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
 A_bug = np.pi * R_bug ** 2
 
 dim = 3
-
-
-def warning(*objs):
-    print("WARNING: ", *objs, file=sys.stderr)
 
 
 def V_sector(R, theta, hemisphere=False):
@@ -72,10 +66,7 @@ def n_to_eta(n, R_drop, theta_max, hemisphere):
 
 def is_hemisphere(fname):
     dirname = os.path.join(os.path.dirname(fname), '..')
-    stat = butils.get_stat(dirname)
-    if 'hemisphere' in stat:
-        return True
-    return False
+    return 'hemisphere' in butils.get_stat(dirname)
 
 
 def parse_xyz(fname, theta_max=None):
@@ -92,8 +83,8 @@ def parse_xyz(fname, theta_max=None):
 
 def parse_R_drop(fname):
     dirname = os.path.join(os.path.dirname(fname), '..')
-    env = butils.get_env(dirname)
-    return env.o.R
+    stat = butils.get_stat(dirname)
+    return stat['R_d']
 
 
 def parse(fname, *args, **kwargs):
@@ -103,11 +94,8 @@ def parse(fname, *args, **kwargs):
     return xyz, R_drop, hemisphere
 
 
-def make_hist(r, R_drop, bins=None, res=None):
-    if res is not None:
-        bins = int(round((buff * R_drop) / res))
-    n, R_edges = np.histogram(r, bins=bins, range=[0.0, buff * R_drop])
-    return R_edges, n
+def res_to_bin(x, res):
+    return int(round(float(x) / res))
 
 
 def n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max):
@@ -160,28 +148,49 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max):
     return R_peak, n_peak
 
 
-def peak_over_many(dirnames, R_drop=16.0, res=0.5, alg='median', dim=3, hemisphere=False, theta_max=np.pi / 3.0):
-    n_s, ns_s = [], []
+def analyse_many(dirnames, bins, res, alg, theta_max):
+    n_s = []
+    r_means, r_vars = [], []
+    ns_s = []
     for dirname in dirnames:
         xyz, R_drop, hemisphere = parse(dirname, theta_max)
-        n = len(xyz)
         r = utils.vector_mag(xyz)
 
-        Rs_edge, ns = make_hist(r, R_drop, bins=None, res=res)
+        n = len(xyz)
         n_s.append(n)
+
+        r_mean = np.mean(r / R_drop)
+        r_var = np.var(r / R_drop, dtype=np.float64)
+        if not np.isnan(r_mean):
+            r_means.append(r_mean)
+        if not np.isnan(r_var):
+            r_vars.append(r_var)
+
+        if res is not None:
+            bins = res_to_bin(buff * R_drop, res)
+        ns, R_edges = np.histogram(r, bins=bins, range=[0.0, buff * R_drop])
+
         ns_s.append(ns)
 
-    ns = np.mean(np.array(ns_s), axis=0)
     n = np.mean(n_s)
-    R_peak, n_peak = peak_analyse(
-        Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max)
-    return R_peak, n_peak, n
+    n_err = st.sem(n_s)
 
+    r_mean = np.mean(r_means)
+    r_mean_err = st.sem(r_means)
+    r_var = np.mean(r_vars)
+    r_var_err = st.sem(r_vars)
+
+    ns = np.mean(np.array(ns_s), axis=0)
+    R_peak, n_peak = peak_analyse(
+        R_edges, ns, n, R_drop, args.alg, dim, hemisphere, theta_max)
+    n_peak_err = (n_peak / float(n)) * n_err
+
+    return R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Analyse droplet distributions')
-    parser.add_argument('bdns', nargs='*')
+    parser.add_argument('bigdirname')
     parser.add_argument('-b', '--bins', type=int,
                         help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float,
@@ -197,50 +206,15 @@ if __name__ == '__main__':
     if args.bins is None and args.res is None:
         raise Exception('Require either bin number or resolution')
 
-    subexpr = '{}/dyn/*.npz'
-
-    bdns = args.bdns
-
     ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
-    for bdn in bdns[:]:
-        for ignore in ignores:
-            if ignore in bdn:
-                warning('Removing {} due to ignore'.format(bdn))
-                bdns.remove(bdn)
+    for ignore in ignores:
+        if ignore in args.bigdirname:
+            raise Exception('{} to be ignored'.format(args.bigdirname))
 
-    for bigdirname in bdns:
-        warning(bigdirname)
-        n_s, ns_s = [], []
-        r_means, r_vars = [], []
-        for dirname in glob.glob(subexpr.format(bigdirname)):
+    dirnames = glob.glob(os.path.join(args.bigdirname, 'dyn/*.npz'))
+    R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err = analyse_many(dirnames, args.bins, args.res, args.alg, theta_max)
 
-            xyz, R_drop, hemisphere = parse(dirname, theta_max)
-            n = len(xyz)
-            r = utils.vector_mag(xyz)
+    R_peak_err = 0.0
 
-            Rs_edge, ns = make_hist(r, R_drop, args.bins, args.res)
-            r_mean = np.mean(r / R_drop)
-            r_var = np.var(r / R_drop, dtype=np.float64)
-            n_s.append(n)
-            ns_s.append(ns)
-            if not np.isnan(r_mean):
-                r_means.append(r_mean)
-            if not np.isnan(r_var):
-                r_vars.append(r_var)
-
-        ns = np.mean(np.array(ns_s), axis=0)
-        n = np.mean(n_s)
-        n_err = st.sem(n_s)
-        r_mean = np.mean(r_means)
-        r_mean_err = st.sem(r_means)
-        r_var = np.mean(r_vars)
-        r_var_err = st.sem(r_vars)
-        R_peak, n_peak = peak_analyse(
-            Rs_edge, ns, n, R_drop, args.alg, dim, hemisphere, theta_max)
-        n_peak_err = (n_peak / float(n)) * n_err
-        R_peak_err = 0.0
-
-        print(n_peak/n)
-        print(
-            n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err, R_peak, R_peak_err, n_peak,
-            n_peak_err, str(float(hemisphere)), theta_max)
+    print(n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err, R_peak,
+          R_peak_err, n_peak, n_peak_err, str(float(hemisphere)), theta_max)
