@@ -80,9 +80,9 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every):
 
         # u_new[reverts] = utils.sphere_pick(dim, reverts.sum())
 
-        theta_disp = 0.0005 * np.pi
-        thetas = np.sqrt(2.0 * theta_disp) * np.random.standard_normal((sum(reverts), 3))
-        u_new[reverts] = utils.rotate(u_new[reverts], thetas)
+        # Collisional rotational diffusion constant, in radians^2/s
+        Dr_c = 20.0
+        u_new[reverts] = utils.rot_diff(u_new[reverts], Dr_c, dt)
 
         while True:
             c = collisions(r_new, u_new, l, R, R_d)
