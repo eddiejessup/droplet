@@ -12,6 +12,9 @@ cs = ['red', 'green', 'blue', 'cyan', 'magenta', 'black', 'orange', 'brown', 'pi
 
 figsize = (7.5, 5.5)
 
+label_fp = r'$f_\mathrm{p}$'
+label_fp0 = r'$f_{\mathrm{p},0}$'
+label_fpe = r'$f_\mathrm{p} - f_{\mathrm{p},0}$'
 label_eta = r'$\eta$'
 label_eta_0 = r'$\eta_0$'
 label_eta_f = r'$\eta / \eta_0$'
