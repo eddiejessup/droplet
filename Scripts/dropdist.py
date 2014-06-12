@@ -34,6 +34,14 @@ def plot(dirs, bins, res, theta_max):
             # elif i_ds == 5:
             #     theta_max = np.pi / 6.0
 
+            import os
+            pre, ext = os.path.splitext(os.path.basename(fname))
+            if ext == '.npz':
+                t = float(pre)
+                if t < 20.0:
+                    # print('skip ', t )
+                    continue
+
             xyz, R_drop, hemisphere = droplyse.parse(fname, theta_max)
             # if i_ds == 0:
             #     hemisphere = False
