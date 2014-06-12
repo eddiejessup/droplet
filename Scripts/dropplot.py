@@ -8,7 +8,7 @@ import ejm_rcparams
 import droplyse
 from droplyse import dim
 
-cs = ['red', 'green', 'blue', 'cyan', 'magenta', 'black', 'orange', 'brown']
+cs = ['red', 'green', 'blue', 'cyan', 'magenta', 'black', 'orange', 'brown', 'pink', 'grey']
 
 figsize = (7.5, 5.5)
 
