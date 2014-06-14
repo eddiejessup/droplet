@@ -20,5 +20,5 @@ for fname in glob.glob('/Users/ejm/Projects/Bannock/Data/drop/exp/xyz_filt/*.csv
     except OSError:
         pass
     newpath = os.path.join(newdir, newname)
-    print newpath
+    print(newpath)
     shutil.copy(fname, newpath)
