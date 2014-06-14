@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 import matplotlib.pyplot as pp
 import numpy as np
 import droplyse

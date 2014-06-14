@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-from __future__ import print_function
+
 import argparse
 import numpy as np
 import utils
@@ -71,4 +71,4 @@ if __name__ == '__main__':
 
     theta_max = np.pi / args.theta_factor
     Rs_norm, rhos_norm, rhos_norm_err = rdf(args.dir, args.bins, args.res, theta_max)
-    np.savetxt(args.out, zip(Rs_norm, rhos_norm, rhos_norm_err), header='R_norm rho_norm rho_norm_err')
+    np.savetxt(args.out, list(zip(Rs_norm, rhos_norm, rhos_norm_err)), header='R_norm rho_norm rho_norm_err')

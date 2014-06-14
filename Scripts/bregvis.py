@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-from __future__ import print_function
+
 import argparse
 import numpy as np
 import matplotlib.pyplot as pp
@@ -61,8 +61,8 @@ if __name__ == '__main__':
 
         # ax_b.errorbar(eta_0, b, yerr=b_err, ls='none', label=l, marker=m, c=clr)
         # ax_c.errorbar(eta_0, c, yerr=c_err, ls='none', label=l, marker=m, c=clr)
-        ax_b.errorbar(range(len(eta_0)), b, yerr=b_err, ls='none', label=l, marker=m, c=clr)
-        ax_c.errorbar(range(len(eta_0)), c, yerr=c_err, ls='none', label=l, marker=m, c=clr)
+        ax_b.errorbar(list(range(len(eta_0))), b, yerr=b_err, ls='none', label=l, marker=m, c=clr)
+        ax_c.errorbar(list(range(len(eta_0))), c, yerr=c_err, ls='none', label=l, marker=m, c=clr)
         # ax_b.plot(range(len(eta_0)), b, ls='none', label=l, marker=m, c=clr)
         # ax_c.plot(range(len(eta_0)), c, ls='none', label=l, marker=m, c=clr)
 

@@ -13,5 +13,5 @@ for fname in glob.glob('/Users/ejm/Projects/Bannock/Data/drop/exp/xyz_wholedrop_
     e = slices % 2 == 0
     o = slices % 2 == 1
 
-    np.savetxt(os.path.join(dirname, fname_new_odd), zip(xs[o], ys[o], zs[o]))
-    np.savetxt(os.path.join(dirname, fname_new_even), zip(xs[e], ys[e], zs[e]))
+    np.savetxt(os.path.join(dirname, fname_new_odd), list(zip(xs[o], ys[o], zs[o])))
+    np.savetxt(os.path.join(dirname, fname_new_even), list(zip(xs[e], ys[e], zs[e])))

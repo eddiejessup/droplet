@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
+
 import argparse
 import pickle
 import datetime
@@ -131,7 +131,7 @@ if args.cmd == 'new':
     logging.info('Simulation started on %s' % datetime.datetime.now())
     logging.info('Git commit hash: %s' % utils.get_git_hash())
     logging.info('Parameters:')
-    for arg, value in args.__dict__.items():
+    for arg, value in list(args.__dict__.items()):
         if arg in ('dir', 'cmd'): continue
         logging.info('{0}: {1}'.format(arg, value))
 
