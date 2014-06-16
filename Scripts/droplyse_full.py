@@ -22,8 +22,8 @@ dim = 3
 
 
 def get_f_peak_uni(R_peak, R_drop, theta_max, hemisphere):
-    V_drop = droplyse.V_sector(R_drop, theta_max, hemisphere)
-    V_bulk = droplyse.V_sector(R_peak, theta_max, hemisphere)
+    V_drop = V_sector(R_drop, theta_max, hemisphere)
+    V_bulk = V_sector(R_peak, theta_max, hemisphere)
     V_peak = V_drop - V_bulk
     return V_peak / V_drop
 
