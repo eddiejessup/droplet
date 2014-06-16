@@ -208,7 +208,7 @@ def process_avg(R_drop, hemisphere, n, r_mean, r_var, R_peak, n_peak):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Analyse droplet distributions')
-    parser.add_argument('bigdirname')
+    parser.add_argument('bdns', nargs='*')
     parser.add_argument('-b', '--bins', type=int,
                         help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float,
@@ -224,13 +224,16 @@ if __name__ == '__main__':
     if args.bins is None and args.res is None:
         raise Exception('Require either bin number or resolution')
 
-    ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
-    for ignore in ignores:
-        if ignore in args.bigdirname:
-            raise Exception('{} to be ignored'.format(args.bigdirname))
+    print('R_drop hemisphere n r_mean r_var R_peak n_peak vp V_drop V_peak V_bulk n_peak n_bulk rho_peak rho_bulk f_peak f_bulk eta_0 eta')
+    for bdn in args.bdns:
+        ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
+        for ignore in ignores:
+            if ignore in bdn:
+                # print('{} to be ignored'.format(bdn))
+                continue
 
-    dirnames = glob.glob(os.path.join(args.bigdirname, 'dyn/*.npz'))
-    R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err = analyse_many(dirnames, args.bins, args.res, args.alg, theta_max)
-    vp, V_drop, V_peak, V_bulk, n_peak, n_bulk, rho_peak, rho_bulk, f_peak, f_bulk, eta_0, eta = process_avg(R_drop, hemisphere, n, r_mean, r_var, R_peak, n_peak)
+        dirnames = glob.glob(os.path.join(bdn, 'dyn/*.npz'))
+        R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err = analyse_many(dirnames, args.bins, args.res, args.alg, theta_max)
+        vp, V_drop, V_peak, V_bulk, n_peak, n_bulk, rho_peak, rho_bulk, f_peak, f_bulk, eta_0, eta = process_avg(R_drop, hemisphere, n, r_mean, r_var, R_peak, n_peak)
 
-    print(R_drop, hemisphere, n, r_mean, r_var, R_peak, n_peak, vp, V_drop, V_peak, V_bulk, n_peak, n_bulk, rho_peak, rho_bulk, f_peak, f_bulk, eta_0, eta)
+        print(R_drop, hemisphere, n, r_mean, r_var, R_peak, n_peak, vp, V_drop, V_peak, V_bulk, n_peak, n_bulk, rho_peak, rho_bulk, f_peak, f_bulk, eta_0, eta)
