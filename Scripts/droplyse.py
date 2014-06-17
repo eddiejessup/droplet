@@ -116,11 +116,9 @@ def n0_to_rho0(n, R_drop, dim, hemisphere, theta_max):
     return n / V_sector(R_drop, theta_max, hemisphere)
 
 
-def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max):
+def peak_analyse(Rs_edge, ns, ns_err, n, R_drop, alg, dim, hemisphere, theta_max):
     rho_0 = n0_to_rho0(n, R_drop, dim, hemisphere, theta_max)
     Vs_edge, rhos = n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max)
-    Vs_edge, rhos_err = n_to_rho(
-        Rs_edge, np.sqrt(ns), dim, hemisphere, theta_max)
 
     Rs = 0.5 * (Rs_edge[:-1] + Rs_edge[1:])
 
@@ -147,8 +145,9 @@ def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max):
         i_peak = R_peak = n_peak = np.nan
     else:
         n_peak = ns[i_peak:].sum()
+        n_peak_err = np.sqrt(np.sum(np.square(ns_err[i_peak:])))
 
-    return R_peak, n_peak
+    return R_peak, n_peak, n_peak_err
 
 
 def analyse_many(dirnames, bins, res, alg, theta_max):
@@ -184,9 +183,9 @@ def analyse_many(dirnames, bins, res, alg, theta_max):
     r_var_err = st.sem(r_vars)
 
     ns = np.mean(np.array(ns_s), axis=0)
-    R_peak, n_peak = peak_analyse(
-        R_edges, ns, n, R_drop, args.alg, dim, hemisphere, theta_max)
-    n_peak_err = (n_peak / float(n)) * n_err
+    ns_err = st.sem(np.array(ns_s), axis=0)
+    R_peak, n_peak, n_peak_err = peak_analyse(
+        R_edges, ns, ns_err, n, R_drop, args.alg, dim, hemisphere, theta_max)
 
     return R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err
 
