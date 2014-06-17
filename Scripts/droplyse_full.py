@@ -217,10 +217,8 @@ if __name__ == '__main__':
     print('R_drop hemisphere vp r_mean r_var R_peak V_drop V_peak V_bulk n n_peak n_bulk rho_0 rho_peak rho_bulk f_peak f_bulk eta_0 eta f_peak_uni f_peak_excess')
     for bdn in args.bdns:
         ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
-        for ignore in ignores:
-            if ignore in bdn:
-                # print('{} to be ignored'.format(bdn))
-                continue
+        if any([ig in bdn for ig in ignores]):
+            continue
 
         dirnames = glob.glob(os.path.join(bdn, 'dyn/*.npz'))
         R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err = analyse_many(dirnames, args.bins, args.res, args.alg, theta_max)
