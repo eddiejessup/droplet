@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 
 import os
@@ -19,6 +19,13 @@ R_bug = ((3.0 / 4.0) * V_particle / np.pi) ** (1.0 / 3.0)
 A_bug = np.pi * R_bug ** 2
 
 dim = 3
+
+
+def get_f_peak_uni(R_peak, R_drop, theta_max, hemisphere):
+    V_drop = V_sector(R_drop, theta_max, hemisphere)
+    V_bulk = V_sector(R_peak, theta_max, hemisphere)
+    V_peak = V_drop - V_bulk
+    return V_peak / V_drop
 
 
 def V_sector(R, theta, hemisphere=False):
@@ -187,10 +194,11 @@ def analyse_many(dirnames, bins, res, alg, theta_max):
 
     return R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Analyse droplet distributions')
-    parser.add_argument('bigdirname')
+    parser.add_argument('bdns', nargs='*')
     parser.add_argument('-b', '--bins', type=int,
                         help='Number of bins to use')
     parser.add_argument('-r', '--res', type=float,
@@ -206,15 +214,36 @@ if __name__ == '__main__':
     if args.bins is None and args.res is None:
         raise Exception('Require either bin number or resolution')
 
-    ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
-    for ignore in ignores:
-        if ignore in args.bigdirname:
-            raise Exception('{} to be ignored'.format(args.bigdirname))
+    print('R_drop hemisphere vp r_mean r_var R_peak V_drop V_peak V_bulk n n_peak n_bulk rho_0 rho_peak rho_bulk f_peak f_bulk eta_0 eta f_peak_uni f_peak_excess')
+    for bdn in args.bdns:
+        ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
+        if any([ig in bdn for ig in ignores]):
+            continue
 
-    dirnames = glob.glob(os.path.join(args.bigdirname, 'dyn/*.npz'))
-    R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err = analyse_many(dirnames, args.bins, args.res, args.alg, theta_max)
+        dirnames = glob.glob(os.path.join(bdn, 'dyn/*.npz'))
+        R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, n_peak, n_peak_err = analyse_many(dirnames, args.bins, args.res, args.alg, theta_max)
 
-    R_peak_err = 0.0
+        rho_0 = n0_to_rho0(n, R_drop, dim, hemisphere, theta_max)
 
-    print(n, n_err, R_drop, r_mean, r_mean_err, r_var, r_var_err, R_peak,
-          R_peak_err, n_peak, n_peak_err, str(float(hemisphere)), theta_max)
+        V_drop = V_sector(R_drop, theta_max, hemisphere)
+
+        V_bulk = V_sector(R_peak, theta_max, hemisphere)
+        n_bulk = n - n_peak
+        rho_bulk = n_bulk / V_bulk
+
+        V_peak = V_drop - V_bulk
+        rho_peak = n_peak / V_peak
+
+        f_peak = n_peak / n
+        f_bulk = n_bulk / n
+
+        vf = rho_0 * V_particle
+        vp = 100.0 * vf
+
+        eta = n_to_eta(n_peak, R_drop, theta_max, hemisphere)
+        eta_0 = n_to_eta(n, R_drop, theta_max, hemisphere)
+
+        f_peak_uni = get_f_peak_uni(R_peak, R_drop, theta_max, hemisphere)
+        f_peak_excess = f_peak - f_peak_uni
+
+        print(R_drop, hemisphere, vp, r_mean, r_var, R_peak, V_drop, V_peak, V_bulk, n, n_peak, n_bulk, rho_0, rho_peak, rho_bulk, f_peak, f_bulk, eta_0, eta, f_peak_uni, f_peak_excess)
