@@ -106,7 +106,6 @@ def res_to_bin(x, res):
 
 
 def n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max):
-    Vs_edge = geom.sphere_volume(Rs_edge, dim)
     Vs_edge = V_sector(Rs_edge, theta_max, hemisphere)
     dVs = np.diff(Vs_edge)
     rhos = ns / dVs
@@ -114,10 +113,7 @@ def n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max):
 
 
 def n0_to_rho0(n, R_drop, dim, hemisphere, theta_max):
-    if dim != 3:
-        raise Exception
-    V = V_sector(R_drop, theta_max, hemisphere)
-    return n / V
+    return n / V_sector(R_drop, theta_max, hemisphere)
 
 
 def peak_analyse(Rs_edge, ns, n, R_drop, alg, dim, hemisphere, theta_max):
