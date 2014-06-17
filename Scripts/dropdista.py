@@ -7,18 +7,17 @@ import utils
 import droplyse
 import scipy.stats
 import glob
+import os
 
 
 def rdf(dirname, bins, res, theta_max):
     fnames = glob.glob('{}/dyn/*.npz'.format(dirname))
     Rs_edges, R_drops, n_s, ns_s = [], [], [], []
     for i_d, fname in enumerate(fnames):
-        import os
-        pre, ext = os.path.splitext(os.path.basename(fname))
-        if ext == '.npz':
+        if not droplyse.is_hemisphere(fname):
+            pre, ext = os.path.splitext(os.path.basename(fname))
             t = float(pre)
             if t < 20.0:
-                # print('skip ', t )
                 continue
 
         xyz, R_drop, hemisphere = droplyse.parse(fname, theta_max)
