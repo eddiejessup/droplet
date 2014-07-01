@@ -5,7 +5,6 @@ import os
 import argparse
 import numpy as np
 import utils
-import geom
 import scipy.stats as st
 import butils
 import glob
