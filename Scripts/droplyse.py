@@ -190,33 +190,20 @@ def analyse_many(dirnames, bins, res, alg, theta_max):
     ns = np.mean(np.array(ns_s), axis=0)
     ns_err = st.sem(np.array(ns_s), axis=0)
     R_peak, n_peak, n_peak_err = peak_analyse(
-        R_edges, ns, ns_err, n, R_drop, args.alg, dim, hemisphere, theta_max)
+        R_edges, ns, ns_err, n, R_drop, alg, dim, hemisphere, theta_max)
     R_peak_err = (R_edges[1] - R_edges[0]) / 2.0
 
     return R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, R_peak_err, n_peak, n_peak_err
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Analyse droplet distributions')
-    parser.add_argument('bdns', nargs='*')
-    parser.add_argument('-b', '--bins', type=int,
-                        help='Number of bins to use')
-    parser.add_argument('-r', '--res', type=float,
-                        help='Bin resolution in micrometres')
-    parser.add_argument('-a', '--alg', required=True,
-                        help='Peak finding algorithm')
-    parser.add_argument('--theta_factor', type=float, default=2.0,
-                        help='Solid angle in reciprocal factor of pi')
-    args = parser.parse_args()
+def main(bdns, bins, res, alg, theta_factor):
+    theta_max = np.pi / theta_factor
 
-    theta_max = np.pi / args.theta_factor
-
-    if args.bins is None and args.res is None:
+    if bins is None and res is None:
         raise Exception('Require either bin number or resolution')
 
     print('R_drop hemisphere vp vp_err r_mean r_mean_err r_var r_var_err R_peak R_peak_err V_drop V_drop_err V_peak V_peak_err V_bulk V_bulk_err n n_err n_peak n_peak_err n_bulk n_bulk_err rho_0 rho_0_err rho_peak rho_peak_err rho_bulk rho_bulk_err f_peak f_peak_err f_bulk f_bulk_err eta_0 eta_0_err eta eta_err f_peak_uni f_peak_uni_err f_peak_excess f_peak_excess_err')
-    for bdn in args.bdns:
+    for bdn in bdns:
         ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
         if any([ig in bdn for ig in ignores]):
             continue
@@ -285,3 +272,20 @@ if __name__ == '__main__':
               eta, eta_err,
               f_peak_uni, f_peak_uni_err,
               f_peak_excess, f_peak_excess_err)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Analyse droplet distributions')
+    parser.add_argument('bdns', nargs='*')
+    parser.add_argument('-b', '--bins', type=int,
+                        help='Number of bins to use')
+    parser.add_argument('-r', '--res', type=float,
+                        help='Bin resolution in micrometres')
+    parser.add_argument('-a', '--alg', required=True,
+                        help='Peak finding algorithm')
+    parser.add_argument('--theta_factor', type=float, default=2.0,
+                        help='Solid angle in reciprocal factor of pi')
+    args = parser.parse_args()
+
+    main(args.bdns, args.bins, args.res, args.alg, args.theta_factor)
