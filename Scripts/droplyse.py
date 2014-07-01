@@ -132,7 +132,6 @@ def peak_analyse(Rs_edge, ns, ns_err, n, R_drop, alg, dim, hemisphere, theta_max
         Rs_int = line_intersections_up(Rs, rhos, rho_base)
         try:
             R_peak = Rs_int[-1]
-            R_peak_err = (Rs_edge[1] - Rs_edge[0]) / 2.0
         except IndexError:
             raise Exception(hemisphere)
     elif alg == 'median':
@@ -148,7 +147,7 @@ def peak_analyse(Rs_edge, ns, ns_err, n, R_drop, alg, dim, hemisphere, theta_max
     try:
         i_peak = np.where(Rs >= R_peak)[0][0]
     except IndexError:
-        i_peak = R_peak = R_peak_err = n_peak = n_peak_err = np.nan
+        i_peak = R_peak = n_peak = n_peak_err = np.nan
     else:
         n_peak = ns[i_peak:].sum()
         n_peak_err = np.sqrt(np.sum(np.square(ns_err[i_peak:])))
