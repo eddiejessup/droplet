@@ -121,7 +121,8 @@ def n0_to_rho0(n, R_drop, dim, hemisphere, theta_max):
     return n / V_sector(R_drop, theta_max, hemisphere)
 
 
-def peak_analyse(Rs_edge, ns, ns_err, n, R_drop, alg, dim, hemisphere, theta_max):
+def peak_analyse(Rs_edge, ns, ns_err, n, R_drop, alg, dim, hemisphere,
+                 theta_max):
     rho_0 = n0_to_rho0(n, R_drop, dim, hemisphere, theta_max)
     Vs_edge, rhos = n_to_rho(Rs_edge, ns, dim, hemisphere, theta_max)
 
@@ -193,7 +194,8 @@ def analyse_many(dirnames, bins, res, alg, theta_max):
         R_edges, ns, ns_err, n, R_drop, alg, dim, hemisphere, theta_max)
     R_peak_err = (R_edges[1] - R_edges[0]) / 2.0
 
-    return R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, R_peak_err, n_peak, n_peak_err
+    return (R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err,
+            R_peak, R_peak_err, n_peak, n_peak_err)
 
 
 def main(bdns, bins, res, alg, theta_factor):
@@ -202,14 +204,21 @@ def main(bdns, bins, res, alg, theta_factor):
     if bins is None and res is None:
         raise Exception('Require either bin number or resolution')
 
-    print('R_drop hemisphere vp vp_err r_mean r_mean_err r_var r_var_err R_peak R_peak_err V_drop V_drop_err V_peak V_peak_err V_bulk V_bulk_err n n_err n_peak n_peak_err n_bulk n_bulk_err rho_0 rho_0_err rho_peak rho_peak_err rho_bulk rho_bulk_err f_peak f_peak_err f_bulk f_bulk_err eta_0 eta_0_err eta eta_err f_peak_uni f_peak_uni_err f_peak_excess f_peak_excess_err')
+    print('R_drop hemisphere vp vp_err r_mean r_mean_err r_var r_var_err '
+          'R_peak R_peak_err V_drop V_drop_err V_peak V_peak_err '
+          'V_bulk V_bulk_err n n_err n_peak n_peak_err n_bulk n_bulk_err '
+          'rho_0 rho_0_err rho_peak rho_peak_err rho_bulk rho_bulk_err '
+          'f_peak f_peak_err f_bulk f_bulk_err eta_0 eta_0_err eta eta_err '
+          'f_peak_uni f_peak_uni_err f_peak_excess f_peak_excess_err')
     for bdn in bdns:
         ignores = ['118', '119', '121', '124', '223', '231', '310', '311']
         if any([ig in bdn for ig in ignores]):
             continue
 
         dirnames = glob.glob(os.path.join(bdn, 'dyn/*.npz'))
-        R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err, R_peak, R_peak_err, n_peak, n_peak_err = analyse_many(dirnames, args.bins, args.res, args.alg, theta_max)
+        (R_drop, hemisphere, n, n_err, r_mean, r_mean_err, r_var, r_var_err,
+         R_peak, R_peak_err, n_peak,
+         n_peak_err) = analyse_many(dirnames, bins, res, alg, theta_max)
         R_drop_err = 0.0
 
         rho_0 = n0_to_rho0(n, R_drop, dim, hemisphere, theta_max)
