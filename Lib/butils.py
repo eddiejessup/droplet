@@ -3,6 +3,7 @@ import os
 import numpy as np
 import scipy
 
+
 def get_stat(dirname):
     '''
     Compatibility function for numpy dict
@@ -35,16 +36,21 @@ def get_stat(dirname):
     else:
         return np.load('%s/static.npz' % dirname)
 
+
 class PartDuck(object):
     pass
+
 
 class ObsDuck(object):
     pass
 
+
 class EnvDuck(object):
+
     def __init__(self):
         self.p = PartDuck()
         self.o = ObsDuck()
+
 
 def get_env(dirname):
     '''
@@ -63,11 +69,13 @@ def get_env(dirname):
             env.o.R = stat['R_d']
     return env
 
+
 def t(f):
     '''
     Convert a dyn filename to a time
     '''
     return float(os.path.splitext(os.path.basename(f))[0])
+
 
 def R_of_l(V, l):
     '''
@@ -79,6 +87,7 @@ def R_of_l(V, l):
     if len(R_phys) != 1:
         raise Exception('More or less than one physical radius found')
     return R_phys[0]
+
 
 def ar(l, R):
     '''
