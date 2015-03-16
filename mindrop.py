@@ -79,7 +79,10 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
 
         r_old = r.copy()
         u_old = u.copy()
-        u[c_neighb] = diffusion.rot_diff(u[c_neighb], Dr_c, dt)
+        if np.isfinite(Dr_c):
+            u[c_neighb] = diffusion.rot_diff(u[c_neighb], Dr_c, dt)
+        else:
+            u[c_neighb] = vector.sphere_pick(dim, c_neighb.sum())
         c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
 
         i += 1
