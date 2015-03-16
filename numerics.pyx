@@ -1,7 +1,6 @@
 import numpy as np
 cimport numpy as np
 cimport cython
-from cmath import sqrt
 from libc.math cimport sqrt, exp, acos, sin, cos
 from ciabatta.cell_list import intro as cl_intro
 
