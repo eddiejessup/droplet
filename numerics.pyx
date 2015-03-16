@@ -7,11 +7,11 @@ cimport cython
 @cython.boundscheck(False)
 def capsule_obstructed(np.ndarray[np.float_t, ndim=2] r,
                        np.ndarray[np.float_t, ndim=2] u,
-                       float l, float R, float R_d):
+                       double l, double R, double R_d):
     cdef:
         unsigned int i
-        float l_half = l / 2.0
-        float R_obs_sq = (R_d - R) ** 2
+        double l_half = l / 2.0
+        double R_obs_sq = (R_d - R) ** 2
         np.ndarray[np.float_t, ndim=1] r_obs = np.empty(3, dtype=np.float)
 
         np.ndarray[np.uint8_t, ndim=1] c = np.zeros(r.shape[0], dtype=np.uint8)
