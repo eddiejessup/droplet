@@ -63,27 +63,21 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
     i = 0
     t = 0
     while t < t_max:
-        r_old = r.copy()
-        u_old = u.copy()
-        u = diffusion.rot_diff(u, Dr, dt)
-        c_neighb = do_forces(r, u, l, R, R_d, r_old, u_old)
+        if Dr:
+            r_old = r.copy()
+            u_old = u.copy()
+            u = diffusion.rot_diff(u, Dr, dt)
+            c_neighb = do_forces(r, u, l, R, R_d, r_old, u_old)
 
-        r_old = r.copy()
-        u_old = u.copy()
-        r = diffusion.diff(r, D, dt)
-        c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
+        if D:
+            r_old = r.copy()
+            u_old = u.copy()
+            r = diffusion.diff(r, D, dt)
+            c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
 
         r_old = r.copy()
         u_old = u.copy()
         r += v * u * dt
-        c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
-
-        r_old = r.copy()
-        u_old = u.copy()
-        if np.isfinite(Dr_c):
-            u[c_neighb] = diffusion.rot_diff(u[c_neighb], Dr_c, dt)
-        else:
-            u[c_neighb] = vector.sphere_pick(dim, c_neighb.sum())
         c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
 
         i += 1
@@ -92,3 +86,12 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
         if out is not None and not i % every:
             out_fname = '%010f' % t
             np.savez(os.path.join(out, 'dyn', out_fname), r=r, u=u)
+
+        if Dr_c:
+            r_old = r.copy()
+            u_old = u.copy()
+            if np.isfinite(Dr_c):
+                u[c_neighb] = diffusion.rot_diff(u[c_neighb], Dr_c, dt)
+            else:
+                u[c_neighb] = vector.sphere_pick(dim, c_neighb.sum())
+            c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
