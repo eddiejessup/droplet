@@ -5,28 +5,27 @@ cimport cython
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
-def capsule_obstructed(np.ndarray[np.float_t, ndim=2] r,
-                       np.ndarray[np.float_t, ndim=2] u,
-                       double l, double R, double R_d):
+def capsule_radial_distance_sq(np.ndarray[np.float_t, ndim=2] r,
+                               np.ndarray[np.float_t, ndim=2] u,
+                               double l, double R, double R_d):
     cdef:
         unsigned int i
-        double l_half = l / 2.0
-        double R_obs_sq = (R_d - R) ** 2
-        np.ndarray[np.float_t, ndim=1] r_obs = np.empty(3, dtype=np.float)
+        double l_half = l / 2.0, r_rad_1_sq, r_rad_2_sq
+        np.ndarray[np.float_t, ndim=1] r_obs = np.empty(3)
+        np.ndarray[np.float_t, ndim=1] r_rad_sq = np.zeros(r.shape[0])
 
-        np.ndarray[np.uint8_t, ndim=1] c = np.zeros(r.shape[0], dtype=np.uint8)
     for i in range(r.shape[0]):
         r_obs[0] = r[i, 0] + u[i, 0] * l_half
         r_obs[1] = r[i, 1] + u[i, 1] * l_half
         r_obs[2] = r[i, 2] + u[i, 2] * l_half
 
-        if r_obs[0] ** 2 + r_obs[1] ** 2 + r_obs[2] ** 2 > R_obs_sq:
-            c[i] = 1
-            continue
-        else:
-            r_obs[0] = r[i, 0] - u[i, 0] * l_half
-            r_obs[1] = r[i, 1] - u[i, 1] * l_half
-            r_obs[2] = r[i, 2] - u[i, 2] * l_half
-            if r_obs[0] ** 2 + r_obs[1] ** 2 + r_obs[2] ** 2 > R_obs_sq:
-                c[i] = 1
-    return np.array(c, dtype=np.bool)
+        r_rad_1_sq = r_obs[0] ** 2 + r_obs[1] ** 2 + r_obs[2] ** 2
+
+        r_obs[0] = r[i, 0] - u[i, 0] * l_half
+        r_obs[1] = r[i, 1] - u[i, 1] * l_half
+        r_obs[2] = r[i, 2] - u[i, 2] * l_half
+
+        r_rad_2_sq = r_obs[0] ** 2 + r_obs[1] ** 2 + r_obs[2] ** 2
+
+        r_rad_sq[i] = max(r_rad_2_sq, r_rad_1_sq)
+    return r_rad_sq

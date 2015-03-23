@@ -13,19 +13,22 @@ def collisions(r, u, l, R, R_d):
     return geom.capsule_intersection(r, u, l, R, L=2.2 * R_d)
 
 
-def do_forces(r, u, l, R, R_d, r_old, u_old):
-    # Droplet check
-    c_drop = numerics.capsule_obstructed(r, u, l, R, R_d)
+def obstructed(r, u, l, R, R_d):
+    r_rad_sq = numerics.capsule_radial_distance_sq(r, u, l, R, R_d)
+    return r_rad_sq > (R_d - R) ** 2
 
-    # Alignment
+
+def do_hard_core(r, u, l, R, R_d, r_old, u_old):
+    # Droplet
+    r_rad = np.sqrt(numerics.capsule_radial_distance_sq(r, u, l, R, R_d))
+    overlap = r_rad - (R_d - R)
+    c_drop = overlap > 0.0
+
     u_r = vector.vector_unit_nonull(r[c_drop])
-    u_dot_u_r = np.sum(u[c_drop] * u_r, axis=-1)
-    u[c_drop] = vector.vector_unit_nonull(u[c_drop] - u_r *
-                                          u_dot_u_r[:, np.newaxis])
+    r[c_drop] = u_r * (vector.vector_mag(r[c_drop]) -
+                       overlap[c_drop])[:, np.newaxis]
 
-    # Translation
-    r[c_drop] = u_r * spherocylinder_distance(R_d, l, R)
-
+    # Neighbours
     reverts = np.zeros([len(r)], dtype=np.bool)
     while True:
         # Neighbour check
@@ -36,6 +39,18 @@ def do_forces(r, u, l, R, R_d, r_old, u_old):
         reverts += c_neighb
         r[c_neighb], u[c_neighb] = r_old[c_neighb], u_old[c_neighb]
     return reverts
+
+
+def do_alignment(r, u, l, R, R_d):
+    c_drop = obstructed(r, u, l, R, R_d)
+
+    u_r = vector.vector_unit_nonull(r[c_drop])
+    u_dot_u_r = np.sum(u[c_drop] * u_r, axis=-1)
+    u[c_drop] = vector.vector_unit_nonull(u[c_drop] - u_r *
+                                          u_dot_u_r[:, np.newaxis])
+
+    # Make the spherocylinder touch the edge
+    r[c_drop] = u_r * spherocylinder_distance(R_d, l, R)
 
 
 def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
@@ -50,8 +65,7 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
         while True:
             r[i] = np.random.uniform(-R_d, R_d, dim)
             u[i] = vector.sphere_pick(dim)
-            if numerics.capsule_obstructed(r[np.newaxis, i], u[np.newaxis, i],
-                                           l, R, R_d):
+            if obstructed(r[np.newaxis, i], u[np.newaxis, i], l, R, R_d):
                 continue
             if i > 0 and np.any(collisions(r[:i + 1], u[:i + 1], l, R, R_d)):
                 continue
@@ -67,18 +81,19 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
             r_old = r.copy()
             u_old = u.copy()
             u = diffusion.rot_diff(u, Dr, dt)
-            c_neighb = do_forces(r, u, l, R, R_d, r_old, u_old)
+            c_neighb = do_hard_core(r, u, l, R, R_d, r_old, u_old)
 
         if D:
             r_old = r.copy()
             u_old = u.copy()
             r = diffusion.diff(r, D, dt)
-            c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
+            c_neighb += do_hard_core(r, u, l, R, R_d, r_old, u_old)
 
         r_old = r.copy()
         u_old = u.copy()
         r += v * u * dt
-        c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
+        do_alignment(r, u, l, R, R_d)
+        c_neighb += do_hard_core(r, u, l, R, R_d, r_old, u_old)
 
         i += 1
         t += dt
@@ -94,4 +109,4 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
                 u[c_neighb] = diffusion.rot_diff(u[c_neighb], Dr_c, dt)
             else:
                 u[c_neighb] = vector.sphere_pick(dim, c_neighb.sum())
-            c_neighb += do_forces(r, u, l, R, R_d, r_old, u_old)
+            c_neighb += do_hard_core(r, u, l, R, R_d, r_old, u_old)
