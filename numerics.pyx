@@ -12,7 +12,7 @@ def capsule_radial_distance_sq(np.ndarray[np.float_t, ndim=2] r,
         unsigned int i
         double l_half = l / 2.0, r_rad_1_sq, r_rad_2_sq
         np.ndarray[np.float_t, ndim=1] r_obs = np.empty(3)
-        np.ndarray[np.float_t, ndim=1] r_rad_sq = np.zeros(r.shape[0])
+        np.ndarray[np.float_t, ndim=1] r_rad_sq = np.empty(r.shape[0])
 
     for i in range(r.shape[0]):
         r_obs[0] = r[i, 0] + u[i, 0] * l_half
