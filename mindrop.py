@@ -10,17 +10,18 @@ def spherocylinder_distance(R, l, a):
 
 
 def collisions(r, u, l, R, R_d):
-    return geom.capsule_intersection(r, u, l, R, L=2.2 * R_d)
+    return geom.spherocylinder_intersection(r, u, l, R, L=2.2 * R_d)
 
 
 def obstructed(r, u, l, R, R_d):
-    r_rad_sq = numerics.capsule_radial_distance_sq(r, u, l, R, R_d)
+    r_rad_sq = numerics.spherocylinder_radial_distance_sq(r, u, l, R, R_d)
     return r_rad_sq > (R_d - R) ** 2
 
 
 def do_hard_core(r, u, l, R, R_d, r_old, u_old):
     # Droplet
-    r_rad = np.sqrt(numerics.capsule_radial_distance_sq(r, u, l, R, R_d))
+    r_rad = np.sqrt(numerics.spherocylinder_radial_distance_sq(r, u, l, R,
+                                                               R_d))
     overlap = r_rad - (R_d - R)
     c_drop = overlap > 0.0
 

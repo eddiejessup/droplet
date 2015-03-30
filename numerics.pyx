@@ -5,9 +5,9 @@ cimport cython
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
-def capsule_radial_distance_sq(np.ndarray[np.float_t, ndim=2] r,
-                               np.ndarray[np.float_t, ndim=2] u,
-                               double l, double R, double R_d):
+def spherocylinder_radial_distance_sq(np.ndarray[np.float_t, ndim=2] r,
+                                      np.ndarray[np.float_t, ndim=2] u,
+                                      double l, double R, double R_d):
     cdef:
         unsigned int i
         double l_half = l / 2.0, r_rad_1_sq, r_rad_2_sq
