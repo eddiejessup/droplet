@@ -89,7 +89,7 @@ def pool_run():
     for update_args in update_argses:
         args = defaults.copy()
         args.update(update_args)
-        args['out'] = args_to_out(args)
+        args['out'] = join(out_dir, args_to_out(args))
         argses.append(args)
 
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
