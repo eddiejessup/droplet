@@ -57,7 +57,8 @@ def do_alignment(r, u, l, R, R_d):
     r[c_drop] = u_r * spherocylinder_distance(R_d, l, R)
 
 
-def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
+def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c,
+            align=True):
     if out is not None:
         fileio.makedirs_safe(out)
         fileio.makedirs_soft('%s/dyn' % out)
@@ -101,7 +102,8 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
         r_old = r.copy()
         u_old = u.copy()
         r += v * u * dt
-        do_alignment(r, u, l, R, R_d)
+        if align:
+            do_alignment(r, u, l, R, R_d)
         c_neighb += do_hard_core(r, u, l, R, R_d, r_old, u_old)
 
         i += 1
