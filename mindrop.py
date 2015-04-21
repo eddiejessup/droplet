@@ -5,6 +5,9 @@ import numerics
 import os
 
 
+tracking = False
+
+
 def spherocylinder_distance(R, l, a):
     return np.sqrt((R - a) ** 2 - (l / 2.0) ** 2)
 
@@ -75,6 +78,11 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
     if out is not None:
         np.savez(os.path.join(out, 'static'), l=l, R=R, R_d=R_d)
 
+    if tracking:
+        t_scat = np.ones([n]) * np.inf
+        r_scat = r.copy()
+        t_relax = R_d / v
+
     i = 0
     t = 0
     while t < t_max:
@@ -111,3 +119,19 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c):
             else:
                 u[c_neighb] = vector.sphere_pick(dim, c_neighb.sum())
             c_neighb += do_hard_core(r, u, l, R, R_d, r_old, u_old)
+
+        if tracking:
+            for i_n in range(n):
+                # If tracking finished:
+                if t > t_scat[i_n]:
+                    print(t, vector.vector_mag(r_scat[i_n]),
+                          vector.vector_mag(r[i_n]))
+                    # Reset tracking.
+                    t_scat[i_n] = np.inf
+            for i_n in range(n):
+                # If not already tracking, and collision happens:
+                if c_neighb[i_n]:
+                    if t_scat[i_n] == np.inf:
+                        # Start tracking.
+                        t_scat[i_n] = t + t_relax
+                        r_scat[i_n] = r[i_n].copy()
