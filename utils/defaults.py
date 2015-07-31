@@ -1,10 +1,27 @@
-from __future__ import print_function, division
-from mindrop import dropsim
-from os.path import join
-import multiprocessing
-import numpy as np
+v = 13.5
+l = 1.23
+R = 0.36
+D = 0.25
+Dr = 0.05
+dim = 3
+t_max = 400.0
+dt = 0.001
+every = 1000
+Dr_c = 10.0
 
-update_argses = [
+defaults = {
+    'v': v,
+    'l': l,
+    'R': R,
+    'D': D,
+    'Dr': Dr,
+    'dim': dim,
+    't_max': t_max,
+    'dt': dt,
+    'every': every,
+}
+
+exp_code_argses = [
     {'R_d': 9.2, 'n': 13},
     {'R_d': 6.5, 'n': 16},
     {'R_d': 7.3, 'n': 17},
@@ -57,42 +74,3 @@ update_argses = [
     {'R_d': 28.8, 'n': 2430},
     {'R_d': 24.5, 'n': 2552},
 ]
-
-defaults = {
-    'v': 13.5,
-    'l': 1.23,
-    'R': 0.36,
-    'D': 0.25,
-    'Dr': 0.1,
-    'dim': 3,
-    't_max': 400.0,
-    'dt': 0.001,
-    'every': 1000,
-    'Dr_c': np.inf,
-}
-
-
-out_dir = '.'
-
-
-def dropsim_run(args):
-    print('n: {} Rd: {}'.format(args['n'], args['R_d']))
-    dropsim(**args)
-
-
-def args_to_out(args):
-    return 'n_{n}_v_{v}_l_{l}_R_{R}_D_{D}_Dr_{Dr}_Rd_{R_d}_Drc_{Dr_c}'.format(**args)
-
-
-def pool_run():
-    argses = []
-    for update_args in update_argses:
-        args = defaults.copy()
-        args.update(update_args)
-        args['out'] = join(out_dir, args_to_out(args))
-        argses.append(args)
-
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-    pool.map_async(dropsim_run, argses).get(1e100)
-    pool.close()
-    pool.join()

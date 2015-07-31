@@ -1,10 +1,10 @@
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
-import numpy
+import numpy as np
 
 setup(
     cmdclass={'build_ext': build_ext},
     ext_modules=[Extension("numerics", ["numerics.pyx"])],
-    include_dirs=[numpy.get_include()],
+    include_dirs=[np.get_include()],
 )

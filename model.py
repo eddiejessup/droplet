@@ -1,11 +1,8 @@
 from __future__ import print_function, division
+import os
 import numpy as np
 from ciabatta import geom, vector, diffusion, fileio
-import numerics
-import os
-
-
-tracking = False
+from mindrop import numerics
 
 
 def spherocylinder_distance(R, l, a):
@@ -58,7 +55,7 @@ def do_alignment(r, u, l, R, R_d):
 
 
 def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c,
-            align=True):
+            align=True, tracking=False):
     if out is not None:
         fileio.makedirs_safe(out)
         fileio.makedirs_soft('%s/dyn' % out)
@@ -83,6 +80,7 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c,
         t_scat = np.ones([n]) * np.inf
         r_scat = r.copy()
         t_relax = R_d / v
+        t_scats, r_scats_1, r_scats_2 = [], [], []
 
     i = 0
     t = 0
@@ -126,14 +124,17 @@ def dropsim(n, v, l, R, D, Dr, R_d, dim, t_max, dt, out, every, Dr_c,
             for i_n in range(n):
                 # If tracking finished:
                 if t > t_scat[i_n]:
-                    print(t, vector.vector_mag(r_scat[i_n]),
-                          vector.vector_mag(r[i_n]))
+                    t_scats.append(t)
+                    r_scats_1.append(r_scat[i_n])
+                    r_scats_2.append(r[i_n])
                     # Reset tracking.
                     t_scat[i_n] = np.inf
             for i_n in range(n):
                 # If not already tracking, and collision happens:
-                if c_neighb[i_n]:
+                if c_neighb[i_n] or n == 1:
                     if t_scat[i_n] == np.inf:
                         # Start tracking.
                         t_scat[i_n] = t + t_relax
                         r_scat[i_n] = r[i_n].copy()
+    if tracking:
+        np.savez(os.path.join(out, 'tracking'), t=t_scats, r1=r_scats_1, r2=r_scats_2)

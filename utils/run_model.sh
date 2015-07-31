@@ -24,7 +24,7 @@ for n in 100 200 400; do
     out_path="${out_dir}/${out_name}"
 
     args="n=${n}, v=${v}, l=${l}, R=${R}, D=${D}, Dr=${Dr}, R_d=${R_d}, dim=${dim}, t_max=${t_max}, dt=${dt}, out='${out_path}', every=${every}, Dr_c=${Drc}"
-    cmd="import numpy,mindrop;mindrop.dropsim(${args})"
+    cmd="import numpy,model;model.dropsim(${args})"
 
     echo ${cmd}
     python -c "${cmd}" &
