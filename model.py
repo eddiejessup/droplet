@@ -1,8 +1,9 @@
 from __future__ import print_function, division
 import os
 import numpy as np
-from ciabatta import geom, vector, diffusion, fileio
-from mindrop import numerics
+from spatious import geom, vector
+from ciabatta import fileio
+from mindrop import numerics, diffusion
 
 
 def spherocylinder_distance(R, l, a):

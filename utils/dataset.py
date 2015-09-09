@@ -6,8 +6,8 @@ import numpy as np
 import scipy.stats as st
 from scipy.spatial.distance import pdist
 from scipy.optimize import curve_fit
-from ciabatta import vector
-from ciabatta.distance import pdist_angle
+from spatious import vector
+from spatious.distance import pdist_angle
 
 
 def f_peak_model(eta_0, R, k, gamma,
